@@ -3,7 +3,7 @@
 All notable changes to Starling are recorded here. Versions follow
 [semantic versioning](https://semver.org).
 
-## [Unreleased]
+## [0.21.0]
 
 - **Check in from the sharing notification (#35).** A new setting, off by
   default, adds a Check in button to the sharing notification. It asks for the
