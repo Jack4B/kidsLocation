@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ASK_WINDOW_MS, DUE_WARN_MS, DUE_WINDOW_MS, askFrom, dueFrom, storedTimer, warnDue } from "../app/js/checkin.js";
+import { ASK_WINDOW_MS, DUE_WARN_MS, DUE_WINDOW_MS, OK_WINDOW_MS, askFrom, dueFrom, okFrom, storedTimer, warnDue } from "../app/js/checkin.js";
 
 const NOW = 1_800_000_000_000;
 
@@ -94,4 +94,19 @@ test("askFrom keeps 8 lowercase hex and a time within 15 minutes of the message,
   }
   assert.equal(askFrom(null), null);
   assert.equal(askFrom({}), null);
+});
+
+test("okFrom keeps a finite stamp within 10 minutes of the message and drops anything else", () => {
+  assert.deepEqual(okFrom({ ts: NOW, ok: NOW }), { at: NOW });
+  assert.deepEqual(okFrom({ ts: NOW, ok: NOW - 60_000 }), { at: NOW - 60_000 });
+  assert.deepEqual(okFrom({ ts: NOW + OK_WINDOW_MS, ok: NOW }), { at: NOW }, "the window is inclusive");
+  assert.equal(okFrom({ ts: NOW + OK_WINDOW_MS + 1, ok: NOW }), null, "stale");
+  assert.equal(okFrom({ ts: NOW, ok: NOW + OK_WINDOW_MS + 1 }), null, "far future");
+  assert.equal(okFrom({ ts: NOW }), null, "missing");
+  for (const ok of [null, NaN, Infinity, -Infinity, String(NOW), [NOW], true, {}]) {
+    assert.equal(okFrom({ ts: NOW, ok }), null, `ok ${String(ok)}`);
+  }
+  for (const ts of [undefined, null, NaN, String(NOW)]) assert.equal(okFrom({ ts, ok: NOW }), null, `ts ${String(ts)}`);
+  assert.equal(okFrom(null), null);
+  assert.equal(okFrom({}), null);
 });

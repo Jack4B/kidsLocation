@@ -39,6 +39,10 @@ function startNativeWatch(n, onFix, onError, { onSignal, afterEach } = {}) {
       onSignal?.(p.tick === true ? { tick: true } : { paused: p.paused || null });
       return;
     }
+    if (p && p.checkin === true) {
+      onSignal?.({ checkin: true });
+      return;
+    }
     if (p && typeof p.still === "boolean") {
       onSignal?.({ still: p.still });
       return;

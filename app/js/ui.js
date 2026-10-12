@@ -2147,7 +2147,7 @@ export function openPasscodeSheet({ title, intro, cta, confirm = false, current 
   return ov;
 }
 
-export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoResume, shareClock, still, background, forward, lock, lockActions, onChange, onMembers, onInvite, onPlaces, onPanic, onLeave, onExport, onClose }) {
+export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoResume, shareClock, shareCheckin, still, background, forward, lock, lockActions, onChange, onMembers, onInvite, onPlaces, onPanic, onLeave, onExport, onClose }) {
   const ov = openOverlay({ title: "Settings", testid: "settings-sheet", className: "ov-settings", onClose });
   const b = ov.body;
 
@@ -2463,6 +2463,17 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
       onChange: (v) => onChange("shareClock", v),
     });
     row.dataset.testid = "settings-share-clock";
+    gShare.append(row);
+  }
+
+  if (shareCheckin) {
+    const row = switchRow({
+      label: "Check in from the sharing notification",
+      note: "Adds a Check in button to the sharing notification. A locked phone asks for the unlock first. It cannot cancel an SOS.",
+      value: shareCheckin.enabled,
+      onChange: (v) => onChange("shareCheckin", v),
+    });
+    row.dataset.testid = "settings-share-checkin";
     gShare.append(row);
   }
 

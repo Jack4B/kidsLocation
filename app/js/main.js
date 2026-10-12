@@ -108,7 +108,7 @@ import {
   zero,
 } from "./lock.js";
 import { createPlaceTracker, sanitizePlaces, newPlaceId, fenceSnap, announces, DEFAULT_RADIUS } from "./places.js";
-import { ASK_GAP_MS, ASK_WINDOW_MS, DUE_GRACE_MS, DUE_WARN_MS, overdue, storedTimer, warnDue } from "./checkin.js";
+import { ASK_GAP_MS, ASK_WINDOW_MS, DUE_GRACE_MS, DUE_WARN_MS, OK_WINDOW_MS, overdue, storedTimer, warnDue } from "./checkin.js";
 import { debugHooks, apiUrl, customRelayInUse, isWrapped, isBundled, native, pageShown, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
 import {
   isSealedRecordError,
@@ -370,6 +370,7 @@ let graceTimer = 0;
 const outbox = createOutbox({
   send: async (type) => {
     if (state.demo || !sender) throw new Error("no sender");
+    if (type === "checkin" && !liveOk()) stampOk();
     await sendMsg(type, { share: type !== "checkin" || checkinShares });
   },
   onSettle: (type, ok, _err, tries) => {
@@ -465,6 +466,9 @@ const askSentAt = new Map();
 let checkinShares = true;
 const asksHeard = new Map();
 const askHeardFrom = new Map();
+// The last deliberate check-in from this device, and the ones heard from others by sender and stamp.
+let okOut = null;
+const oksHeard = new Map();
 // The tracker key for this device's own position. Member ids are 32 hex chars,
 // so this can never collide with one.
 const SELF_KEY = "self";
@@ -3428,9 +3432,11 @@ function lockNow() {
   endGraceWatch();
   endTrimHold();
   askOut = null;
+  okOut = null;
   askSentAt.clear();
   asksHeard.clear();
   askHeardFrom.clear();
+  oksHeard.clear();
   poller?.stop();
   poller = null;
   sender?.cancel?.();
@@ -5100,6 +5106,14 @@ async function openSettings() {
       shareClock = null;
     }
   }
+  let shareCheckin = null;
+  if (typeof n?.setShareCheckin === "function" && !state.demo) {
+    try {
+      shareCheckin = { enabled: !!n.shareCheckin() };
+    } catch {
+      shareCheckin = null;
+    }
+  }
   let still = null;
   if (typeof n?.setStillMode === "function" && !state.demo) {
     try {
@@ -5152,6 +5166,7 @@ async function openSettings() {
       tor,
       keepSharing,
       shareClock,
+      shareCheckin,
       still,
       autoResume,
       background,
@@ -5252,6 +5267,12 @@ async function onSettingChange(key, value) {
     // The wrapper owns it, like keepSharing: nothing at rest here.
     try {
       native()?.setShareClock(!!value);
+    } catch {
+      ui.toast(t("Could not change that setting."), "warn");
+    }
+  } else if (key === "shareCheckin") {
+    try {
+      native()?.setShareCheckin(!!value);
     } catch {
       ui.toast(t("Could not change that setting."), "warn");
     }
@@ -6057,6 +6078,8 @@ function onShareSignal(sig) {
     // A minute with no fix: resend, as the page's own interval would, and no
     // sooner than that interval.
     if (state.sharing && (!lastSentPos || Date.now() - lastSentPos.at >= cadenceMs())) sendLoc(true);
+  } else if (sig.checkin) {
+    checkInFromNotification();
   } else if ("paused" in sig) {
     locationPaused = sig.paused || null;
     healthAt = 0;
@@ -6458,6 +6481,8 @@ async function sendMsg(type, { share = true } = {}) {
     fields.ask = ask.to;
     fields.ak = ask.at;
   }
+  const ok = liveOk();
+  if (ok) fields.ok = ok.at;
   if (share && state.me) {
     let { lat, lon } = state.me;
     // Privacy fences: inside a fenced place the circle sees the place's
@@ -6510,6 +6535,14 @@ function liveAsk(now = Date.now()) {
   return askOut && askOut.by === state.identity?.memberId && now - askOut.at < ASK_WINDOW_MS ? askOut : null;
 }
 
+function stampOk() {
+  if (state.identity) okOut = { at: Date.now(), by: state.identity.memberId };
+}
+
+function liveOk(now = Date.now()) {
+  return okOut && okOut.by === state.identity?.memberId && now - okOut.at < OK_WINDOW_MS ? okOut : null;
+}
+
 function memberName(id) {
   return members().find((r) => r.id === id)?.name || t("Member");
 }
@@ -6555,12 +6588,14 @@ async function doCheckin({ share = true } = {}) {
   if (state.demo) {
     ui.toast(okMsg);
     render();
-    return;
+    return "ok";
   }
   if (wasSos) applyCadence();
   if (timerDue()) clearCheckinTimer();
   // A phone that is not sharing has only an old fix, and a check-in would stamp it as new.
   checkinShares = share !== false && state.sharing;
+  let result = "ok";
+  stampOk();
   try {
     await sendMsg("checkin", { share: checkinShares });
     // Checking in safe cancels a queued SOS retry and is exactly the moment
@@ -6574,14 +6609,31 @@ async function doCheckin({ share = true } = {}) {
     // The circle still sees the SOS, so keep showing it here too.
     state.sosActive = wasSos;
     await noteSendFailure(e);
+    result = "failed";
     if (!state.clockError) {
       // A clock rejection retries forever pointlessly; anything else is
       // worth chasing from RAM until it lands.
       outbox.enqueue("checkin");
       ui.toast("Check-in not delivered yet. Starling keeps trying.", "warn");
+      result = "queued";
     }
   }
   render();
+  return result;
+}
+
+// The Check in button on the sharing notification: an SOS is only ever cancelled in the app.
+async function checkInFromNotification() {
+  const report = (result) => {
+    try {
+      native()?.shareCheckinResult?.(result);
+    } catch (e) {
+      window.__starlingErrors.push(`checkin result: ${String(e)}`);
+    }
+  };
+  if (!state.sharing || state.demo || state.locked) return report("failed");
+  if (state.sosActive) return report("sos");
+  report(await doCheckin({ share: true }));
 }
 
 async function fireSos() {
@@ -6998,6 +7050,7 @@ function checkAlerts() {
   const now = Date.now();
   checkOwnTimer(now);
   for (const [key, heard] of asksHeard) if (now - heard.at > 2 * ASK_WINDOW_MS) asksHeard.delete(key);
+  for (const [key, at] of oksHeard) if (now - at > 2 * OK_WINDOW_MS) oksHeard.delete(key);
   // Your own position feeds the tracker too, so the sheet can say where you
   // are. It never fires an announcement: you were there.
   if (state.me && Number.isFinite(state.me.lat)) {
@@ -7007,6 +7060,7 @@ function checkAlerts() {
     const st = displayStatus(rec, now);
     const prev = prevStatus.get(rec.id);
     const who = rec.name || t("A member");
+    let sosCleared = false;
     if (st === "sos" && prev !== "sos") {
       sosQuietTold.delete(rec.id);
       sosCardHidden.delete(rec.id);
@@ -7017,8 +7071,18 @@ function checkAlerts() {
       ui.toast(t("{who} checked in", { who }));
       cancelEventNotification(`sos-${rec.id}`);
       notifyEvent(t("{who} checked in", { who }), t("The SOS is cleared."), `sos-${rec.id}`, "checkin");
+      sosCleared = true;
     }
     prevStatus.set(rec.id, st);
+
+    const okKey = rec.ok && rec.id !== state.identity?.memberId ? `${rec.id}|${rec.ok.at}` : null;
+    if (okKey && st !== "sos" && now - rec.ok.at <= OK_WINDOW_MS && !oksHeard.has(okKey)) {
+      oksHeard.set(okKey, rec.ok.at);
+      if (!sosCleared) {
+        ui.toast(t("{who} checked in", { who }));
+        notifyEvent(t("{who} checked in", { who }), "", `ok-${rec.id}`, "checkin");
+      }
+    }
 
     const ask = askForMe(rec, now);
     if (ask && !asksHeard.has(`${rec.id}|${ask.at}`)) {

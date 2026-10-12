@@ -24,7 +24,7 @@ import { openMessage, sealMessage, buildPost } from "./crypto.js";
 import { admitPinned, keyChangeVerdict } from "./roster.js";
 import { EPOCH_MS, epochAt } from "./ratchet.js";
 import { apiUrl, isWrapped, pageShown } from "./env.js";
-import { askFrom, dueFrom, overdue } from "./checkin.js";
+import { askFrom, dueFrom, okFrom, overdue } from "./checkin.js";
 import { ACTIVITIES } from "./geo.js";
 
 const POLL_MS = 10000;
@@ -257,6 +257,7 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
         rec.type = typeof obj.t === "string" ? obj.t : "loc";
         rec.due = dueFrom(obj);
         rec.ask = askFrom(obj);
+        rec.ok = okFrom(obj);
         rec.act = actFrom(obj);
         if (typeof obj.name === "string") rec.name = obj.name.slice(0, 24);
         if (typeof obj.emoji === "string") rec.emoji = obj.emoji.slice(0, 8);

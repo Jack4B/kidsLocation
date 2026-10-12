@@ -140,6 +140,91 @@ async function readCredit(c) {
   );
 }
 
+// The sharing notification's Check in button: the wrapper pushes {"checkin":true}
+// through the same function that carries fixes and expects a result back.
+const CHECKIN_BRIDGE = `${BRIDGE_STUB.replace(/};$/, "")}
+  shareCheckin: () => !!window.__ci,
+  setShareCheckin: (on) => { window.__ci = !!on; (window.__ciSet ||= []).push(!!on); },
+  shareCheckinResult: (r) => (window.__ciResults ||= []).push(r),
+};
+{
+  const real = window.fetch.bind(window);
+  window.__posts = 0;
+  window.fetch = (input, init) => {
+    const url = String(input?.url || input).replace("https://starlingmap.app", location.origin);
+    if ((init?.method || "GET") === "POST" && url.includes("/api/v2/f/")) window.__posts++;
+    return real(url, init);
+  };
+}`;
+
+async function checkinScenario() {
+  const c = await newTab();
+  await c.send("Page.addScriptToEvaluateOnNewDocument", { source: CHECKIN_BRIDGE });
+  await c.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await c.send("Page.navigate", { url: BASE + "/" });
+  await waitFor(
+    () => c.evalJs("!!window.__starlingApi && !document.getElementById('screen-onboarding').hidden"),
+    "onboarding on screen",
+  );
+  await c.evalJs(`document.querySelector('[data-testid="onboarding-create"]').click()`);
+  await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="identity-sheet"]')`), "identity sheet");
+  await c.evalJs(`(() => {
+    const sheet = document.querySelector('[data-testid="identity-sheet"]');
+    [...sheet.querySelectorAll("input[type=text], input:not([type])")].forEach((el, i) => {
+      el.value = i === 0 ? "Probe" : "Probe circle";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  })()`);
+  await c.evalJs(`document.querySelector('[data-testid="identity-save"]').click()`);
+  await waitFor(() => c.evalJs("window.__starlingState && window.__starlingState().screen === 'map'"), "map after create");
+  await c.evalJs(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await sleep(500);
+
+  await c.evalJs(`document.querySelector('[data-testid="settings-open"]').click()`);
+  await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="settings-share-checkin"]')`), "the check-in row in Settings");
+  const row = await c.evalJs(`(() => {
+    const r = document.querySelector('[data-testid="settings-share-checkin"]');
+    const sw = r.querySelector('[role="switch"]');
+    const first = sw.getAttribute("aria-checked");
+    sw.click();
+    return { text: r.textContent, first, after: sw.getAttribute("aria-checked"), set: window.__ciSet };
+  })()`);
+  check(
+    "check-in: the Settings row says what it does",
+    row.text.includes("Check in from the sharing notification") && row.text.includes("It cannot cancel an SOS."),
+    row.text,
+  );
+  check("check-in: it starts off and a tap turns it on in the wrapper", row.first === "false" && row.after === "true" && JSON.stringify(row.set) === "[true]", JSON.stringify(row));
+  await c.evalJs(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+  await sleep(400);
+
+  await c.evalJs(`(() => {
+    setInterval(() => window.__starlingFix && window.__starlingFix(JSON.stringify({
+      lat: 45.06, lon: 13.23, ts: Date.now(), acc: 8,
+    })), 1000);
+    document.querySelector('[data-testid="share-toggle"]').click();
+  })()`);
+  await waitFor(() => c.evalJs("window.__starlingApi.state.sharing === true"), "sharing on");
+  await sleep(1500);
+
+  const before = await c.evalJs("window.__posts");
+  await c.evalJs(`window.__starlingFix('{"checkin":true}')`);
+  await waitFor(() => c.evalJs("(window.__ciResults || []).length >= 1"), "a result for the check-in");
+  const done = await c.evalJs(`({ results: window.__ciResults, posts: window.__posts, sos: window.__starlingApi.state.sosActive })`);
+  check("check-in: the notification button checks in and reports ok", JSON.stringify(done.results) === '["ok"]', JSON.stringify(done.results));
+  check("check-in: and a post went to the relay for it", done.posts > before, `${before} -> ${done.posts}`);
+
+  await c.evalJs(`window.__starlingInternals.fireSos()`);
+  await waitFor(() => c.evalJs("window.__starlingApi.state.sosActive === true"), "SOS active");
+  await c.evalJs(`window.__starlingFix('{"checkin":true}')`);
+  await waitFor(() => c.evalJs("(window.__ciResults || []).length >= 2"), "a result during the SOS");
+  const sos = await c.evalJs(`({ results: window.__ciResults, sos: window.__starlingApi.state.sosActive, errs: (window.__starlingErrors || []).slice(0, 5) })`);
+  check("check-in: during an SOS it reports sos", sos.results.at(-1) === "sos", JSON.stringify(sos.results));
+  check("check-in: and the SOS stays active", sos.sos === true);
+  check("check-in: console clean", sos.errs.length === 0, JSON.stringify(sos.errs));
+  c.close();
+}
+
 async function main() {
   const profile = mkdtempSync(path.join(tmpdir(), "starling-wrapper-e2e-"));
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
@@ -247,6 +332,8 @@ async function main() {
     check("es: the credit line is translated", esCredit.text === "Hecho por Munzzyy \u00b7 Código fuente", esCredit.text);
     check("es: console clean", esState.errs.length === 0, JSON.stringify(esState.errs));
     esTab.close();
+
+    await checkinScenario();
   } finally {
     chromium.kill();
     server.kill();

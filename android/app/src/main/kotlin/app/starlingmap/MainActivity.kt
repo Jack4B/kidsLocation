@@ -52,6 +52,7 @@ class MainActivity : FragmentActivity() {
         const val PREF_STOP_TS = "stop_ts"
         const val PREF_KEEP_SHARING = "keep_sharing"
         const val PREF_SHARE_CLOCK = "share_clock"
+        const val PREF_SHARE_CHECKIN = "share_checkin"
         // --bg of each theme in css/tokens.css.
         private const val BAR_LIGHT = 0xFFF4F6FB.toInt()
         private const val BAR_DARK = 0xFF0A0D14.toInt()

@@ -33,7 +33,7 @@ is as load bearing as the rest and should be read before the wire format.
 | `TRIM_HOLD_MS`        | 300000 (5 min)      | longest a device waits to read the relay backlog before trimming |
 | `HISTORY_EPOCHS`      | 6 (1 h), settable   | how many past epoch keys a device keeps          |
 | `PAD_LEN`             | 512                 | every plaintext padded to exactly this           |
-| `PAD_RESERVE`         | 48                  | bytes the largest message the app builds leaves free under `PAD_LEN` |
+| `PAD_RESERVE`         | 24                  | bytes the largest message the app builds leaves free under `PAD_LEN` |
 | `MEMBER_CAP`          | 16                  | member slots per channel                         |
 | `TTL_MS`              | 86400000 (24 h)     | relay retention                                  |
 | `INVITE_TTL_MS`       | 3600000 (1 h)       | how long an unaccepted invitation stays valid    |
@@ -320,6 +320,17 @@ who was asked; only the member asked is told. Eight characters keep the message
 small, and two members who share them would both be asked, about one chance in
 36 million for a full circle. Nothing is pushed: a phone hears an ask only while
 Starling is running on it. Older receivers ignore both fields.
+
+`ok` is there for 10 minutes after the sender checks in on purpose, in
+milliseconds since the Unix epoch. Every `loc`, `checkin`, `sos` and `bye`
+carries it until then, and the ones after that leave it out. Joining a circle
+and setting a timer send a `checkin` that is not a deliberate one, so they carry
+no new `ok`. A receiver keeps it from the newest message it accepted, treats a
+value that is not a finite number, or that is more than 10 minutes from that
+message's `ts`, as absent, and says "checked in" once per sender and `ok`, only
+while the value is no more than 10 minutes old by its own clock. A check-in that
+clears an SOS is announced as that and not twice. Older receivers ignore the
+field.
 
 On a circle channel `t` is one of `loc`, `checkin`, `sos`, `bye` or `rekey`. On
 an invite channel it is `join`, `ack`, `welcome` or `member`; a `member` record

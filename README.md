@@ -107,7 +107,8 @@ other members, not any history. Checking in safe switches it off.
 
 A check-in timer covers the walk home or the meeting with a stranger: pick 30
 minutes to 8 hours, and if you have not checked in by then your circle's phones
-say so, even if yours is off or gone.
+say so, even if yours is off or gone. On Android a button on the sharing
+notification can check in too, if you turn it on.
 
 Circles are app-only by design. The hosted website is a landing page plus that
 demo; it refuses to create or open circles, because a browser tab is the

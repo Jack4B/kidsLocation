@@ -12,6 +12,12 @@
     <string name="notif_text_forward">Envoi aussi à %1$s. Appuyez sur Arrêter pour y mettre fin.</string>
     <string name="notif_text">Appuyez sur Arrêter pour y mettre fin.</string>
     <string name="notif_stop">Arrêter</string>
+    <string name="notif_checkin">Rassurer</string>
+    <string name="notif_checkin_wait">Envoi en cours...</string>
+    <string name="notif_checkin_ok">Cercle rassuré à %1$s</string>
+    <string name="notif_checkin_queued">Message en attente. Starling continue d\'essayer.</string>
+    <string name="notif_checkin_sos">Ouvrez Starling pour annuler le SOS.</string>
+    <string name="notif_checkin_failed">Impossible de rassurer. Ouvrez Starling.</string>
     <string name="notif_swiped_title">Partage arrêté</string>
     <string name="notif_swiped_text">Starling a été fermée. Rouvrez-la pour continuer le partage.</string>
     <string name="notif_location_off">La localisation est désactivée sur ce téléphone. Activez-la pour continuer à partager.</string>

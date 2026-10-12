@@ -337,6 +337,15 @@ class StarlingBridge(private val app: Context) {
     @JavascriptInterface
     fun setShareClock(on: Boolean) = LocationService.showClock(app, on)
 
+    @JavascriptInterface
+    fun shareCheckin(): Boolean = LocationService.checkinShown(app)
+
+    @JavascriptInterface
+    fun setShareCheckin(on: Boolean) = LocationService.showCheckin(app, on)
+
+    @JavascriptInterface
+    fun shareCheckinResult(result: String) = LocationService.checkinResult(result)
+
     // {"boot":bool,"update":bool}, after dropping any switch that can no longer be honoured.
     @JavascriptInterface
     fun autoResume(): String = ShareResume.autoState(app)

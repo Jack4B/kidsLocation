@@ -389,7 +389,11 @@ than Cloudflare can run their own relay; see the FAQ and
     hand. Either way, ending a share by tapping Stop posts the same "Sharing
     stopped" notification that swiping the app away already posted, so a
     share someone else ended is not silently indistinguishable from one
-    still running.
+    still running. If you turn on "Check in from the sharing notification"
+    (off by default), the notification also carries a Check in button behind
+    the same unlock, and the private text then says when it last checked in;
+    anyone who can unlock the phone can still check in for you, but never
+    cancel an SOS, and the lock screen version never shows any of it.
 18. **Localization is young.** The app has a translation layer (gettext
     style: English source strings as keys, catalogs shipped with the app,
     nothing fetched) and ships Spanish, German, French and Brazilian

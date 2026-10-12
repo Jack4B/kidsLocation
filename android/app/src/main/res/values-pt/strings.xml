@@ -29,6 +29,12 @@
     <string name="notif_resumed_update_text">O Starling foi atualizado e o compartilhamento voltou sozinho.</string>
     <string name="notif_resume_orbot_text">O Orbot não conectou, então nada foi enviado. Toque para compartilhar de novo.</string>
     <string name="notif_stop">Parar</string>
+    <string name="notif_checkin">Avisar</string>
+    <string name="notif_checkin_wait">Avisando...</string>
+    <string name="notif_checkin_ok">Avisou às %1$s</string>
+    <string name="notif_checkin_queued">Aviso na fila. O Starling continua tentando.</string>
+    <string name="notif_checkin_sos">Abra o Starling para cancelar o SOS.</string>
+    <string name="notif_checkin_failed">Não foi possível avisar. Abra o Starling.</string>
     <string name="bio_wrap_title">Confirme para ativar o desbloqueio biométrico</string>
     <string name="bio_unwrap_title">Desbloquear o Starling</string>
     <string name="bio_cancel">Usar senha</string>

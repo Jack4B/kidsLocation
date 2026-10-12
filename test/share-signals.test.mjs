@@ -78,6 +78,21 @@ test("a tick and the location switch arrive as signals, not as fixes or errors",
   }
 });
 
+test("the notification's check-in request arrives as a signal, and only when it is exactly true", () => {
+  const { seen, push, stop } = watch();
+  try {
+    push({ checkin: true });
+    push({ checkin: "yes" });
+    push({ checkin: false });
+    assert.deepEqual(seen.signals, [{ checkin: true }]);
+    assert.equal(seen.fixes.length, 0);
+    assert.equal(seen.errors.length, 0);
+  } finally {
+    stop();
+    delete globalThis.StarlingNative;
+  }
+});
+
 test("a stop carries how it happened, and an unmarked one is the notification's", () => {
   const { seen, push, stop } = watch();
   try {

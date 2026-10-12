@@ -27,6 +27,8 @@ import android.os.Looper
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import android.text.format.DateFormat
+import java.util.Date
 import android.provider.Settings
 import androidx.core.app.ServiceCompat
 import android.Manifest
@@ -50,10 +52,13 @@ class LocationService : Service(), LocationListener {
         const val CHANNEL = "share"
         private const val NOTIF_ID = 1
         internal const val ACTION_STOP = "app.starlingmap.STOP_SHARE"
+        internal const val ACTION_CHECKIN = "app.starlingmap.CHECKIN_SHARE"
         private const val ACTION_TICK = "app.starlingmap.SHARE_TICK"
         private const val ACTION_REPOST = "app.starlingmap.REPOST_SHARE_NOTIFICATION"
         private const val ACTION_RESUME = "app.starlingmap.RESUME_SHARE"
         private const val EXTRA_WHY = "why"
+        private const val CHECKIN_WAIT_MS = 20000L
+        private const val CHECKIN_LINE_MS = 120000L
         // A phone lying still passes no distance filter, so without this the
         // page hears nothing and, with no window, its own send timer barely
         // runs: the share goes quiet and looks stopped to everyone watching.
@@ -190,6 +195,23 @@ class LocationService : Service(), LocationListener {
             refreshNotification()
         }
 
+        // Off unless the person turns it on: a check-in tells the circle they are fine.
+        fun checkinShown(ctx: Context): Boolean =
+            ctx.getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE).getBoolean(MainActivity.PREF_SHARE_CHECKIN, false)
+
+        fun showCheckin(ctx: Context, on: Boolean) {
+            ctx.getSharedPreferences(MainActivity.PREFS, MODE_PRIVATE).edit()
+                .putBoolean(MainActivity.PREF_SHARE_CHECKIN, on)
+                .apply()
+            refreshNotification()
+        }
+
+        // From the page, on the bridge thread.
+        fun checkinResult(result: String) {
+            val s = instance ?: return
+            ContextCompat.getMainExecutor(s).execute { s.showCheckinResult(result) }
+        }
+
         fun startResumed(ctx: Context, why: String) {
             ContextCompat.startForegroundService(
                 ctx,
@@ -282,6 +304,15 @@ class LocationService : Service(), LocationListener {
     private val probeHandler by lazy { Handler(Looper.getMainLooper()) }
     private val probeTimeout = Runnable { endProbe() }
 
+    private val lineHandler by lazy { Handler(Looper.getMainLooper()) }
+    private var checkinLine: String? = null
+    private var checkinWaiting = false
+    private val checkinTimeout = Runnable { showCheckinResult("failed") }
+    private val checkinLineGone = Runnable {
+        checkinLine = null
+        refreshNotification()
+    }
+
     // Same spelled-out form as the heartbeat; requestSingleUpdate calls all of these on API 28 and 29.
     private val probeListener = object : LocationListener {
         override fun onLocationChanged(location: Location) = probeDone(probeGen, location)
@@ -352,6 +383,15 @@ class LocationService : Service(), LocationListener {
                 }
             } else if (!running) {
                 // Started fresh by a swipe that raced the end of the share: leave no trace.
+                stopAsked = true
+                stopSelf(startId)
+            }
+            return START_NOT_STICKY
+        }
+        if (intent?.action == ACTION_CHECKIN) {
+            if (live) {
+                if (!checkinWaiting) beginCheckin()
+            } else if (!running) {
                 stopAsked = true
                 stopSelf(startId)
             }
@@ -580,6 +620,35 @@ class LocationService : Service(), LocationListener {
         }
     }
 
+    private fun beginCheckin() {
+        checkinWaiting = true
+        setCheckinLine(getString(R.string.notif_checkin_wait), 0L)
+        lineHandler.postDelayed(checkinTimeout, CHECKIN_WAIT_MS)
+        // A frozen page needs the wake lock to run its post, as for a tick.
+        holdAwake(this)
+        sink?.invoke(JSONObject().put("checkin", true).toString())
+    }
+
+    private fun showCheckinResult(result: String) {
+        if (!live) return
+        checkinWaiting = false
+        lineHandler.removeCallbacks(checkinTimeout)
+        val line = when (result) {
+            "ok" -> getString(R.string.notif_checkin_ok, DateFormat.getTimeFormat(this).format(Date()))
+            "queued" -> getString(R.string.notif_checkin_queued)
+            "sos" -> getString(R.string.notif_checkin_sos)
+            else -> getString(R.string.notif_checkin_failed)
+        }
+        setCheckinLine(line, CHECKIN_LINE_MS)
+    }
+
+    private fun setCheckinLine(line: String, goneAfterMs: Long) {
+        checkinLine = line
+        lineHandler.removeCallbacks(checkinLineGone)
+        if (goneAfterMs > 0L) lineHandler.postDelayed(checkinLineGone, goneAfterMs)
+        refreshNotification()
+    }
+
     private fun tickMs() = LocationPlan.tickMs(heartbeatMs, still.on, countingDown)
 
     private fun onTick() {
@@ -756,6 +825,8 @@ class LocationService : Service(), LocationListener {
         }
         disarmMotion()
         endProbe()
+        lineHandler.removeCallbacks(checkinTimeout)
+        lineHandler.removeCallbacks(checkinLineGone)
         if (stillSince > 0L) stillDone += SystemClock.elapsedRealtime() - stillSince
         stillSince = 0L
         stillNow = false
@@ -777,6 +848,28 @@ class LocationService : Service(), LocationListener {
             PendingIntent.FLAG_IMMUTABLE,
         )
         return Notification.Action.Builder(null, getString(R.string.notif_location_on), settings).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true)
+        }.build()
+    }
+
+    // Same unlock rules as Stop: a check-in tells the circle the person is fine.
+    private fun checkinAction(): Notification.Action {
+        val checkin = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.getService(
+                this,
+                5,
+                Intent(this, LocationService::class.java).setAction(ACTION_CHECKIN),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+        } else {
+            PendingIntent.getActivity(
+                this,
+                5,
+                Intent(this, CheckinActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+        }
+        return Notification.Action.Builder(null, getString(R.string.notif_checkin), checkin).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setAuthenticationRequired(true)
         }.build()
     }
@@ -823,7 +916,7 @@ class LocationService : Service(), LocationListener {
             "update" -> getString(R.string.notif_title_resumed_update)
             else -> getString(R.string.notif_title)
         }
-        val text = when {
+        val text = checkinLine ?: when {
             locationOff -> getString(R.string.notif_location_off)
             waitingForTor -> getString(R.string.notif_waiting_orbot)
             forwardHost != null -> getString(R.string.notif_text_forward, forwardHost)
@@ -838,6 +931,7 @@ class LocationService : Service(), LocationListener {
             .setOngoing(true)
             .setShowWhen(false)
             .build()
+        val checkin = if (checkinShown(this)) checkinAction() else null
         val clock = if (clockShown(this)) {
             ShareResume.clock(System.currentTimeMillis(), SystemClock.elapsedRealtime(), startedAt, ShareResume.deadline(this))
         } else {
@@ -855,6 +949,7 @@ class LocationService : Service(), LocationListener {
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(publicVersion)
             .addAction(stopAction)
+            .apply { if (checkin != null) addAction(checkin) }
             .apply { if (locationOff) addAction(locationOnAction()) }
             .apply {
                 if (clock != null) {

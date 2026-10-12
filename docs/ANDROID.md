@@ -318,6 +318,29 @@ a notification's full content on a locked phone unless the owner has turned
 on hiding sensitive content, so the lock screen would say how long a share
 has left. The generic version Android shows in that case never has a clock.
 
+### Check in from the sharing notification
+
+Settings, Sharing, "Check in from the sharing notification" (#35) is off by
+default. With it on, the sharing notification carries a Check in button after
+Stop. A check-in clears the check-in timer and tells the circle you are fine,
+so a locked phone in someone else's hand must not be able to send one. On
+Android 12 and up the button is marked `setAuthenticationRequired`, so a locked
+phone asks for the unlock first. Below 12 it opens `CheckinActivity`, built like
+`StopShareActivity`: no screen, not exported, never shown over the lock screen,
+its own task, and it only sends the service the check-in.
+
+The service does not check in itself. It pushes `{"checkin":true}` to the page,
+shows "Checking in..." in the private text and waits 20 seconds. The page does
+a normal check-in and answers through `shareCheckinResult`: ok shows "Checked
+in at" and the time, queued shows that Starling keeps trying, and failed, or no
+answer in 20 seconds (a frozen or gone page), shows "Could not check in. Open
+Starling." The line stays for 2 minutes and then the normal text comes back.
+The lock screen version never shows any of it. The button cannot cancel an SOS:
+with one active the page leaves it alone and the line says to open Starling.
+
+This has only been checked against source patterns, the page logic in tests and
+a headless browser with a faked bridge. It has not run on a real phone yet.
+
 ### A reminder when sharing stays off
 
 Settings, Sharing has "Remind me if sharing stays off" (#6): Never, 1 h, 4 h

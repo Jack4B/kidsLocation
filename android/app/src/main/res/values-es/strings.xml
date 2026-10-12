@@ -12,6 +12,12 @@
     <string name="notif_text_forward">También se envía a %1$s. Toca Detener para terminarlo.</string>
     <string name="notif_text">Toca Detener para terminarlo.</string>
     <string name="notif_stop">Detener</string>
+    <string name="notif_checkin">Avisar</string>
+    <string name="notif_checkin_wait">Avisando...</string>
+    <string name="notif_checkin_ok">Avisaste a las %1$s</string>
+    <string name="notif_checkin_queued">Aviso en cola. Starling sigue intentándolo.</string>
+    <string name="notif_checkin_sos">Abre Starling para cancelar el SOS.</string>
+    <string name="notif_checkin_failed">No se pudo avisar. Abre Starling.</string>
     <string name="notif_swiped_title">Dejaste de compartir</string>
     <string name="notif_swiped_text">Starling se cerró. Ábrela de nuevo para seguir compartiendo.</string>
     <string name="notif_location_off">La ubicación está desactivada en este teléfono. Actívala para seguir compartiendo.</string>

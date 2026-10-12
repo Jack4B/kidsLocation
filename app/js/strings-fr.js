@@ -764,6 +764,8 @@ export const fr = {
   "You already asked {who}": "Vous avez déjà demandé des nouvelles à {who}",
   "Show the time on the sharing notification": "Afficher le temps dans la notification de partage",
   "Time left on a timed share, or how long you have been sharing. Your lock screen shows it too, unless Android is set to hide sensitive notification content.": "Le temps restant d'un partage minuté, ou depuis combien de temps vous partagez. Votre écran de verrouillage l'affiche aussi, sauf si Android est réglé pour masquer le contenu sensible des notifications.",
+  "Check in from the sharing notification": "Rassurer depuis la notification de partage",
+  "Adds a Check in button to the sharing notification. A locked phone asks for the unlock first. It cannot cancel an SOS.": "Ajoute un bouton Rassurer à la notification de partage. Un téléphone verrouillé demande d'abord le déverrouillage. Il ne peut pas annuler un SOS.",
   "Open Battery Saver settings": "Ouvrir les réglages de l'économiseur de batterie",
   "Also after a restart": "Aussi après un redémarrage",
   "If the phone restarts while you are sharing, Starling starts sharing again by itself once the phone has been unlocked, without being opened.": "Si le téléphone redémarre pendant que vous partagez, Starling reprend le partage d'elle-même une fois le téléphone déverrouillé, sans être ouverte.",

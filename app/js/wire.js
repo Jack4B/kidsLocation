@@ -5,7 +5,7 @@
 
 export const PROTO = "starling/v2";
 export const PAD_LEN = 512;          // plaintext padded to exactly this
-export const PAD_RESERVE = 48;       // left free under PAD_LEN by the largest post the app builds
+export const PAD_RESERVE = 24;       // left free under PAD_LEN by the largest post the app builds
 export const MAX_BODY = 2048;        // relay rejects bigger POST bodies
 export const MEMBER_CAP = 16;        // member slots per channel
 export const TRAIL_CAP = 240;        // stored points per member

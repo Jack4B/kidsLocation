@@ -906,6 +906,26 @@ test("an ask to check in lands on the record, bounded, and goes when a post leav
   assert.equal(roster.get(alice.memberId).ask, null, "a post without it clears it");
 });
 
+test("a plain check-in lands on the record as ok, bounded, and goes when a post leaves it out", async () => {
+  const c = await circle();
+  const alice = await generateIdentity();
+  const t0 = rAt(RE0) + 1000;
+  const roster = rosterFor(c);
+  const post = async (ts, extra) => roster.ingest([await entryFor(c, alice, [{ e: RE0, msg: rLoc(ts, extra) }])], ts);
+
+  await post(t0, { ok: t0 });
+  assert.deepEqual(roster.get(alice.memberId).ok, { at: t0 });
+  await post(t0 + 1000, { ok: t0 });
+  assert.deepEqual(roster.get(alice.memberId).ok, { at: t0 }, "it rides every post while it lasts");
+  await post(t0 + 2000, { ok: "soon" });
+  assert.equal(roster.get(alice.memberId).ok, null, "a malformed stamp is dropped");
+  await post(t0 + 3000, { ok: t0 + 3000 - 11 * 60 * 1000 });
+  assert.equal(roster.get(alice.memberId).ok, null, "a stamp from too long before the post is dropped");
+  await post(t0 + 4000, { ok: t0 + 4000 });
+  await post(t0 + 5000);
+  assert.equal(roster.get(alice.memberId).ok, null, "a post without it clears it");
+});
+
 test("a post with no position leaves the position's own time alone", async () => {
   const c = await circle();
   const alice = await generateIdentity();

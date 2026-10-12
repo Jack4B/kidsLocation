@@ -5,6 +5,16 @@ All notable changes to Starling are recorded here. Versions follow
 
 ## [Unreleased]
 
+- **Check in from the sharing notification (#35).** A new setting, off by
+  default, adds a Check in button to the sharing notification. It asks for the
+  unlock on a locked phone, like Stop, and it cannot cancel an SOS. The
+  notification says "Checking in...", then when it worked, that it is queued, or
+  that it failed. The lock screen version shows none of it. It has not run on
+  a real phone yet.
+- **Your circle hears a plain check-in (#35).** A check-in used to raise
+  nothing for the others unless it cleared an SOS. Now a check-in that you
+  choose to make shows "checked in" on your circle's phones once, and a stale
+  one never does. Older versions ignore it.
 - **Your pin no longer bounces between fixes (#34).** The app used to move
   your position to every fix as it arrived, whatever its accuracy, so a vague
   network fix could knock the pin off a sharp GPS one and the next fix put it

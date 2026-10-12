@@ -27,6 +27,16 @@ export function askFrom(obj) {
   return Math.abs(at - obj.ts) <= ASK_WINDOW_MS ? { to, at } : null;
 }
 
+// A plain check-in rides the sender's posts this long, and a receiver drops it after that.
+export const OK_WINDOW_MS = 10 * 60 * 1000;
+
+// `ok` is when the sender last checked in, bounded against ts like ak.
+export function okFrom(obj) {
+  const at = obj?.ok;
+  if (typeof at !== "number" || !Number.isFinite(at) || !Number.isFinite(obj.ts)) return null;
+  return Math.abs(at - obj.ts) <= OK_WINDOW_MS ? { at } : null;
+}
+
 export function overdue(rec, now) {
   return !!rec?.due && now >= rec.due + DUE_GRACE_MS;
 }
