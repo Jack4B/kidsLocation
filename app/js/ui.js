@@ -173,6 +173,7 @@ export function holdToFire(button, { ms = 1200, onFire, onShortTap }) {
   let progress = 0;
 
   const setP = (p) => button.style.setProperty("--p", String(p));
+  button.dataset.hold = "";
 
   function cancel() {
     if (!armed) return;
@@ -3103,43 +3104,88 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     onSnap?.(snap);
   }
 
-  // Drag from the header zone only; buttons inside it still tap normally.
   let startY = 0;
   let startVisible = 0;
   let lastY = 0;
   let lastT = 0;
   let vel = 0;
-  let dragMoved = false;
+  // The press that might become a drag; null once it is one or is over.
+  let pend = null;
+  let dragId = null;
+  let swallow = false;
+  // A drag's own click follows its pointerup at once; a keyboard or screen reader click comes later and must pass.
+  let swallowUntil = 0;
 
   // Click (keyboard, screen reader double-tap, or a plain tap on the bar)
-  // toggles between peek and half; a click that was really the tail of a
-  // drag is ignored, the drag already picked its snap.
+  // toggles between peek and half.
   const grab = dragEl.querySelector(".grabber");
   grab?.addEventListener("click", () => {
-    if (dragMoved) {
-      dragMoved = false;
-      return;
-    }
     snap = snap === "peek" ? "half" : "peek";
     apply(true);
   });
 
-  dragEl.addEventListener("pointerdown", (e) => {
-    // Buttons in the header still tap normally; the grabber is a button too
-    // now (for keyboard and screen readers) but stays a drag handle.
-    if (e.target.closest("button:not(.grabber), input, a")) return;
+  // The click that trails a real drag must not reach the control it began on.
+  sheetEl.addEventListener(
+    "click",
+    (e) => {
+      if (performance.now() > swallowUntil) return;
+      swallowUntil = 0;
+      e.stopPropagation();
+      e.preventDefault();
+    },
+    true,
+  );
+
+  const NO_DRAG = "input, textarea, select, [contenteditable], [data-hold]";
+  const CONTROL = "button:not(.grabber), a, [role=button]";
+
+  function beginDrag(e, y) {
     dragging = true;
-    dragMoved = false;
-    dragEl.setPointerCapture(e.pointerId);
+    dragId = e.pointerId;
+    pend = null;
+    sheetEl.setPointerCapture(e.pointerId);
     sheetEl.classList.add("no-anim");
-    startY = lastY = e.clientY;
+    startY = lastY = y;
     lastT = performance.now();
     startVisible = H() - new DOMMatrixReadOnly(getComputedStyle(sheetEl).transform).f;
     vel = 0;
+  }
+
+  sheetEl.addEventListener("pointerdown", (e) => {
+    if (dragging) return;
+    swallow = false;
+    swallowUntil = 0;
+    pend = null;
+    if (e.target.closest(NO_DRAG)) return;
+    const inHead = dragEl.contains(e.target);
+    if (inHead && !e.target.closest(CONTROL)) {
+      beginDrag(e, e.clientY);
+      return;
+    }
+    if (!inHead) {
+      if (e.pointerType === "mouse" || snap === "peek" || !bodyEl.contains(e.target)) return;
+    }
+    pend = {
+      id: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+      pull: false,
+      decided: false,
+      top: inHead || snap !== "full" || bodyEl.scrollTop <= 0,
+      full: !inHead && snap === "full",
+    };
   });
-  dragEl.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    if (Math.abs(e.clientY - startY) > 6) dragMoved = true;
+  sheetEl.addEventListener("pointermove", (e) => {
+    if (pend && e.pointerId === pend.id) {
+      const dy = e.clientY - pend.y;
+      const dx = e.clientX - pend.x;
+      // At full the browser owns the scroll unless a pull from the top claimed it.
+      if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx) && (!pend.full || pend.pull)) {
+        beginDrag(e, e.clientY);
+      }
+    }
+    if (!dragging || e.pointerId !== dragId) return;
+    if (Math.abs(e.clientY - startY) > 6) swallow = true;
     const now = performance.now();
     if (now > lastT) vel = (e.clientY - lastY) / (now - lastT);
     lastY = e.clientY;
@@ -3147,9 +3193,40 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     const visible = Math.min(heightFor("full"), Math.max(120, startVisible + (startY - e.clientY)));
     sheetEl.style.transform = `translateY(${H() - visible}px)`;
   });
+  // A non-passive touchmove is the only way to stop the browser starting a
+  // pan on the first downward move of a list sitting at its top.
+  bodyEl.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!e.cancelable) return;
+      if (dragging) {
+        e.preventDefault();
+        return;
+      }
+      if (!pend || !pend.full) return;
+      if (pend.decided) {
+        if (pend.pull) e.preventDefault();
+        return;
+      }
+      const t = e.touches[0];
+      const dy = t.clientY - pend.y;
+      const dx = t.clientX - pend.x;
+      if (Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
+      pend.decided = true;
+      if (dy > 0 && dy > Math.abs(dx) && pend.top) {
+        pend.pull = true;
+        e.preventDefault();
+      }
+    },
+    { passive: false },
+  );
   function endDrag(e) {
-    if (!dragging) return;
+    if (pend && e.pointerId === pend.id) pend = null;
+    if (!dragging || e.pointerId !== dragId) return;
     dragging = false;
+    dragId = null;
+    swallowUntil = swallow ? performance.now() + 400 : 0;
+    swallow = false;
     sheetEl.classList.remove("no-anim");
     const visible = startVisible + (startY - e.clientY);
     const projected = visible - vel * 160;
@@ -3165,8 +3242,8 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     snap = best;
     apply(true);
   }
-  dragEl.addEventListener("pointerup", endDrag);
-  dragEl.addEventListener("pointercancel", endDrag);
+  sheetEl.addEventListener("pointerup", endDrag);
+  sheetEl.addEventListener("pointercancel", endDrag);
 
   window.addEventListener("resize", () => apply(false));
 

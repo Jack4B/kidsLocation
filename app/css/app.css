@@ -1166,6 +1166,11 @@ a.land-download {
   padding: 0 16px calc(var(--safe-bottom) + 16px);
   overflow-y: hidden;
   overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.sheet.sheet-full .sheet-body {
+  touch-action: pan-y;
 }
 
 /* --------------------------------------------------------------- avatars */
