@@ -17,6 +17,7 @@ const PRECACHE = [
   "/js/net.js",
   "/js/store.js",
   "/js/geo.js",
+  "/js/fixgate.js",
   "/js/fmt.js",
   "/js/demo.js",
   "/js/wire.js",

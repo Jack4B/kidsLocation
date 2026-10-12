@@ -147,6 +147,7 @@ import { buildDataExport } from "./export.js";
 import { startBeacon } from "./helpsession.js";
 import { startWatch, batteryLevel, activityFor, medianSpeed } from "./geo.js";
 import { haversineMeters, coarsePos, hueFromMemberId, fmtRelTime, fmtClock, resolveUnits, setUnits } from "./fmt.js";
+import { createFixGate } from "./fixgate.js";
 import { parseHealth, shareProblems, sentNote, noteAfter, sendErrorKind, shareReport } from "./sharehealth.js";
 import { VERSION } from "./version.js";
 import { createDemo, demoPlaces, DEMO_CENTER } from "./demo.js";
@@ -302,6 +303,7 @@ const circleCadenceS = () => (state.sosActive ? 15 : activeCadence());
 // Off while steady sending is on: slower posts while still are timing the relay can read.
 const stillAllowed = () => state.settings.stillSave === true && !state.settings.steady && !state.sosActive;
 const STILL_CADENCE_S = 300;
+const stillNow = () => state.sharing && phoneStill && stillAllowed();
 const cadenceS = () => (phoneStill && stillAllowed() ? STILL_CADENCE_S : circleCadenceS());
 const cadenceMs = () => cadenceS() * 1000;
 
@@ -438,6 +440,7 @@ let shareStats = { startedAt: 0, ok: 0, failed: 0, lastOkAt: 0, lastErr: "", las
 let locationPaused = null;
 // The share service's word that the phone is lying still.
 let phoneStill = false;
+const fixGate = createFixGate();
 // Fix speeds from the last minute, and the word they last added up to.
 let speedSamples = [];
 let ownAct = null;
@@ -2167,7 +2170,7 @@ function setupNet() {
     channelId: gen.channelId,
     roster,
     ratchet: gen.ratchet,
-    isStill: () => state.sharing && phoneStill && stillAllowed(),
+    isStill: stillNow,
     onChange: () => {
       checkAlerts();
       persistRatchet();
@@ -5486,6 +5489,7 @@ async function setSharing(on, { keepArmed = false } = {}) {
     state.geoDenied = false;
     state.geoFailed = false;
     shareStats = { startedAt: Date.now(), ok: 0, failed: 0, lastOkAt: 0, lastErr: "", lastErrAt: 0 };
+    fixGate.reset();
     sendWhenReady = false;
     locationPaused = null;
     phoneStill = false;
@@ -6202,6 +6206,7 @@ function buildShareReport() {
       lastOkAt: shareStats.lastOkAt,
       lastErr: shareStats.lastErr,
       lastErrAt: shareStats.lastErrAt,
+      fixes: fixGate.stats(),
       customRelay: !!state.relay,
       still: state.settings.stillSave !== true ? "off" : state.settings.steady ? "steady" : state.sosActive ? "sos" : "on",
     },
@@ -6221,7 +6226,8 @@ async function copyShareReport() {
 
 function onFix(fix) {
   const first = !state.me;
-  state.me = fix;
+  if (first) fixGate.reset();
+  state.me = fixGate.take(fix, Date.now(), { still: stillNow() }).fix;
   if (Number.isFinite(fix.spd)) {
     const now = Date.now();
     speedSamples = speedSamples.filter((s) => now - s.at <= ACT_WINDOW_MS);
@@ -6248,7 +6254,7 @@ function onFix(fix) {
   if (
     state.sharing &&
     !state.settings.steady &&
-    (!lastSentPos || haversineMeters(lastSentPos.lat, lastSentPos.lon, fix.lat, fix.lon) > 25)
+    (!lastSentPos || haversineMeters(lastSentPos.lat, lastSentPos.lon, state.me.lat, state.me.lon) > 25)
   ) {
     sendLoc();
   } else if (state.sharing && (!lastSentPos || Date.now() - lastSentPos.at >= cadenceMs())) {

@@ -151,7 +151,7 @@ test("the report carries versions, settings and counts", () => {
   const now = Date.UTC(2026, 8, 30, 14, 3);
   const text = shareReport({
     h: HEALTHY,
-    page: { version: "0.13.4", sharing: true, startedAt: now - 42 * 60000, ok: 170, failed: 2, lastOkAt: now - 12000, lastErr: "timeout", lastErrAt: now - 8 * 60000 },
+    page: { version: "0.13.4", sharing: true, startedAt: now - 42 * 60000, ok: 170, failed: 2, lastOkAt: now - 12000, lastErr: "timeout", lastErrAt: now - 8 * 60000, fixes: { adopted: 120, confirmed: 40, held: 7 } },
     now,
   });
   for (const want of [
@@ -169,6 +169,7 @@ test("the report carries versions, settings and counts", () => {
     "Standby bucket: active",
     "Fixes: 812 (GPS 700, network 112), last 4 s ago",
     "Page frozen during shares: 3 times, woken 3 times, last answered 4 s ago",
+    "Position fixes: 120 used, 40 confirmed the held spot, 7 set aside",
     "Posts this share: 170 sent, 2 failed",
     "Last sent: 12 s ago",
     "Last failure: timeout, 8 min ago",
@@ -253,4 +254,13 @@ test("the report says whether a share can come back by itself, in words from a f
   assert.ok(report({ headlessResumes: "40.78" }).includes("Shares that came back by itself since the app started: unknown, given up: 0"));
   const older = shareReport({ h: HEALTHY, page, now });
   assert.doesNotMatch(older, /by itself|all the time/, "a wrapper without the switches is not reported as unknown about them");
+});
+
+test("the report says unknown for position fix counts it was not given", () => {
+  const now = Date.now();
+  const none = shareReport({ h: null, page: { version: "0.20.2", sharing: true }, now });
+  assert.ok(none.includes("Position fixes: unknown used, unknown confirmed the held spot, unknown set aside"), none);
+  const part = shareReport({ h: null, page: { version: "0.20.2", fixes: { adopted: 3, confirmed: NaN } }, now });
+  assert.ok(part.includes("Position fixes: 3 used, unknown confirmed the held spot, unknown set aside"), part);
+  assert.ok(!part.includes("NaN"));
 });

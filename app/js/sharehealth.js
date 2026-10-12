@@ -163,6 +163,8 @@ export function shareReport({ h, page, now }) {
     if (h.holderFailed) lines.push("Could not hold the page after the app closed");
   }
   lines.push(`Posts this share: ${num(p.ok ?? 0)} sent, ${num(p.failed ?? 0)} failed`);
+  const f = p.fixes || {};
+  lines.push(`Position fixes: ${num(f.adopted)} used, ${num(f.confirmed)} confirmed the held spot, ${num(f.held)} set aside`);
   lines.push(`Last sent: ${p.lastOkAt ? age(now - p.lastOkAt) : "never"}`);
   if (p.lastErr) lines.push(`Last failure: ${failWord(p.lastErr)}, ${age(now - (p.lastErrAt || now))}`);
   return lines.join("\n");
