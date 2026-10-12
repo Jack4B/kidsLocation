@@ -3,6 +3,24 @@
 All notable changes to Starling are recorded here. Versions follow
 [semantic versioning](https://semver.org).
 
+## [Unreleased]
+
+- **Your pin no longer bounces between fixes (#34).** The app used to move
+  your position to every fix as it arrived, whatever its accuracy, so a vague
+  network fix could knock the pin off a sharp GPS one and the next fix put it
+  back. Now the sharper position holds. A vaguer fix that agrees with it only
+  confirms it, and one that disagrees moves the pin only after the sharp
+  source has been quiet for 20 seconds, never while the phone is in still
+  mode. A fix that is set aside no longer counts as movement, so it does not
+  post again either. The sharing report counts the fixes used, confirmed and
+  set aside.
+- **Drag the circle panel from anywhere on it (#33).** The header was nearly
+  all buttons, so there was almost nowhere to grip. A drag can now start on
+  any button and a plain tap still clicks. With the panel half open the list
+  area moves it; fully open, the list scrolls and a pull down from the top
+  of the list collapses the panel. The SOS button never starts a drag, so
+  holding it works exactly as before.
+
 ## [0.20.2]
 
 - **F-Droid can build Starling again.** The Argon2 module behind the app lock
