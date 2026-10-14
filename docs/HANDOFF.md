@@ -6,6 +6,35 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F1-8: własne APK z aktualizacjami
+
+Zrobiono:
+
+- `starling/android/app/build.gradle.kts`: `applicationId` = `app.kidslocation` (namespace
+  Kotlina bez zmian, żeby nie ruszać kodu), `versionCode` = 2100 * 1000 + `FAMILY_BUILD`
+  (numer przebiegu CI). Podbicie wersji w upstreamie podnosi część wysoką, więc numer
+  zawsze rośnie.
+- CI (`.github/workflows/aplikacja.yml`, zadanie `android`): jeśli istnieją sekrety
+  `ANDROID_KEYSTORE_B64` i `ANDROID_KEYSTORE_PASSWORD`, podpisuje APK (`apksigner`, alias
+  `rodzina`), wrzuca je jako artefakt, a na `main` tworzy wydanie `apk-<wersja>-<numer>`
+  (dla Obtainium). Bez sekretów wszystko działa jak dotąd, krok podpisu jest pomijany.
+- `.github/workflows/klucz-podpisu.yml`: jednorazowe, ręczne utworzenie klucza i hasła,
+  oddane jako prywatny artefakt na 1 dzień. Klucz nie trafia do repo ani do rozmowy.
+- `docs/PODPIS-APK.md`: kroki dla właściciela i Obtainium.
+
+Sprawdzono: składnia YAML obu workflow (parser). Budowy Androida lokalnie nie ma (brak
+SDK w kontenerze), więc pierwszym sprawdzeniem jest CI na tym PR.
+
+Nie zrobiono (osobne zadania): linki zaproszeń i App Links nadal wskazują
+`starlingmap.app` (`AndroidManifest.xml` linia 69, `relay/src/index.js` linia 374 ma
+`package_name` `app.starlingmap`); to F1-7. Nazwa aplikacji na ekranie nadal „Starling”
+(F2-6). iOS bez zmian (D3 otwarta).
+
+Uwaga dla rodziny: to nowa aplikacja obok ewentualnie zainstalowanego Starlinga, krąg
+trzeba w niej założyć od nowa.
+
+---
+
 ## 2026-10-14, Claude, F0-4: kod aplikacji w tym repozytorium (D4 = B)
 
 Zrobiono:
