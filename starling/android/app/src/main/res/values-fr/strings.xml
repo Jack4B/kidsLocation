@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Starling</string>
+    <string name="app_name">Blisko</string>
     <string name="notif_channel">Partage de position</string>
     <string name="notif_events_channel">Alertes du cercle</string>
     <string name="notif_arrive_channel">Arrivées</string>
     <string name="notif_leave_channel">Départs</string>
     <string name="notif_checkin_channel">Nouvelles de sécurité</string>
     <string name="notif_sos_channel">Alertes d\'urgence</string>
-    <string name="notif_sos_text">Ouvrez Starling maintenant.</string>
+    <string name="notif_sos_text">Ouvrez Blisko maintenant.</string>
     <string name="notif_title">Partage avec votre cercle</string>
     <string name="notif_text_forward">Envoi aussi à %1$s. Appuyez sur Arrêter pour y mettre fin.</string>
     <string name="notif_text">Appuyez sur Arrêter pour y mettre fin.</string>
@@ -15,38 +15,38 @@
     <string name="notif_checkin">Rassurer</string>
     <string name="notif_checkin_wait">Envoi en cours...</string>
     <string name="notif_checkin_ok">Cercle rassuré à %1$s</string>
-    <string name="notif_checkin_queued">Message en attente. Starling continue d\'essayer.</string>
-    <string name="notif_checkin_sos">Ouvrez Starling pour annuler le SOS.</string>
-    <string name="notif_checkin_failed">Impossible de rassurer. Ouvrez Starling.</string>
+    <string name="notif_checkin_queued">Message en attente. Blisko continue d\'essayer.</string>
+    <string name="notif_checkin_sos">Ouvrez Blisko pour annuler le SOS.</string>
+    <string name="notif_checkin_failed">Impossible de rassurer. Ouvrez Blisko.</string>
     <string name="notif_swiped_title">Partage arrêté</string>
-    <string name="notif_swiped_text">Starling a été fermée. Rouvrez-la pour continuer le partage.</string>
+    <string name="notif_swiped_text">Blisko a été fermée. Rouvrez-la pour continuer le partage.</string>
     <string name="notif_location_off">La localisation est désactivée sur ce téléphone. Activez-la pour continuer à partager.</string>
-    <string name="notif_locked_text">Ouvrez Starling pour voir ce qui s\'est passé.</string>
+    <string name="notif_locked_text">Ouvrez Blisko pour voir ce qui s\'est passé.</string>
 
     <string name="notif_place_text">Une mise à jour de lieu</string>
     <string name="notif_remind_title">Le partage est coupé</string>
-    <string name="notif_remind_text">Ouvrez Starling pour partager à nouveau.</string>
+    <string name="notif_remind_text">Ouvrez Blisko pour partager à nouveau.</string>
     <string name="notif_resume_boot_text">Votre téléphone a redémarré. Appuyez pour partager à nouveau.</string>
-    <string name="notif_resume_update_text">Starling a été mise à jour. Appuyez pour partager à nouveau.</string>
+    <string name="notif_resume_update_text">Blisko a été mise à jour. Appuyez pour partager à nouveau.</string>
     <string name="notif_title_resumed_boot">Partage repris après un redémarrage</string>
     <string name="notif_title_resumed_update">Partage repris après une mise à jour</string>
     <string name="notif_waiting_orbot">En attente d\'Orbot. Rien n\'est envoyé tant que Tor n\'est pas connecté.</string>
     <string name="notif_resumed_title">Partage repris</string>
     <string name="notif_resumed_boot_text">Votre téléphone a redémarré, et le partage a repris tout seul.</string>
-    <string name="notif_resumed_update_text">Starling a été mise à jour, et le partage a repris tout seul.</string>
+    <string name="notif_resumed_update_text">Blisko a été mise à jour, et le partage a repris tout seul.</string>
     <string name="notif_resume_orbot_text">Orbot ne s\'est pas connecté, donc rien n\'a été envoyé. Appuyez pour partager à nouveau.</string>
     <string name="bio_wrap_title">Confirmez pour activer le déverrouillage biométrique</string>
-    <string name="bio_unwrap_title">Déverrouiller Starling</string>
+    <string name="bio_unwrap_title">Déverrouiller Blisko</string>
     <string name="bio_cancel">Utiliser le code d\'accès</string>
     <string name="panic_connect_title">Bouton de panique</string>
-    <string name="panic_connect_text">Autoriser %1$s à déclencher l\'effacement panique de Starling ? Un déclenchement efface le secret du cercle, votre identité et toute trace de Starling sur cet appareil, immédiatement et sans demander. Il n\'y a pas de retour en arrière.</string>
+    <string name="panic_connect_text">Autoriser %1$s à déclencher l\'effacement panique de Blisko ? Un déclenchement efface le secret du cercle, votre identité et toute trace de Blisko sur cet appareil, immédiatement et sans demander. Il n\'y a pas de retour en arrière.</string>
     <string name="panic_allow">Autoriser l\'effacement panique</string>
     <string name="panic_deny">Ne pas autoriser</string>
     <string name="panic_unknown_app">cette application</string>
     <string name="webview_title">Mettez à jour Android System WebView</string>
-    <string name="webview_too_old">Starling fonctionne dans Android System WebView et a besoin de la version %1$d ou plus récente. Ce téléphone a la version %2$d.\n\nMettez à jour Android System WebView (sur certains téléphones, il vient avec Chrome) depuis votre boutique d\'applications, ou installez la dernière mise à jour système de votre téléphone, puis rouvrez Starling.</string>
-    <string name="webview_missing">Starling fonctionne dans Android System WebView, et ce téléphone n\'en a pas qui fonctionne. Il est peut-être désactivé dans les paramètres d\'applications du téléphone, ou il a peut-être besoin d\'une mise à jour depuis votre boutique d\'applications.</string>
+    <string name="webview_too_old">Blisko fonctionne dans Android System WebView et a besoin de la version %1$d ou plus récente. Ce téléphone a la version %2$d.\n\nMettez à jour Android System WebView (sur certains téléphones, il vient avec Chrome) depuis votre boutique d\'applications, ou installez la dernière mise à jour système de votre téléphone, puis rouvrez Blisko.</string>
+    <string name="webview_missing">Blisko fonctionne dans Android System WebView, et ce téléphone n\'en a pas qui fonctionne. Il est peut-être désactivé dans les paramètres d\'applications du téléphone, ou il a peut-être besoin d\'une mise à jour depuis votre boutique d\'applications.</string>
     <string name="android9_title">Ce téléphone tourne sous Android 9</string>
-    <string name="android9_body">Les derniers correctifs de sécurité de Google pour Android 9 sont sortis en janvier 2022. Starling fonctionne ici, mais les failles d\'Android découvertes depuis restent ouvertes sur ce téléphone, et une application ou un site web malveillant pourrait en utiliser une pour suivre votre position.\n\nAndroid 9 ne peut pas non plus limiter la localisation à « seulement pendant l\'utilisation de l\'application », donc l\'autorisation vaut en permanence. Starling ne lit votre position que pendant que vous l\'utilisez ou partagez.\n\nSi vous le pouvez, utilisez un téléphone plus récent.</string>
+    <string name="android9_body">Les derniers correctifs de sécurité de Google pour Android 9 sont sortis en janvier 2022. Blisko fonctionne ici, mais les failles d\'Android découvertes depuis restent ouvertes sur ce téléphone, et une application ou un site web malveillant pourrait en utiliser une pour suivre votre position.\n\nAndroid 9 ne peut pas non plus limiter la localisation à « seulement pendant l\'utilisation de l\'application », donc l\'autorisation vaut en permanence. Blisko ne lit votre position que pendant que vous l\'utilisez ou partagez.\n\nSi vous le pouvez, utilisez un téléphone plus récent.</string>
     <string name="notif_location_on">Activer la localisation</string>
 </resources>
