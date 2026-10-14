@@ -1,0 +1,38 @@
+name: Utwórz klucz podpisu APK (jednorazowo)
+
+# Run once by hand. Creates the family signing keystore and a random password
+# and hands both over as a private artifact kept for one day. The owner copies
+# them into two repository secrets (see docs/PODPIS-APK.md), keeps a backup
+# copy somewhere safe and deletes the artifact. If the key is lost, phones
+# cannot update the app any more without reinstalling it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  keystore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Generate the keystore
+        run: |
+          umask 077
+          mkdir -p out
+          PW=$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-32)
+          keytool -genkeypair -keystore out/rodzina.jks -storetype PKCS12 \
+            -alias rodzina -keyalg RSA -keysize 4096 -validity 36500 \
+            -storepass "$PW" -keypass "$PW" -dname "CN=Rodzina" >/dev/null 2>&1
+          base64 -w0 out/rodzina.jks > out/ANDROID_KEYSTORE_B64.txt
+          printf '%s' "$PW" > out/ANDROID_KEYSTORE_PASSWORD.txt
+          keytool -list -keystore out/rodzina.jks -storepass "$PW" | grep -i fingerprint
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klucz-podpisu
+          path: out/
+          retention-days: 1
