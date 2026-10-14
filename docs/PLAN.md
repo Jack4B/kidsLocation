@@ -34,6 +34,7 @@ Zależy od F0-1 i D1.
 | F1-3 | Konfiguracja produkcyjna: `PUBLIC_ORIGIN`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, limity `RATE_POST_MIN` i `RATE_GET_MIN` | C | X | Opisane w `docs/` bez żadnych sekretów |
 | F1-4 | Test na dwóch telefonach z Androidem: utworzenie kręgu, zaproszenie, widoczność wzajemna, SOS, check-in, praca z wygaszonym ekranem | W | C | Lista wyników; pomiar zużycia baterii i opóźnień |
 | F1-5 | Jeśli port PHP: uruchomić zestaw testów relaya (`test/relay.test.mjs`) przeciw implementacji PHP | C | G | Te same przypadki przechodzą na obu implementacjach |
+| F1-8 | Własne APK: `applicationId` `app.kidslocation`, rosnący `versionCode` z numeru przebiegu CI, podpis kluczem rodziny w CI, wydania pod Obtainium (`docs/PODPIS-APK.md`) | C | G | Nowe APK z CI instaluje się na poprzednie jako aktualizacja. Stan: w toku 2026-10-14, czeka na klucz od właściciela |
 
 Uwagi: aplikacja przyjmuje wyłącznie adresy `https://` dla własnego relaya. Wszyscy
 członkowie kręgu muszą używać tego samego relaya. Zaproszenie wygenerowane na własnym
