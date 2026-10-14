@@ -48,6 +48,14 @@ Fakty z kodu forka (wersja 0.21.0):
 
 Rekomendacja robocza: C. Ostatecznie decyduje ADR z F3-0 po recenzji dwóch modeli.
 
+Szkic ADR (2026-10-14, `docs/adr/ADR-001-czat.md`, do recenzji): rekomenduje C, czyli teraz A
+bez zmian w kryptografii i relayu. Najważniejsze ustalenia: relay nie widzi typu wiadomości, więc
+osobny limit dla czatu po stronie relaya jest niemożliwy bez ujawnienia, kiedy rodzina pisze; na
+tekst zostaje 402 B (280 znaków tylko jako miękki limit, tekst z samymi polskimi literami mieści
+około 200 znaków); wiadomość wypada z relaya po około 12 minutach jazdy nadawcy albo po godzinie
+przy kadencji 15 s; nowy typ `t:"chat"` łamie regułę upstreamu „nowe funkcje jako pola" i wymaga
+zgody właściciela (pytania P1 do P8 w ADR).
+
 ## D3. iOS dla jednego członka rodziny
 
 Status: **otwarta**, zależy od F0-2.

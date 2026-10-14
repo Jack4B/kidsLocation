@@ -6,6 +6,22 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F3-0 (szkic ADR czatu)
+
+Zrobiono: szkic `docs/adr/ADR-001-czat.md` (status „proponowana") z pomiarami w
+`docs/adr/ADR-001-pomiary.md` i skryptami w `docs/adr/pomiary/`. Skrypty tylko importują
+`wire.js`, `crypto.js` i `ratchet.js` z lokalnego klonu forka; uruchomione ponownie dają ten sam
+wynik co zapisane pliki `wynik-measure*.txt`. Skrót w D2.
+
+Nie sprawdzono: kodu klientów 0.17.1 (wiedza o traktowaniu nieznanego typu pochodzi z
+`PROTOCOL.md` i `CHANGELOG`), równoległej wysyłki z dwóch kontekstów JS na Androidzie, rytmu
+postów na prawdziwym telefonie.
+
+Następny krok: recenzja Gemini i Groka, potem odpowiedzi właściciela na pytania P1 do P8 z ADR.
+Kod czatu (F3-1 i dalej) dopiero po zatwierdzeniu ADR i zdjęciu zakazu pisania kodu.
+
+---
+
 ## 2026-10-14, Claude, przekazanie do nowej sesji
 
 Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła

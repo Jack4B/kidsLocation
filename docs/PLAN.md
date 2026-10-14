@@ -62,7 +62,7 @@ Zależy od D2. Najpierw projekt, dopiero potem kod.
 
 | ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
 |---|---|---|---|---|
-| F3-0 | ADR: gdzie żyją wiadomości czatu i jak długo (D2). Wariant A: nowy typ `t:"chat"` w istniejącym strumieniu plus zmiana limitu wpisów. Wariant B: osobna linia lub kanał wyprowadzony z łańcucha kluczy (zmiana protokołu). | C | G i X | ADR w `docs/` z odpowiedzią na pytania z `docs/DECYZJE.md` (D2); właściciel zatwierdza |
+| F3-0 | ADR: gdzie żyją wiadomości czatu i jak długo (D2). Wariant A: nowy typ `t:"chat"` w istniejącym strumieniu plus zmiana limitu wpisów. Wariant B: osobna linia lub kanał wyprowadzony z łańcucha kluczy (zmiana protokołu). | C | G i X | ADR w `docs/` z odpowiedzią na pytania z `docs/DECYZJE.md` (D2); właściciel zatwierdza. Stan: szkic `docs/adr/ADR-001-czat.md`, czeka na recenzję G i X |
 | F3-1 | Odbiór: własny zbiór deduplikacji `(członek, epoka, czas)` jak dla wiadomości kontrolnych; nie mieszać z mechanizmem „najwyższy znak czasu" dla pozycji | C | G | Test: powtórzona wiadomość nie wyświetla się dwa razy; wiadomość z czasem starszym niż pozycja nie jest odrzucana |
 | F3-2 | Limity: 280 znaków i 512 B po zakodowaniu UTF-8; licznik w polu; obsługa polskich znaków | C | G | Test najdłuższej dopuszczalnej wiadomości w stylu istniejącego testu `PAD_RESERVE` |
 | F3-3 | Wysyłanie: wspólna kolejka z pozycjami, ścisły wzrost znaku czasu na członka (inaczej relay odpowie 409) | C | G | Test: wysłanie czatu w tej samej milisekundzie co pozycji nie psuje żadnej z nich |
