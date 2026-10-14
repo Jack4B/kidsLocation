@@ -1,10 +1,13 @@
 // Host-environment routing: relay normalization, API base selection, and the
-// wrappers' canonical invite origin. The Android wrapper is simulated by
+// wrappers' invite origin, which is the family relay built in at build time
+// (build-config.js) or, in a build without one, nothing until the user types one. The Android wrapper is simulated by
 // planting a fake StarlingNative bridge on globalThis; the iOS wrapper by a
 // location whose protocol is the starling: scheme.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeRelay, setApiBase, apiUrl, getApiBase, customRelayInUse, shareUrlBase, isWrapped, isIOSWrapped, isBundled, shareCapable, debugHooks } from "../app/js/env.js";
+import { readFileSync } from "node:fs";
+import { normalizeRelay, setApiBase, apiUrl, getApiBase, customRelayInUse, shareUrlBase, isWrapped, isIOSWrapped, isBundled, shareCapable, debugHooks, setDefaultRelay, getDefaultRelay, relayConfigured, helpUrlBase } from "../app/js/env.js";
+import { BUILD_RELAY } from "../app/js/build-config.js";
 const envExports = { shareCapable };
 
 function withBridge(bridge, fn) {
@@ -61,17 +64,73 @@ test("normalizeRelay rejects junk", () => {
   assert.equal(normalizeRelay(42), null);
 });
 
-test("api base is same-origin on the web and canonical in the wrapper", () => {
-  setApiBase(null);
-  assert.equal(getApiBase(), "");
-  assert.equal(apiUrl("/api/v1/health"), "/api/v1/health");
-  withBridge({}, () => {
+const FAMILY = "https://relay.family.example";
+
+// Every test that pins a built-in relay puts the shipped one back.
+function withDefaultRelay(value, fn) {
+  setDefaultRelay(value);
+  try {
+    return fn();
+  } finally {
+    setDefaultRelay(BUILD_RELAY);
     setApiBase(null);
-    assert.equal(getApiBase(), "https://starlingmap.app");
-    assert.equal(apiUrl("/api/v1/health"), "https://starlingmap.app/api/v1/health");
+  }
+}
+
+test("the committed build config names no relay at all", () => {
+  assert.equal(BUILD_RELAY, "");
+  assert.equal(getDefaultRelay(), "");
+  const src = readFileSync(new URL("../app/js/build-config.js", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /https?:\/\//, "the fallback must not carry any address");
+});
+
+test("api base is same-origin on the web and the built-in relay in the wrapper", () => {
+  withDefaultRelay(FAMILY, () => {
+    setApiBase(null);
+    assert.equal(getApiBase(), "");
+    assert.equal(apiUrl("/api/v1/health"), "/api/v1/health");
+    withBridge({}, () => {
+      setApiBase(null);
+      assert.equal(getApiBase(), FAMILY);
+      assert.equal(apiUrl("/api/v1/health"), `${FAMILY}/api/v1/health`);
+      assert.equal(relayConfigured(), true);
+    });
+    setApiBase(null);
+    assert.equal(getApiBase(), "");
   });
-  setApiBase(null);
-  assert.equal(getApiBase(), "");
+});
+
+test("a wrapper built without a relay talks to nobody until one is typed in", () => {
+  withDefaultRelay("", () => {
+    withBridge({}, () => {
+      setApiBase(null);
+      assert.equal(getApiBase(), "");
+      assert.equal(relayConfigured(), false);
+      assert.equal(customRelayInUse(), "");
+      assert.equal(shareUrlBase(), "", "no invite base to hand out");
+      setApiBase("https://relay.example.org");
+      assert.equal(relayConfigured(), true);
+      assert.equal(apiUrl("/api/v2/health"), "https://relay.example.org/api/v2/health");
+      assert.equal(customRelayInUse(), "https://relay.example.org", "invites carry the typed relay");
+      assert.equal(shareUrlBase(), "https://relay.example.org/");
+    });
+    // The web is same-origin and always has a relay: the page's own server.
+    setApiBase(null);
+    assert.equal(relayConfigured(), true);
+  });
+});
+
+test("a junk build value counts as no relay, never as a half address", () => {
+  for (const junk of ["http://relay.example.org", "relay.example.org", "https://u:p@x.example", "  "]) {
+    withDefaultRelay(junk, () => {
+      assert.equal(getDefaultRelay(), "");
+      withBridge({}, () => {
+        setApiBase(null);
+        assert.equal(relayConfigured(), false);
+      });
+    });
+  }
+  withDefaultRelay(`${FAMILY}/`, () => assert.equal(getDefaultRelay(), FAMILY));
 });
 
 test("a custom relay overrides the default on both hosts", () => {
@@ -88,23 +147,32 @@ test("a custom relay overrides the default on both hosts", () => {
 });
 
 test("customRelayInUse names a custom relay and nothing else", () => {
-  setApiBase(null);
-  assert.equal(customRelayInUse(), "", "same-origin web");
-  withBridge({}, () => {
+  withDefaultRelay(FAMILY, () => {
     setApiBase(null);
-    assert.equal(customRelayInUse(), "", "the wrapper's default relay");
-    setApiBase("https://starlingmap.app/");
-    assert.equal(customRelayInUse(), "", "the default relay typed in by hand");
-    setApiBase("https://relay.example.org/starling/");
-    assert.equal(customRelayInUse(), "https://relay.example.org/starling");
+    assert.equal(customRelayInUse(), "", "same-origin web");
+    withBridge({}, () => {
+      setApiBase(null);
+      assert.equal(customRelayInUse(), "", "the wrapper's built-in relay");
+      setApiBase(`${FAMILY}/`);
+      assert.equal(customRelayInUse(), "", "the built-in relay typed in by hand");
+      setApiBase("https://relay.example.org/starling/");
+      assert.equal(customRelayInUse(), "https://relay.example.org/starling");
+    });
   });
-  setApiBase(null);
 });
 
-test("shareUrlBase names the canonical origin only in the wrapper", () => {
-  withBridge({}, () => {
-    assert.equal(shareUrlBase(), "https://starlingmap.app/");
-    assert.equal(isWrapped(), true);
+test("shareUrlBase names the built-in relay's origin only in the wrapper", () => {
+  withDefaultRelay(FAMILY, () => {
+    withBridge({}, () => {
+      setApiBase(null);
+      assert.equal(shareUrlBase(), `${FAMILY}/`);
+      // The App Links host stays the link base even on another relay: the
+      // link carries that relay in its fragment and still opens the app.
+      setApiBase("https://relay.example.org");
+      assert.equal(shareUrlBase(), `${FAMILY}/`);
+      assert.equal(helpUrlBase(), "https://relay.example.org/help");
+      assert.equal(isWrapped(), true);
+    });
   });
   assert.equal(isWrapped(), false);
   const hadLocation = "location" in globalThis;
@@ -154,15 +222,17 @@ test("the iOS wrapper is bundled but never the bridge", () => {
   });
 });
 
-test("iOS wrapper routes api and invites to the canonical origin", () => {
-  withLocation(IOS_WRAP, () => {
+test("iOS wrapper routes api and invites to the built-in relay", () => {
+  withDefaultRelay(FAMILY, () => {
+    withLocation(IOS_WRAP, () => {
+      setApiBase(null);
+      assert.equal(getApiBase(), FAMILY);
+      assert.equal(apiUrl("/api/v1/health"), `${FAMILY}/api/v1/health`);
+      assert.equal(shareUrlBase(), `${FAMILY}/`);
+    });
     setApiBase(null);
-    assert.equal(getApiBase(), "https://starlingmap.app");
-    assert.equal(apiUrl("/api/v1/health"), "https://starlingmap.app/api/v1/health");
-    assert.equal(shareUrlBase(), "https://starlingmap.app/");
+    assert.equal(getApiBase(), "");
   });
-  setApiBase(null);
-  assert.equal(getApiBase(), "");
 });
 
 test("iOS wrapper opens the circle gate but never the debug surface", () => {

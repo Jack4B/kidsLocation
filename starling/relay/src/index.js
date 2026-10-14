@@ -361,7 +361,7 @@ async function handleGet(request, env, channel, url) {
 }
 
 // Digital Asset Links: proves to Android that the app and this origin belong
-// together, so starlingmap.app links open straight in the installed app.
+// together, so invite links on this origin open straight in the installed app.
 // Served by the worker because verification is strict about the exact path,
 // the content type, and following no redirects. The first fingerprint is the
 // developer upload key that signs sideloaded and F-Droid builds; the Play App
@@ -379,16 +379,88 @@ const ASSETLINKS = [
   },
 ];
 
+// A relay that serves another build of the app (its own package name, its
+// own signing key) names that build instead: ANDROID_PACKAGE plus
+// ANDROID_CERT_SHA256, one or more SHA-256 certificate fingerprints separated
+// by commas, with or without colons, any case. Neither set keeps the upstream
+// statement above. A half or malformed setting is null: a statement that
+// verifies nothing, or the wrong app, is worse than an error the operator sees.
+const PACKAGE_RE = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/;
+
+function certFingerprint(raw) {
+  const hex = raw.trim().replace(/:/g, "").toUpperCase();
+  if (!/^[0-9A-F]{64}$/.test(hex)) return null;
+  return hex.match(/../g).join(":");
+}
+
+function assetLinks(env) {
+  const pkg = String(env.ANDROID_PACKAGE ?? "").trim();
+  const certs = String(env.ANDROID_CERT_SHA256 ?? "").trim();
+  if (!pkg && !certs) return ASSETLINKS;
+  if (!PACKAGE_RE.test(pkg)) return null;
+  const fps = certs.split(",").filter((c) => c.trim()).map(certFingerprint);
+  if (!fps.length || fps.includes(null)) return null;
+  return [{ ...ASSETLINKS[0], target: { namespace: "android_app", package_name: pkg, sha256_cert_fingerprints: fps } }];
+}
+
+// A relay that is an app's link host (ANDROID_PACKAGE set) also answers the
+// bare origin, where an invite link lands when it opens in a browser instead
+// of the app: an unverified link, or a phone without the app. The invite
+// itself is in the fragment, which never reaches this server. Static text,
+// no script, nothing loaded from anywhere.
+const INVITE_PAGE = `<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Zaproszenie do rodzinnej mapy</title>
+<style>
+body { margin: 0; padding: 24px 16px; font: 17px/1.5 system-ui, sans-serif; background: #f4f6fb; color: #141a26; }
+main { max-width: 34rem; margin: 0 auto; }
+h1 { font-size: 1.4rem; line-height: 1.3; }
+@media (prefers-color-scheme: dark) { body { background: #0a0d14; color: #e8ecf4; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Zaproszenie do rodzinnej mapy</h1>
+<p>Ten link to zaproszenie do kręgu w rodzinnej aplikacji do udostępniania lokalizacji.</p>
+<p>Masz aplikację na Androidzie? Otwórz ten link na telefonie, a aplikacja otworzy się sama.</p>
+<p>Jeśli link otworzył się tutaj, w przeglądarce, skopiuj cały adres z paska przeglądarki, otwórz aplikację, wybierz dołączenie z zaproszeniem i wklej go. Możesz też poprosić osobę, która Cię zaprasza, o kod QR i zeskanować go w aplikacji.</p>
+<p>Klucz kręgu jest w części linku po znaku #. Przeglądarka nie wysyła tej części do serwera, więc ten serwer jej nie zna.</p>
+</main>
+</body>
+</html>
+`;
+
+const INVITE_PAGE_HEADERS = {
+  "content-type": "text/html; charset=utf-8",
+  "content-security-policy":
+    "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "no-referrer",
+  "cache-control": "max-age=3600",
+  "strict-transport-security": HEADERS["strict-transport-security"],
+};
+
 async function route(request, env) {
   const url = new URL(request.url);
   const p = url.pathname;
 
   if (p === "/.well-known/assetlinks.json") {
     if (request.method !== "GET") return err(405, "method not allowed");
-    return new Response(JSON.stringify(ASSETLINKS), {
+    const links = assetLinks(env);
+    if (!links) return err(500, "assetlinks misconfigured");
+    return new Response(JSON.stringify(links), {
       status: 200,
       headers: { ...HEADERS, "content-type": "application/json", "cache-control": "max-age=3600" },
     });
+  }
+
+  if (p === "/" && String(env.ANDROID_PACKAGE ?? "").trim()) {
+    if (request.method !== "GET") return err(405, "method not allowed");
+    return new Response(INVITE_PAGE, { status: 200, headers: INVITE_PAGE_HEADERS });
   }
 
   // v1 fails loudly rather than syncing into silence against a channel

@@ -3,10 +3,25 @@
 // own origin, so nothing here changes behavior. Inside a wrapper the app is
 // served from bundled assets (appassets.androidplatform.net on Android, the
 // starling: scheme on iOS), so API calls and invite links must name the
-// canonical origin instead; a custom relay points both at a self-hosted
-// instance.
+// family relay's origin instead; a custom relay points both at another one.
+//
+// The family relay's address is not in the source tree. The build writes it
+// into build-config.js (the Android build from the RELAY_URL value, see
+// android/app/build.gradle.kts and tools/gen-build-config.mjs); the committed
+// file names no relay, and a bundled app built from it asks for an address on
+// first run instead of calling anybody's server.
+import { BUILD_RELAY } from "./build-config.js";
 
-const CANONICAL = "https://starlingmap.app";
+let defaultRelay = "";
+
+// The relay a bundled app uses when nobody typed another one. Set once from
+// the build config at load; exported so tests can pin either shape.
+export function setDefaultRelay(value) {
+  defaultRelay = normalizeRelay(value) ?? "";
+  apiBase = null;
+}
+
+export const getDefaultRelay = () => defaultRelay;
 
 export const isWrapped = () => !!globalThis.StarlingNative;
 export const native = () => globalThis.StarlingNative ?? null;
@@ -48,7 +63,7 @@ const DEV_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
 // THE gate, and the only one. Everything above this line is context; this is
 // the single switch that decides whether a browser tab may hold a circle
-// secret at all. It stays false for starlingmap.app.
+// secret at all. It stays false for any hosted site.
 //
 // A self-hoster who accepts the browser-tab tradeoff above flips this
 // constant to true in their own deployment and rebuilds. Nothing else in the
@@ -95,11 +110,16 @@ export function shareCapable() {
   return isDevServer();
 }
 
-// Base for invite links: the canonical origin when served from bundled
-// assets (those origins mean nothing outside this device), the page's own
-// origin on the web.
+// Base for invite links: when served from bundled assets (those origins mean
+// nothing outside this device) the family relay's origin, which is also the
+// App Links host the Android build claims, so a tapped link opens the app.
+// Without a built-in relay, the relay this run uses. The page's own origin on
+// the web.
 export function shareUrlBase() {
-  if (isBundled()) return `${CANONICAL}/`;
+  if (isBundled()) {
+    const base = defaultRelay || getApiBase();
+    return base ? `${base}/` : "";
+  }
   return `${globalThis.location.origin}${globalThis.location.pathname}`;
 }
 
@@ -153,7 +173,7 @@ let apiBase = null;
 
 export function setApiBase(customRelay) {
   const custom = normalizeRelay(customRelay);
-  apiBase = custom ?? (isBundled() ? CANONICAL : "");
+  apiBase = custom ?? (isBundled() ? defaultRelay : "");
 }
 
 export function apiUrl(path) {
@@ -171,16 +191,22 @@ export const getApiBase = () => {
 // request where the inviter is listening.
 export function customRelayInUse() {
   const base = getApiBase();
-  return base && base !== CANONICAL ? base : "";
+  return base && base !== defaultRelay ? base : "";
+}
+
+// False only in a bundled app that has no relay at all: built without one and
+// none typed in yet. Nothing can be created, joined or sent until there is.
+export function relayConfigured() {
+  return !isBundled() || getApiBase() !== "";
 }
 
 // Base for beacon (emergency help) links. The viewer page must poll the same
 // relay the beacon posts to, and the hosted site's CSP header pins
 // connect-src to its own origin (the wrappers' meta CSP allows https:, which
-// is what lets their fetches reach the canonical relay at all), so the link
-// names the relay's origin: the custom relay when one is set (self-hosters
-// serve app and relay from one origin), otherwise the canonical origin in
-// the wrapper or this page's origin on the web.
+// is what lets their fetches reach the relay at all), so the link names the
+// relay's origin: the relay this run uses when there is one (self-hosters
+// serve app and relay from one origin), otherwise this page's origin on the
+// web.
 // `/help`, not `/help.html`: the host serves the page there and answers the
 // .html spelling with a redirect. An emergency link should not spend a round
 // trip on a redirect, and should not be the thing that discovers a client
@@ -190,3 +216,5 @@ export function helpUrlBase() {
   if (base) return `${base}/help`;
   return `${globalThis.location.origin}/help`;
 }
+
+setDefaultRelay(BUILD_RELAY);

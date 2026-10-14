@@ -1,15 +1,18 @@
 // Starling service worker. App shell only; location data never touches a cache.
 
-const VERSION = "starling-v44";
+const VERSION = "starling-v48";
 
 const PRECACHE = [
   "/",
   "/index.html",
+  "/css/fonts.css",
   "/css/tokens.css",
   "/css/app.css",
+  "/css/chat.css",
   "/css/landing.css",
   "/js/main.js",
   "/js/env.js",
+  "/js/build-config.js",
   "/js/platform.js",
   "/js/circles.js",
   "/js/ui.js",
@@ -35,11 +38,15 @@ const PRECACHE = [
   "/js/argon2.wasm",
   "/js/atrest.js",
   "/js/places.js",
+  "/js/timeline.js",
   "/js/checkin.js",
   "/js/outbox.js",
+  "/js/chat.js",
+  "/js/chatview.js",
   "/js/export.js",
   "/js/sharehealth.js",
   "/js/i18n.js",
+  "/js/strings-pl.js",
   "/js/strings-es.js",
   "/js/strings-de.js",
   "/js/strings-fr.js",
@@ -47,6 +54,10 @@ const PRECACHE = [
   "/js/version.js",
   "/vendor/leaflet/leaflet.js",
   "/vendor/leaflet/leaflet.css",
+  "/vendor/fonts/figtree-latin-wght-normal.woff2",
+  "/vendor/fonts/figtree-latin-ext-wght-normal.woff2",
+  "/vendor/fonts/bricolage-grotesque-latin-wght-normal.woff2",
+  "/vendor/fonts/bricolage-grotesque-latin-ext-wght-normal.woff2",
   "/icons/starling.svg",
   "/icons/favicon.svg",
   "/icons/icon-192.png",

@@ -1,75 +1,148 @@
-/* Starling design tokens. Every color, radius, and duration in the app comes
-   from here. Dark is the primary theme; light is fully supported. */
+/* Design tokens. Every color, radius, font and duration in the app comes from
+   here. The palette is the one in docs/DESIGN.md (the approved mockups), with
+   the fixes from the 2026-10-14 mockup review: a darker light-theme warning,
+   and a separate --outline for control borders (3:1 against the surface)
+   while --line stays the quiet separator.
+
+   The theme follows the phone unless the person picked one in Settings:
+   main.js writes data-theme on <html> as soon as it boots, and until then the
+   media query below keeps the first paint in the system's scheme. */
 
 :root {
-  /* Brand: starling feather iridescence, teal into violet on night ink. */
-  --accent: #2dd4bf;
-  --accent-2: #8b5cf6;
-  --accent-grad: linear-gradient(135deg, #2dd4bf 0%, #60a5fa 55%, #8b5cf6 100%);
-  --accent-ink: #06211e;
-
-  --live: #34d399;
-  --warn: #fbbf24;
-  --sos: #f43f5e;
-  --stale: #94a3b8;
-
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter,
-    "Helvetica Neue", Arial, sans-serif;
+  --font: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-head: "Bricolage Grotesque", "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 
-  --r-sm: 10px;
+  --r-sm: 12px;
   --r-md: 16px;
-  --r-lg: 22px;
+  --r-lg: 20px;
+  --r-xl: 28px;
   --r-full: 999px;
+
+  /* The bottom navigation bar; the map, the sheet and the tab pages all
+     stop above it. */
+  --nav-h: 80px;
 
   --t-fast: 150ms cubic-bezier(0.3, 0.7, 0.4, 1);
   --t-med: 240ms cubic-bezier(0.3, 0.7, 0.4, 1);
-  --t-spring: 350ms cubic-bezier(0.34, 1.4, 0.64, 1);
-
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 16px rgba(0, 0, 0, 0.18);
-  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.32), 0 12px 40px rgba(0, 0, 0, 0.28);
+  --t-spring: 320ms cubic-bezier(0.3, 0.9, 0.4, 1);
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Person colors: the same in both themes, always with dark text on them,
+     and never the only thing that tells two people apart (the initial and the
+     name do that). Members get one of these from their hue. */
+  --person-ink: #14201c;
 }
+
+/* ------------------------------------------------------------ light theme */
 
 :root,
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0a0d14;
-  --bg-1: #101522;
-  --bg-2: #171e30;
-  --bg-3: #1f2840;
-  --glass: rgba(16, 21, 34, 0.82);
-  --glass-border: rgba(148, 163, 184, 0.14);
-  --ink: #e6ebf5;
-  --ink-2: #9aa7bd;
-  /* 4.5:1 or better on bg-1 and bg-2 (WCAG AA for small text) */
-  --ink-3: #8290a8;
-  --line: rgba(148, 163, 184, 0.12);
-  --map-filter: none;
-}
-
 :root[data-theme="light"] {
   color-scheme: light;
-  /* The dark theme's amber and rose fail contrast as TEXT on light
-     backgrounds; these darker variants hold 4.5:1 on bg-1/bg-2 and also
-     feed the tinted chips and borders, which just get a touch deeper. */
-  --warn: #a16207;
-  --sos: #be123c;
-  --bg: #f4f6fb;
-  --bg-1: #ffffff;
-  --bg-2: #eef1f8;
-  --bg-3: #e3e8f2;
-  --glass: rgba(255, 255, 255, 0.88);
-  --glass-border: rgba(15, 23, 42, 0.08);
-  --ink: #101522;
-  --ink-2: #4a5568;
-  /* 4.5:1 or better on bg-1 and bg-2 (WCAG AA for small text) */
-  --ink-3: #5c6779;
-  --line: rgba(15, 23, 42, 0.08);
-  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.08), 0 4px 16px rgba(15, 23, 42, 0.08);
-  --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.12), 0 12px 40px rgba(15, 23, 42, 0.12);
+  --bg: #f1f4f2;
+  --surface: #ffffff;
+  --surface-2: #e8edea;
+  --surface-3: #dce3df;
+  --ink: #14201c;
+  --ink-2: #4b5a54;
+  --line: #d3dbd7;
+  --outline: #8a9690;
+  --accent: #0b7a64;
+  --accent-ink: #ffffff;
+  --accent-soft: #d6efe8;
+  --sos: #c62b22;
+  --sos-ink: #ffffff;
+  --sos-soft: #fbe3e1;
+  --warn: #95500a;
+  --warn-soft: #fbeedb;
+
+  --m-land: #e9eee9;
+  --m-water: #bdd8e6;
+  --m-park: #cde5d2;
+  --m-label: #5b6b65;
+
+  --shadow-1: 0 1px 3px rgba(20, 32, 28, 0.14), 0 2px 8px rgba(20, 32, 28, 0.1);
+  --shadow-2: 0 -2px 12px rgba(20, 32, 28, 0.16);
+  --shadow-float: 0 2px 8px rgba(20, 32, 28, 0.25);
+  /* Floating controls over the map need no ring on light tiles. */
+  --float-ring: 0 0 0 1px rgba(20, 32, 28, 0.06);
+
+  /* Older names the rest of the stylesheet still speaks; each one is an
+     alias of a token above, so nothing paints a color of its own. */
+  --bg-1: var(--surface);
+  --bg-2: var(--surface-2);
+  --bg-3: var(--surface-3);
+  --glass: var(--surface);
+  --glass-border: var(--line);
+  --ink-3: var(--ink-2);
+  --live: var(--accent);
+  --stale: var(--ink-2);
+  --accent-2: var(--accent);
+  --accent-grad: linear-gradient(var(--accent), var(--accent));
+}
+
+/* ------------------------------------------------------------- dark theme */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #12141c;
+    --surface: #1c2030;
+    --surface-2: #272c41;
+    --surface-3: #30364c;
+    --ink: #eef1f6;
+    --ink-2: #a9b1c4;
+    --line: #30364c;
+    --outline: #666f8a;
+    --accent: #45d9b5;
+    --accent-ink: #06251d;
+    --accent-soft: #17372f;
+    --sos: #ff7a6e;
+    --sos-ink: #2a0705;
+    --sos-soft: #3a1c1c;
+    --warn: #f0b35a;
+    --warn-soft: #3a2c17;
+    --m-land: #1a1e2b;
+    --m-water: #17283a;
+    --m-park: #1b3027;
+    --m-label: #8c95ad;
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 -2px 12px rgba(0, 0, 0, 0.45);
+    --shadow-float: 0 2px 8px rgba(0, 0, 0, 0.5);
+    --float-ring: 0 0 0 1px var(--outline);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #12141c;
+  --surface: #1c2030;
+  --surface-2: #272c41;
+  --surface-3: #30364c;
+  --ink: #eef1f6;
+  --ink-2: #a9b1c4;
+  --line: #30364c;
+  --outline: #666f8a;
+  --accent: #45d9b5;
+  --accent-ink: #06251d;
+  --accent-soft: #17372f;
+  --sos: #ff7a6e;
+  --sos-ink: #2a0705;
+  --sos-soft: #3a1c1c;
+  --warn: #f0b35a;
+  --warn-soft: #3a2c17;
+  --m-land: #1a1e2b;
+  --m-water: #17283a;
+  --m-park: #1b3027;
+  --m-label: #8c95ad;
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 -2px 12px rgba(0, 0, 0, 0.45);
+  --shadow-float: 0 2px 8px rgba(0, 0, 0, 0.5);
+  /* The dark map and the dark surface sit at about 1:1, so every floating
+     control carries a ring in the outline color (review point 3). */
+  --float-ring: 0 0 0 1px var(--outline);
 }
 
 @media (prefers-reduced-motion: reduce) {

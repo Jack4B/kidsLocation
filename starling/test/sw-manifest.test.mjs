@@ -20,11 +20,12 @@ const manifestPath = path.join(APP, "manifest.webmanifest");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
 test("manifest has the required fields", () => {
-  assert.equal(manifest.name, "Starling");
-  assert.equal(manifest.short_name, "Starling");
+  // This build is branded Blisko; the code and protocol keep the Starling names.
+  assert.equal(manifest.name, "Blisko");
+  assert.equal(manifest.short_name, "Blisko");
   assert.equal(
     manifest.description,
-    "Starling's landing page and live demo. Location sharing itself lives in the Starling Android app."
+    "Blisko: prywatne udostępnianie lokalizacji w rodzinie. Działa w aplikacji na Androida."
   );
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
@@ -34,7 +35,7 @@ test("manifest has the required fields", () => {
   // apple-mobile-web-app-capable for those.
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.orientation, "portrait");
-  assert.equal(manifest.background_color, "#0a0d14");
+  assert.equal(manifest.background_color, "#EAF5F1");
   assert.equal(manifest.theme_color, "#0a0d14");
 });
 
@@ -77,6 +78,7 @@ const PRECACHE = [
   "/index.html",
   "/css/tokens.css",
   "/css/app.css",
+  "/css/chat.css",
   "/js/main.js",
   "/js/ui.js",
   "/js/map.js",
@@ -91,6 +93,7 @@ const PRECACHE = [
   "/js/qr.js",
   "/js/argon2.js",
   "/js/argon2.wasm",
+  "/js/strings-pl.js",
   "/js/strings-es.js",
   "/js/strings-de.js",
   "/js/strings-fr.js",

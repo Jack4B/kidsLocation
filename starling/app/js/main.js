@@ -109,7 +109,7 @@ import {
 } from "./lock.js";
 import { createPlaceTracker, sanitizePlaces, newPlaceId, fenceSnap, announces, DEFAULT_RADIUS } from "./places.js";
 import { ASK_GAP_MS, ASK_WINDOW_MS, DUE_GRACE_MS, DUE_WARN_MS, OK_WINDOW_MS, overdue, storedTimer, warnDue } from "./checkin.js";
-import { debugHooks, apiUrl, customRelayInUse, isWrapped, isBundled, native, pageShown, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
+import { debugHooks, apiUrl, customRelayInUse, getDefaultRelay, isWrapped, isBundled, isIOSWrapped, native, pageShown, relayConfigured, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
 import {
   isSealedRecordError,
   GEN_SLOT,
@@ -141,8 +141,11 @@ import {
 } from "./circles.js";
 import * as ui from "./ui.js";
 import { createMapView } from "./map.js";
+import { buildTimeline } from "./timeline.js";
 import { createPoller, createRoster, createSender, statusOf, displayStatus, sortMembers, staleAfter } from "./net.js";
 import { createOutbox } from "./outbox.js";
+import { createChatController, chatNotice } from "./chat.js";
+import { mountChat } from "./chatview.js";
 import { buildDataExport } from "./export.js";
 import { startBeacon } from "./helpsession.js";
 import { startWatch, batteryLevel, activityFor, medianSpeed } from "./geo.js";
@@ -210,8 +213,10 @@ const state = {
   settings: {
     precision: "precise",
     trail: true,
-    basemap: "dark",
-    theme: "dark",
+    // "auto" is the street map in the app's own light or dark look.
+    basemap: "auto",
+    // "auto" follows the phone's light or dark mode.
+    theme: "auto",
     wakeLock: false,
     history: "default", // an id from ratchet.js HISTORY_CHOICES
     steady: false, // post on a fixed cadence whether or not you have moved
@@ -219,11 +224,13 @@ const state = {
     stillDefault: 1, // 1 once the on-by-default change has been applied to this device's saved settings
     stillNoted: false, // the one-time note about what the slower timing shows the relay
     showActivity: false, // put still, walking, cycling or driving on your own posts
-    lang: "auto", // UI language; "auto" follows the system, English is the source
+    lang: "pl", // UI language; Polish whatever the phone is set to (i18n.js DEFAULT_LOCALE)
     placeAlerts: true, // say when a member arrives at or leaves a saved place
     batAlerts: true, // say when a member's battery runs low
     detailAlerts: false, // Android: one notification per place event, with name, place and time
     detailOnLock: false, // Android: let those words show on a locked screen too
+    chatPreview: false, // Android: also put a message's text in its notification (needs chatOnLock)
+    chatOnLock: false, // Android: name the sender in a notification, which a locked screen shows too
     shareReminder: 0, // ms after a stop you chose before the phone says sharing is off; 0 is never
     units: "auto", // "metric", "imperial", or the region in the phone's language
   },
@@ -390,6 +397,24 @@ const outbox = createOutbox({
     render();
   },
 });
+// Family chat (chat.js). Its own first-in-first-out line through the live
+// sender, never the outbox, whose one slot per type would let a second
+// message replace the first. The archive is loaded per circle by loadChat
+// and written under the same at-rest rule as places.
+const chat = createChatController({
+  send: async (fields) => {
+    if (state.demo || state.locked || !sender) throw new Error("no sender");
+    return sender.send(fields);
+  },
+  save: () => writeChatAtRest(),
+  onChange: () => chatChanged(),
+  onIncoming: (item) => onChatIncoming(item),
+});
+// The full-screen layer the chat opens in from the map sheet, and the view
+// mounted in it. Built on first open.
+let chatLayer = null;
+let chatView = null;
+const chatUnreadListeners = new Set();
 // The invite-channel loops: one on the inviting side watching for join
 // requests, one on the joining side waiting for a welcome. Both are plain stop
 // functions, and both are memory only.
@@ -422,6 +447,17 @@ let demoMembers = [];
 // persisted - the next demo starts off-grid again.
 let demoMapOn = false;
 let demoMapAsk = false;
+// The map opens on you once, at your first fix; after that, or once the
+// person moved the map themselves, it stays where they put it.
+let mapCentered = false;
+let mapHandled = false;
+// When this phone's own SOS went out, for the banner over the map.
+let sosSince = 0;
+// The bottom navigation: "map", or the tab whose page is open over it.
+let activeTab = "map";
+// Whether the place pick in progress started from the Places tab.
+let placesAsPage = false;
+let tabPage = null;
 let focusedId = null;
 let focusSaid = "";
 let focusByKeyboard = false;
@@ -526,17 +562,26 @@ function resolvedTheme() {
   const t = state.settings.theme;
   return t === "auto" ? (systemLight() ? "light" : "dark") : t;
 }
+// The saved basemap as Leaflet draws it: "auto" is the street map in the
+// look the app has right now.
+function basemapFor(pick = state.settings.basemap) {
+  return pick === "auto" ? resolvedTheme() : pick;
+}
 function applyTheme() {
   const t = resolvedTheme();
   document.documentElement.dataset.theme = t;
   // Match the browser chrome (status bar, address bar) to the active theme.
   const bar = document.querySelector('meta[name="theme-color"]');
-  if (bar) bar.setAttribute("content", t === "light" ? "#f4f6fb" : "#0a0d14");
+  if (bar) bar.setAttribute("content", t === "light" ? "#f1f4f2" : "#12141c");
   // The wrapper has no theme-color; its bar icons have to be told.
   try {
     native()?.setBarsLight?.(t === "light");
   } catch {
     // an older wrapper without the method
+  }
+  // A street map that follows the theme has to follow it now, not at the next launch.
+  if (mapView && state.settings.basemap === "auto" && !state.demo && !basemapHeld() && state.screen === "map") {
+    mapView.setBasemap(basemapFor());
   }
 }
 const onSchemeChange = () => {
@@ -554,6 +599,11 @@ function openMemberFromNotification() {
     // an older wrapper without the method
   }
   if (!id || state.locked || state.demo) return;
+  // A chat notification names the chat, not a member; member ids are hex.
+  if (id === "chat") {
+    openChat();
+    return;
+  }
   if (members().some((r) => r.id === id)) focusMember(id);
 }
 globalThis.__starlingOpenMember = openMemberFromNotification;
@@ -614,6 +664,7 @@ if (debugHooks()) window.__starlingState = () => {
 // Frames everyone with a position, you included: the same set renderMarkers draws.
 function fitEveryone({ animate = true } = {}) {
   if (!mapView) return false;
+  mapHandled = true;
   const pts = members().filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon));
   if (state.me && Number.isFinite(state.me.lat)) pts.push({ lat: state.me.lat, lon: state.me.lon });
   if (!pts.length) return false;
@@ -709,10 +760,11 @@ function ensureMapUI() {
   // path) must not touch the street basemap even for a frame: a saved
   // "dark" here would warm the tile host before startDemo forces "none".
   // Nor does a page that came back by itself with nobody looking.
-  mapView.setBasemap(state.demo || basemapHeld() ? "none" : state.settings.basemap);
+  mapView.setBasemap(state.demo || basemapHeld() ? "none" : basemapFor());
   // Places load before the map exists on a fresh launch (enterCircle runs
   // loadPlaces first); the freshly built map has to catch up on them.
   mapView.setPlaces(state.places);
+  openingView();
   sheet = ui.createSheet($("#sheet"), $("#sheet-drag"), $("#sheet-body"));
 
   byTestid("share-toggle").addEventListener("click", onShareToggle);
@@ -737,10 +789,18 @@ function ensureMapUI() {
     onShortTap: (atArmed) =>
       ui.toast(atArmed ? "Tap once more to send SOS" : "Press and hold to send SOS"),
   });
-  byTestid("settings-open").addEventListener("click", openSettings);
   byTestid("circle-open").addEventListener("click", openCircles);
   $("#fab-locate").addEventListener("click", locateMe);
   $("#fab-fit").addEventListener("click", () => fitEveryone());
+  $("#fab-style").addEventListener("click", openMapStyle);
+  $("#sos-cancel").addEventListener("click", () => doCheckin());
+  for (const tab of ["map", "chat", "places", "circle"]) {
+    byTestid(`tab-${tab}`).addEventListener("click", () => openTab(tab));
+  }
+  // A person who moves the map before the first fix has chosen where to look.
+  mapView.map.on?.("dragstart", () => {
+    mapHandled = true;
+  });
   $("#banner-demo-exit").addEventListener("click", exitDemo);
   $("#banner-demo-map").addEventListener("click", toggleDemoMap);
   $("#banner-demo-consent-go").addEventListener("click", loadDemoMap);
@@ -748,7 +808,7 @@ function ensureMapUI() {
   $("#nudge-invite").addEventListener("click", openInvite);
   $("#sos-help").addEventListener("click", openHelpLink);
   byTestid("members-open").addEventListener("click", openMembers);
-  byTestid("places-open").addEventListener("click", openPlaces);
+  byTestid("places-open").addEventListener("click", () => openTab("places"));
   byTestid("status-open").addEventListener("click", openStatus);
   $("#banner-keys-open").addEventListener("click", openMembers);
   $("#banner-pick-center").addEventListener("click", () => mapView.pickCenter());
@@ -779,7 +839,6 @@ function render() {
     placeOf: (id) => placeTracker.placeFor(id)?.name || null,
     sinceOf: (id) => placeTracker.arrivedAtFor(id),
   });
-  ui.updateAvaStrip($("#ava-strip"), list, { statusOf: displayStatus, now });
   renderMarkers(list, now);
   const quiet = quietMembers(list);
   ui.updateQuietList($("#quiet-list"), quiet, { onTap: () => openMembers() });
@@ -800,7 +859,13 @@ function quietMembers(list) {
 }
 
 function renderChrome() {
-  $("#pill-name").textContent = state.demo ? t("Demo circle") : ui.circleLabel(state.circleName);
+  const circleName = state.demo ? t("Demo circle") : ui.circleLabel(state.circleName);
+  $("#pill-name").textContent = circleName;
+  $("#sheet-title").textContent = circleName;
+  // You plus everyone this phone knows of, live or quiet.
+  const people = 1 + (state.demo ? demoMembers.length : new Set([...members().map((r) => r.id), ...quietMembers(members()).map((r) => r.id)]).size);
+  $("#pill-count").textContent = t(people === 1 ? "{n} person" : "{n} people", { n: people });
+  byTestid("circle-open")?.setAttribute?.("aria-label", t("Switch circle: {name}, {n} people", { name: circleName, n: people }));
   const dotState = state.demo ? "ok" : state.netStatus;
   const dot = $("#status-dot");
   dot.className = `status-dot dot-${dotState}`;
@@ -819,16 +884,19 @@ function renderChrome() {
       changed === 1 ? t("{who}'s keys changed", { who: displayName(first) }) : t("{n} members' keys changed", { n: changed });
   }
   $("#banner-insecure").hidden = !insecureContext;
+  // Your own SOS rides on top of the map, where nothing can cover it.
+  $("#banner-sos").hidden = !state.sosActive;
+  if (state.sosActive) {
+    $("#banner-sos-title").textContent = sosSince ? t("SOS active since {time}", { time: fmtClock(sosSince) }) : t("SOS is active");
+  }
+  $("#screen-map").classList?.toggle?.("sos-on", !!state.sosActive);
+  renderTabs();
   $("#banner-demo").hidden = !state.demo;
   $("#banner-demo-consent").hidden = !(state.demo && demoMapAsk);
   if (state.demo) $("#banner-demo-map").textContent = demoMapOn ? t("Off-grid") : t("Real map");
 }
 
 function renderYou() {
-  const p = state.profile || {};
-  $("#you-emoji").textContent = p.emoji || "\u{1F9ED}";
-  $("#you-name").textContent = p.name || t("You");
-  $("#you-ava").style.setProperty("--m-hue", String(myHue()));
   const hasFix = !!(state.me && Number.isFinite(state.me.lat));
   let sub;
   // Once the circle's screens show this phone as quiet, this one stops saying live.
@@ -888,9 +956,14 @@ function renderYou() {
     ? t("Sharing (pretend)")
     : state.sharing
       ? hasFix
-        ? t("Sharing live")
+        ? t("Sharing")
         : t("Locating...")
       : t("Start sharing");
+  // The chip is short; its spoken name says what a tap will do.
+  toggle.setAttribute(
+    "aria-label",
+    state.sharing ? t("You are sharing your location. Tap to stop.") : t("You are not sharing your location. Tap to start."),
+  );
   const win = $("#share-window");
   if (win) {
     win.hidden = !state.sharing || state.demo;
@@ -932,6 +1005,8 @@ function renderYou() {
   }
   $("#sos-notice").hidden = !state.sosActive;
   $("#sos-help").hidden = !(state.sosActive && beacon);
+  $("#sos-help-note").hidden = !(state.sosActive && beacon);
+  $("#sos-label").textContent = state.sosActive ? t("SOS sent") : t("Hold for SOS");
   const checkBtn = byTestid("checkin-button");
   checkBtn.setAttribute(
     "aria-label",
@@ -1136,7 +1211,7 @@ function alertItems() {
           ? t("Starling updated while you were sharing, and turned sharing back on without being opened, because Also after an update is on in Settings. If you did not turn that on, check who has access to this phone.")
           : t("Your phone restarted while you were sharing, and Starling turned sharing back on without being opened, because Also after a restart is on in Settings. If you did not turn that on, check who has access to this phone."),
       actions: [
-        { label: "Settings", testid: "alert-auto-resumed-settings", onClick: openSettings },
+        { label: "Settings", testid: "alert-auto-resumed-settings", onClick: () => openSettings() },
         {
           label: "Got it",
           testid: "alert-auto-resumed-ok",
@@ -1501,6 +1576,7 @@ function renderTools() {
   }
   const timerBtn = byTestid("timer-open");
   if (timerBtn) timerBtn.onclick = openCheckinTimer;
+  renderChatBadge();
   const placesSub = $("#places-tool-sub");
   if (placesSub) {
     const n = state.places.length;
@@ -1608,6 +1684,7 @@ function renderMarkers(list, now) {
       lat: rec.lat,
       lon: rec.lon,
       name: rec.name || t("Member"),
+      caption: ui.markerCaption(rec, now, displayStatus(rec, now), placeTracker.placeFor(rec.id)?.name || null),
       emoji: rec.emoji || "",
       hue: rec.hue ?? hueFromMemberId(rec.id),
       // map.js draws sos, live and stale; a missed check-in keeps its wire look there.
@@ -1623,6 +1700,7 @@ function renderMarkers(list, now) {
       lat: state.me.lat,
       lon: state.me.lon,
       name: t("You"),
+      caption: state.sosActive ? t("You, SOS") : t("You"),
       emoji: state.profile?.emoji || "\u{1F9ED}",
       hue: myHue(),
       status: state.sosActive ? "sos" : "live",
@@ -1636,6 +1714,12 @@ function renderMarkers(list, now) {
     if (!wanted.has(id)) mapView.removeMarker(id);
   }
   $("#fab-fit").hidden = wanted.size < 2;
+  // The map opens on you at street level as soon as there is a you to show,
+  // unless the person already moved it somewhere on purpose.
+  if (!mapCentered && !mapHandled && wanted.has("me")) {
+    mapCentered = true;
+    mapView.showAt(state.me.lat, state.me.lon);
+  }
   if (focusedId && focusTrailOn && state.settings.trail) {
     const rec = list.find((r) => r.id === focusedId);
     if (rec?.trail?.length > 1) {
@@ -1655,6 +1739,7 @@ function renderMarkers(list, now) {
 
 function renderFocus(list, now) {
   const card = $("#focus-card");
+  $("#screen-map").classList?.toggle?.("focusing", !!focusedId);
   if (!focusedId) {
     card.hidden = true;
     if (focusSaid) {
@@ -1690,6 +1775,171 @@ function renderFocus(list, now) {
     ask: askState(rec.id),
     askWho: liveAsk() ? memberName(liveAsk().id) : "",
     onAsk: () => askToCheckIn(rec.id),
+    trailAllowed: !!state.settings.trail,
+    // The recent history this phone holds for them, inside the window.
+    historyId: state.settings.history,
+    timeline: buildTimeline(rec.trail, {
+      now,
+      windowMs: historyEpochs() * EPOCH_MS,
+      places: state.demo ? demoPlaces() : state.places,
+    }),
+    // Napisz leads to the Chat tab, where the family chat will live.
+    onWrite: () => openTab("chat"),
+    verified: state.demo ? true : !!state.pinned.get(rec.id)?.verified,
+    keysChanged: state.keyChanges.has(rec.id),
+    onVerify: state.demo ? null : openMembers,
+  });
+}
+
+// ------------------------------------------------------------ opening view
+
+// Before this phone has a fix the map shows the saved places, where the
+// family lives, or else the whole country; it never shows the world. Your own
+// position is not stored anywhere, so there is no older one to start from.
+// The first fix replaces this with the street view on you (renderMarkers).
+function openingView() {
+  if (!mapView || state.demo) return;
+  if (state.me && Number.isFinite(state.me.lat)) {
+    mapCentered = true;
+    mapView.showAt(state.me.lat, state.me.lon);
+    return;
+  }
+  if (state.places.length) mapView.fitAll(state.places, { animate: false, maxZoom: 15 });
+}
+
+// ------------------------------------------------------------------- tabs
+
+// Map, Chat, Places, Circle. Every tab but Map is a page laid over the map
+// and under the navigation bar, so the map keeps running beneath it and
+// coming back to it is instant.
+function openTab(name) {
+  if (name === activeTab && tabPage) return;
+  if (name !== "map" && focusedId) unfocus();
+  closeTabPage();
+  ui.closeAllOverlays();
+  if (name === "map") {
+    activeTab = "map";
+    renderTabs();
+    return;
+  }
+  const done = () => {
+    if (tabPage === page) {
+      tabPage = null;
+      activeTab = "map";
+      renderTabs();
+    }
+  };
+  let page = null;
+  if (name === "chat") page = showChatLayer();
+  else if (name === "places") page = openPlaces({ page: true, onClosed: done });
+  else if (name === "circle") page = keepLive((closed) => ui.openCirclePage(circlePageApi((...a) => {
+    closed(...a);
+    done();
+  })));
+  if (!page) return;
+  tabPage = page;
+  activeTab = name;
+  renderTabs();
+}
+
+function closeTabPage() {
+  const page = tabPage;
+  tabPage = null;
+  activeTab = "map";
+  page?.close?.();
+}
+
+function renderTabs() {
+  for (const tab of ["map", "chat", "places", "circle"]) {
+    const b = byTestid(`tab-${tab}`);
+    if (!b) continue;
+    if (tab === activeTab) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+    b.classList?.toggle?.("on", tab === activeTab);
+  }
+  // A key change or a person nobody has checked shows on the Circle tab too:
+  // a mark and a word in its name, never the color alone.
+  const badge = $("#tab-circle-badge");
+  const changed = state.demo ? 0 : state.keyChanges.size;
+  badge.hidden = !changed;
+  badge.textContent = changed ? "!" : "";
+  byTestid("tab-circle")?.setAttribute?.("aria-label", changed ? t("Circle, keys changed") : t("Circle"));
+}
+
+// What the Circle page reads and what its rows do. Everything here is an
+// existing piece of the app; the page is a front for it, not a new feature.
+function circlePageApi(onClose) {
+  const historyLabel = () => {
+    const c = HISTORY_CHOICES.find((x) => x.id === state.settings.history) || HISTORY_CHOICES[1];
+    return c.label;
+  };
+  const people = () => {
+    const now = Date.now();
+    const live = sortMembers(members(), now).map((r) => ({
+      id: r.id,
+      name: r.name || t("Member"),
+      hue: r.hue ?? hueFromMemberId(r.id),
+      line: ui.personLine(r, now, displayStatus(r, now), placeTracker.placeFor(r.id)?.name || null),
+      verified: state.demo ? true : !!state.pinned.get(r.id)?.verified,
+      keysChanged: state.keyChanges.has(r.id),
+    }));
+    const quiet = quietMembers(members()).map((r) => ({
+      id: r.id,
+      name: r.name || t("Member"),
+      hue: r.hue,
+      line: t("No recent update"),
+      verified: !!state.pinned.get(r.id)?.verified,
+      keysChanged: false,
+    }));
+    return [...live, ...quiet];
+  };
+  return {
+    onClose,
+    read: () => ({
+      demo: !!state.demo,
+      hasCircle: !!state.gen,
+      sharing: !!state.sharing,
+      cadence: circleCadenceS(),
+      precision: activePrecision(),
+      people: people(),
+      lock: state.lock?.enabled ? (state.lock?.bio ? "bio" : "passcode") : "off",
+      history: historyLabel(),
+      server: isBundled() && state.relay ? hostOf(state.relay) : "",
+      net: state.demo ? "ok" : state.netStatus,
+      offline: !!state.offline,
+    }),
+    onShare: onShareToggle,
+    onPrecision: (v) => onSettingChange("precision", v),
+    onInvite: openInvite,
+    onPerson: (id) => {
+      if (state.demo) {
+        closeTabPage();
+        focusMember(id);
+        return;
+      }
+      openMembers();
+    },
+    onLock: () => openSettings("lock"),
+    onHistory: () => openSettings("keys"),
+    onServer: () => openSettings("advanced"),
+    onRekey: () => openSettings("rekey"),
+    onWipe: () => openSettings("panic"),
+    onSettings: () => openSettings(),
+  };
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return String(url);
+  }
+}
+
+function openMapStyle() {
+  ui.openMapStyleSheet({
+    value: state.settings.basemap,
+    onChange: (v) => onSettingChange("basemap", v),
   });
 }
 
@@ -1708,7 +1958,9 @@ function focusMember(id, { keyboard = false } = {}) {
   focusedId = id;
   focusByKeyboard = keyboard;
   focusTrailOn = state.settings.trail;
-  if (Number.isFinite(rec.lat)) mapView?.focusOn(rec.lat, rec.lon);
+  mapHandled = true;
+  // The person sheet covers the lower half; the person sits in the half above it.
+  if (Number.isFinite(rec.lat)) mapView?.focusOn(rec.lat, rec.lon, 16, Math.round(window.innerHeight * 0.3));
   render();
   if (keyboard) $("#focus-card").focus();
 }
@@ -1729,6 +1981,7 @@ function unfocus() {
 }
 
 function locateMe() {
+  mapHandled = true;
   if (state.me && Number.isFinite(state.me.lat)) {
     mapView.focusOn(state.me.lat, state.me.lon, 16, 0);
   } else {
@@ -1776,6 +2029,7 @@ async function enterCircle() {
   // the alert the teardown raised is already on screen.
   if (!state.gen) return;
   await loadPlaces();
+  await loadChat().catch((e) => window.__starlingErrors.push(`chat: ${String(e)}`));
   // A watch-only member is exactly who an SOS notification exists for, and
   // they may never touch the share toggle that used to be the only thing
   // that asked. Ask when a circle becomes real instead. Android silently
@@ -2026,7 +2280,11 @@ async function leaveDestroyedCircle(circles) {
   // device class the catch-up destruct exists for.
   //
   // So: erase first, and let the bookkeeping fail on its own if it must.
+  const gone = state.identity?.memberId;
   const res = await leaveActive(kv, lockCtx(), { circles, toIndex: 0 });
+  // The circle's chat goes with its keys. Bookkeeping like the mark below:
+  // the erase above already happened and this may not veto it.
+  await forgetChat(gone).catch(() => {});
   try {
     await dbSet(DESTROYED_KEY, 1);
   } catch {
@@ -2143,6 +2401,7 @@ function setupNet() {
     pinned: pinnedStore,
     onControl,
     onKeyChange,
+    onChat: (from, obj, e, ts) => chat.receive(from, obj, e, ts),
   });
   let lastTsCache = null;
   const seedLastTs = (v) => {
@@ -2893,6 +3152,219 @@ function addPlace(name, lat, lon) {
   return savePlaces();
 }
 
+// ------------------------------------------------------------------ chat
+
+// The chat archive follows the places rule: sealed under the vault key while
+// the lock is on, plaintext otherwise, exactly one form on disk. Every
+// circle's chat is one record keyed by this device's member id in that
+// circle. Nothing is written before the archive was read, or an empty
+// memory would overwrite what is on disk.
+async function writeChatAtRest() {
+  if (!chat.loaded()) return;
+  const form = atRestForm(lockCtx());
+  if (!form.ok) throw new Error("locked: refusing to write chat");
+  const archive = chat.archive();
+  if (form.sealed) {
+    await dbSet("vaultChat", await sealUnderVault(form.vaultKey, te.encode(JSON.stringify(archive))));
+    await dbDel("chat");
+  } else {
+    await dbSet("chat", JSON.parse(JSON.stringify(archive)));
+    await dbDel("vaultChat");
+  }
+}
+
+// The member ids this device still holds a circle under. A chat log for any
+// other id is a circle that is gone, possibly through a leave that crashed
+// before it got here.
+function chatCircleIds() {
+  return new Set([state.identity?.memberId, ...state.circles.map((c) => c.identity?.memberId)].filter(Boolean));
+}
+
+// Read the archive once per unlock, with the same residue sweep as places,
+// then point the controller at the active circle.
+async function loadChat() {
+  if (!state.identity) return;
+  if (chat.loaded()) {
+    chat.setCircle(state.identity.memberId);
+    return;
+  }
+  const form = atRestForm(lockCtx());
+  if (!form.ok) return;
+  let raw = null;
+  let reseal = false;
+  if (form.sealed) {
+    const blob = await dbGet("vaultChat");
+    if (blob) {
+      const bytes = await openUnderVault(form.vaultKey, blob);
+      if (bytes) {
+        try {
+          raw = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {
+          raw = null;
+        }
+      }
+    }
+    const stray = await dbGet("chat");
+    if (stray !== undefined && stray !== null) {
+      if (!raw) raw = stray;
+      reseal = true;
+    }
+  } else {
+    raw = await dbGet("chat");
+    if (await dbGet("vaultChat")) await dbDel("vaultChat");
+  }
+  chat.adopt(raw, chatCircleIds());
+  chat.setCircle(state.identity.memberId);
+  if (reseal) await writeChatAtRest();
+}
+
+// A circle left or erased takes its chat along; the last one takes the record.
+async function forgetChat(memberId) {
+  if (!memberId) return;
+  await chat.forget(memberId);
+  if (!Object.keys(chat.archive().circles).length) {
+    await dbDel("chat");
+    await dbDel("vaultChat");
+  }
+}
+
+const chatVisible = () => !!chatLayer && !chatLayer.hidden && pageShown();
+
+// A message from someone else just landed. On screen in the chat it is
+// simply read; elsewhere in the app a toast names who wrote; with the app in
+// the background (Android) a notification says only that a message came,
+// and names the sender (and carries the text) only when the person allowed
+// that on the lock screen; see chatNotice.
+function onChatIncoming(item) {
+  if (state.demo) return;
+  if (chatVisible()) return;
+  const name = displayName(item.from, t("Someone"));
+  if (pageShown()) {
+    ui.toast(t("New message from {name}", { name }));
+    return;
+  }
+  notifyChat(item, name);
+}
+
+function notifyChat(item, name) {
+  const n = native();
+  if (typeof n?.notifyDetail !== "function") return;
+  const note = chatNotice({
+    name,
+    text: item.x,
+    preview: state.settings.chatPreview === true,
+    onLock: state.settings.chatOnLock === true,
+    t,
+  });
+  try {
+    // One tag for all of chat: a new message replaces the last notice
+    // instead of stacking. The member slot names the chat, so a tap opens it.
+    n.notifyDetail(note.title, note.body, "chat", "chat", "chat", note.onLock);
+  } catch {
+    // an older wrapper without the method
+  }
+}
+
+function chatPlatform() {
+  if (isIOSWrapped() || native()?.platform?.() === "ios") return "ios";
+  return isWrapped() ? "android" : "web";
+}
+
+function chatDeps() {
+  return {
+    items: () => chat.items(),
+    nameOf: (id) => displayName(id, t("A member")),
+    people: () =>
+      [...state.pinned.keys()]
+        .filter((id) => id !== state.identity?.memberId)
+        .map((id) => ({ id, name: displayName(id, ""), hue: hueFromMemberId(id) })),
+    circleName: () => ui.circleLabel(state.circleName),
+    post: (text) => chat.post(text),
+    retry: (id) => chat.retry(id),
+    markRead: () => {
+      if (chatVisible()) chat.markRead();
+    },
+    isVisible: chatVisible,
+    available: () => {
+      if (state.demo) return { ok: false, why: t("Chat is off in the demo.") };
+      if (!state.gen || !state.identity) return { ok: false, why: t("Chat starts once you are in a circle.") };
+      return { ok: true };
+    },
+    lockOn: () => !!state.lock?.enabled,
+    platform: chatPlatform,
+    canNotify: () => typeof native()?.notifyDetail === "function",
+    settings: () => state.settings,
+    onSetting: (key, value) => onSettingChange(key, value),
+    onClose: closeChat,
+  };
+}
+
+// The Chat tab. Opened through openTab so the navigation bar shows it; a
+// chat notification lands here too.
+function openChat() {
+  openTab("chat");
+}
+
+function showChatLayer() {
+  if (state.locked) return null;
+  if (!chatLayer) {
+    chatLayer = document.createElement("section");
+    chatLayer.className = "cht-screen";
+    chatLayer.dataset.testid = "chat-screen";
+    chatLayer.setAttribute("role", "dialog");
+    chatLayer.setAttribute("aria-label", t("Chat"));
+    document.body.append(chatLayer);
+    chatView = mountChat(chatLayer, chatDeps());
+  }
+  ui.closeAllOverlays();
+  chatLayer.hidden = false;
+  chatView.scrollToEnd();
+  chatView.update();
+  chat.markRead();
+  renderChatBadge();
+  return { close: closeChat };
+}
+
+function closeChat() {
+  if (!chatLayer || chatLayer.hidden) return;
+  chatLayer.hidden = true;
+  renderChatBadge();
+  if (activeTab === "chat") {
+    tabPage = null;
+    activeTab = "map";
+    renderTabs();
+    byTestid("tab-chat")?.focus?.();
+  }
+}
+
+function chatChanged() {
+  if (chatView && chatLayer && !chatLayer.hidden) chatView.update();
+  renderChatBadge();
+  const n = chat.unread();
+  for (const fn of chatUnreadListeners) {
+    try {
+      fn(n);
+    } catch {
+      // a listener's own problem
+    }
+  }
+}
+
+// The unread count on the Chat tab: a number in the accent color (it is
+// news, not an alarm), and the same count in the tab's spoken name.
+function renderChatBadge() {
+  const badge = $("#tab-chat-badge");
+  const tab = byTestid("tab-chat");
+  if (!badge || !tab) return;
+  const n = state.demo ? 0 : chat.unread();
+  badge.hidden = !n;
+  badge.textContent = n > 99 ? "99+" : String(n);
+  tab.setAttribute?.(
+    "aria-label",
+    n ? `${t("Chat")}, ${t(n === 1 ? "{n} new message" : "{n} new messages", { n })}` : t("Chat"),
+  );
+}
+
 // The members this generation opened with, as written down with it, read out
 // of a record that may predate the field.
 function adoptGenRoster(meta) {
@@ -3074,6 +3546,9 @@ async function enableLock(passcode) {
     await writePlacesAtRest().catch((e) => {
       window.__starlingErrors.push(`places: ${String(e)}`);
     });
+    await writeChatAtRest().catch((e) => {
+      window.__starlingErrors.push(`chat: ${String(e)}`);
+    });
     return true;
   } finally {
     releaseCircleGuard();
@@ -3107,6 +3582,9 @@ async function disableLock(passcode) {
     // lock gone it could never be opened again anyway.
     await writePlacesAtRest().catch((e) => {
       window.__starlingErrors.push(`places: ${String(e)}`);
+    });
+    await writeChatAtRest().catch((e) => {
+      window.__starlingErrors.push(`chat: ${String(e)}`);
     });
     return true;
   } finally {
@@ -3426,6 +3904,10 @@ function lockNow() {
   // The retry line holds nothing across a lock: what a locked device must
   // not act on, it forgets.
   outbox.clear();
+  // Every decrypted message leaves memory and the screen; the archive on disk
+  // comes back at the next unlock.
+  closeChat();
+  chat.reset();
   // Before the pollers, for the same reason the vault key goes: a generation
   // being held open for a re-key race is chain keys, and a locked device holds
   // none.
@@ -3727,6 +4209,10 @@ async function saveProfile(p) {
 
 function promptCreate() {
   if (!shareCapable() || state.locked) return;
+  if (!relayConfigured()) {
+    promptStartRelay({ required: true, then: promptCreate });
+    return;
+  }
   ui.openIdentitySheet({
     title: state.gen ? "New circle" : "Create your circle",
     intro: "How you appear to the people you invite. This never leaves your circle.",
@@ -3848,6 +4334,12 @@ function promptJoin(invite) {
     showRelayMismatch(invite.relay);
     return;
   }
+  // A link that names no relay means the inviter's built-in one. A build
+  // without one has to be told where that is before it can ask anybody.
+  if (relayVerdict === "same" && !relayConfigured()) {
+    promptStartRelay({ required: true, then: () => promptJoin(invite) });
+    return;
+  }
   ui.openJoinSheet({
     profile: state.profile,
     hasCircle: !!state.gen,
@@ -3888,13 +4380,27 @@ async function saveStartRelay(value) {
     ui.toast("A relay must be an https URL, like https://relay.example.org", "warn");
     return false;
   }
+  if (!norm && noBuiltInRelay()) {
+    ui.toast("Enter your family relay's address.", "warn");
+    return false;
+  }
   await adoptRelay(norm || "");
   ui.toast(norm ? t("Starling will use {host}.", { host: new URL(norm).host }) : t("Starling will use the default relay."));
   return true;
 }
 
-function promptStartRelay() {
-  const ov = ui.openOverlay({ title: "Use your own relay", testid: "start-relay-sheet" });
+// A bundled app built without RELAY_URL has no relay to fall back on: empty
+// is not "the default" there, it is nowhere.
+const noBuiltInRelay = () => isBundled() && !getDefaultRelay();
+
+// `required`: this build has no relay and nothing works until it has one, so
+// the sheet says that instead of offering an optional extra. `then` runs once
+// a relay is saved, to carry on with whatever needed it.
+function promptStartRelay({ required = false, then = null } = {}) {
+  const ov = ui.openOverlay({
+    title: required ? "Connect to your family relay" : "Use your own relay",
+    testid: "start-relay-sheet",
+  });
   const field = ui.el("label", "field");
   field.append(ui.el("span", "field-label", "Relay"));
   const input = ui.el("input", "text-input");
@@ -3908,10 +4414,14 @@ function promptStartRelay() {
   save.type = "button";
   save.dataset.testid = "start-relay-save";
   save.addEventListener("click", async () => {
-    if (await saveStartRelay(input.value)) ov.close();
+    if (!(await saveStartRelay(input.value))) return;
+    ov.close();
+    if (then && relayConfigured()) then();
   });
   ov.body.append(
-    ui.el("p", "ov-note", "Only if you run a relay yourself. Everyone in your circle has to use the same one, and the invite links you send carry it."),
+    required
+      ? ui.el("p", "ov-note", "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.")
+      : ui.el("p", "ov-note", "Only if you run a relay yourself. Everyone in your circle has to use the same one, and the invite links you send carry it."),
     field,
     save,
   );
@@ -4943,6 +5453,8 @@ const leaveCircle = () =>
   withCircleGuard(async () => {
     if (!shareCapable() || state.demo || state.locked || !state.gen) return false;
     if (state.sharing) await awaitBye(await setSharing(false));
+    const leaving = state.identity?.memberId;
+    closeChat();
     teardownNet();
     stopJoinWatch();
     clearInterval(rekeyTimer);
@@ -4965,6 +5477,7 @@ const leaveCircle = () =>
       await enterCircle();
       throw e;
     }
+    await forgetChat(leaving).catch((e) => window.__starlingErrors.push(`chat: ${String(e)}`));
     if (res.active) {
       state.circles = res.circles;
       applyActive(res.active);
@@ -5031,8 +5544,8 @@ const inviteLink = () => (state.invite ? inviteLinkFor(state.invite) : "");
 
 function qrColors() {
   return resolvedTheme() === "light"
-    ? { dark: "#101522", light: "#ffffff" }
-    : { dark: "#0a0d14", light: "#ffffff" };
+    ? { dark: "#14201c", light: "#ffffff" }
+    : { dark: "#14201c", light: "#ffffff" };
 }
 
 // The screen that turns trust on first use into a checked identity. It is
@@ -5077,7 +5590,9 @@ async function openInvite() {
 
 // -------------------------------------------------------------- settings
 
-async function openSettings() {
+// `focus` opens Settings at one group: "lock", "keys", "rekey", "advanced" or "panic".
+async function openSettings(focus = null) {
+  if (typeof focus !== "string") focus = null;
   const bioOk = await bioAvailable();
   const n = native();
   let tor = null;
@@ -5196,9 +5711,10 @@ async function openSettings() {
         setDuress,
         clearDuress,
       },
+      focus,
       onChange: onSettingChange,
       onInvite: openInvite,
-      onPlaces: openPlaces,
+      onPlaces: () => openTab("places"),
       onPanic: panic,
       onLeave: leaveCircle,
       onExport: () => {
@@ -5237,6 +5753,10 @@ async function onSettingChange(key, value) {
     const norm = normalizeRelay(value);
     if (String(value).trim() && !norm) {
       ui.toast("A relay must be an https URL, like https://relay.example.org", "warn");
+      return;
+    }
+    if (!norm && noBuiltInRelay()) {
+      ui.toast("Enter your family relay's address.", "warn");
       return;
     }
     state.relay = norm || "";
@@ -5303,7 +5823,7 @@ async function onSettingChange(key, value) {
       // The demo runs its own basemap through the banner's consent flow;
       // the choice made here is saved and applied when the demo exits.
       if (state.demo) ui.toast(t("The demo has its own Real map button. Your choice here applies when you exit."));
-      else mapView.setBasemap(value);
+      else mapView.setBasemap(basemapFor(value));
     }
     if (key === "history") {
       state.gen?.ratchet.setHistoryEpochs(historyEpochs(value));
@@ -5333,6 +5853,8 @@ async function panic() {
   // Nothing may race the wipe: a queued retry firing between the store's
   // death and the reload would be this device's last word, sent by a ghost.
   outbox.clear();
+  chat.reset();
+  closeChat();
   sender?.cancel?.();
   // In the wrapper the bridge runs the same full wipe the PanicKit trigger
   // does: Keystore wrap key, notification channels, then the OS-level clear
@@ -5692,7 +6214,7 @@ function basemapHeld() {
 function releaseHeldBasemap() {
   if (!basemapHeld() || !pageShown()) return;
   shownSinceBoot = true;
-  if (mapView && !state.demo && state.gen) mapView.setBasemap(state.settings.basemap);
+  if (mapView && !state.demo && state.gen) mapView.setBasemap(basemapFor());
   render();
 }
 document.addEventListener("visibilitychange", releaseHeldBasemap);
@@ -6638,6 +7160,7 @@ async function checkInFromNotification() {
 
 async function fireSos() {
   navigator.vibrate?.([120, 60, 120]);
+  if (!state.sosActive) sosSince = Date.now();
   state.sosActive = true;
   // A queued check-in retry is from before this moment; the SOS overrides it.
   outbox.drop("checkin");
@@ -6955,18 +7478,51 @@ function openStatus() {
 
 // ---------------------------------------------------------------- places UI
 
-function openPlaces() {
+// `page` opens Places as the Places tab rather than a sheet over the map.
+function openPlaces({ page = false, onClosed = null } = {}) {
+  if (typeof page !== "boolean") page = false;
   if (state.demo) {
     // Editing the real list mid-demo would push it into the tracker that is
     // currently holding the demo's invented spots. One gate closes the race.
-    ui.toast("Exit the demo to edit your places.");
-    return;
+    // The tab still shows the demo's spots, read only.
+    if (!page) {
+      ui.toast("Exit the demo to edit your places.");
+      return null;
+    }
+    const nope = () => {
+      ui.toast("Exit the demo to edit your places.");
+      return false;
+    };
+    return keepLive((done) =>
+      ui.openPlacesSheet({
+        page: true,
+        readOnly: true,
+        api: { places: demoPlaces, here: whoIsAt },
+        onClose: () => {
+          done();
+          onClosed?.();
+        },
+        onAdd: nope,
+        onPick: nope,
+        onRename: nope,
+        onRadius: nope,
+        onFence: nope,
+        onAlerts: nope,
+        onRemove: nope,
+      }),
+    );
   }
   cancelPlacePick();
-  keepLive((done) =>
+  // A pick that ends reopens Places; inside the tab it reopens the tab.
+  placesAsPage = page;
+  return keepLive((done) =>
     ui.openPlacesSheet({
+      page,
       api: { places: () => state.places, here: whoIsAt },
-      onClose: done,
+      onClose: () => {
+        done();
+        onClosed?.();
+      },
       onAdd: async (name) => {
         if (!state.me || !Number.isFinite(state.me.lat)) {
           ui.toast("No position yet. Start sharing first, or pick the spot on the map.", "warn");
@@ -7027,8 +7583,14 @@ function startPlacePick(name) {
     if (state.locked || state.demo) return;
     await addPlace(name, lat, lon);
     ui.toast(t("{name} saved. Only this phone knows it exists.", { name }));
-    openPlaces();
+    reopenPlaces();
   });
+}
+
+// Back to Places the way the person left it: the tab, or the sheet.
+function reopenPlaces() {
+  if (placesAsPage) openTab("places");
+  else openPlaces();
 }
 
 function cancelPlacePick() {
@@ -7040,7 +7602,7 @@ function cancelPlacePick() {
 }
 
 function backOutOfPick() {
-  if (cancelPlacePick()) openPlaces();
+  if (cancelPlacePick()) reopenPlaces();
 }
 
 // Makes each detailed place notification its own id, even two in one tick.
@@ -7140,6 +7702,8 @@ function checkAlerts() {
             ev.type === "arrive" ? t("{who} arrived at {place}", { who, place: ev.placeName }) : t("{who} left {place}", { who, place: ev.placeName });
           ui.toast(msg);
           navigator.vibrate?.(80);
+          // The same moment as a line in the chat, on this phone only.
+          if (!state.demo) chat.system({ from: rec.id, ev: ev.type, place: ev.placeName });
           const wordy = state.settings.detailAlerts === true;
           notifyEvent(msg, wordy ? fmtClock(now) : "", `place-${rec.id}`, ev.type, {
             tag: `p${now.toString(36)}${(placeSeq++).toString(36)}`,
@@ -7199,7 +7763,8 @@ function startDemo() {
   mapView.setBasemap("none");
   mapView.setPlaces(demoPlaces());
   demo.start();
-  mapView.fitAll([DEMO_CENTER, ...demoMembers]);
+  mapCentered = true;
+  mapView.fitAll([DEMO_CENTER, ...demoMembers, ...demoPlaces()]);
   render();
 }
 
@@ -7233,6 +7798,9 @@ function cancelDemoMap() {
 function exitDemo() {
   demo?.stop();
   demo = null;
+  mapCentered = false;
+  mapHandled = false;
+  closeTabPage();
   state.demo = false;
   demoMapOn = false;
   demoMapAsk = false;
@@ -7247,7 +7815,7 @@ function exitDemo() {
   // The saved basemap comes back only when there is a circle to show. A
   // hosted-site visitor who never consented to tiles exits to onboarding,
   // and restoring the default street basemap here would fetch them anyway.
-  mapView.setBasemap(state.gen ? state.settings.basemap : "none");
+  mapView.setBasemap(state.gen ? basemapFor() : "none");
   // The real places come back exactly as stored; the demo's spots die here.
   placeTracker.setPlaces(state.places);
   mapView.setPlaces(state.places);
@@ -7396,6 +7964,7 @@ if (debugHooks()) window.__starlingInternals = {
   writeChainKey,
   joinWithInvite,
   promptJoin,
+  promptCreate,
   inviteLinkFor,
   adoptRelay,
   saveStartRelay,
@@ -7476,6 +8045,25 @@ if (debugHooks()) window.__starlingInternals = {
   },
   leaveCircle,
   enableLock,
+  openSettings,
+  openTab,
+  activeTab: () => activeTab,
+  openingView,
+  disableLock,
+  chat,
+  loadChat,
+  writeChatAtRest,
+  forgetChat,
+  openChat,
+  closeChat,
+  chatDeps,
+  notifyChat,
+  onChatIncoming,
+  // For the coming bottom navigation: the unread count, every time it changes.
+  onChatUnread: (fn) => {
+    chatUnreadListeners.add(fn);
+    return () => chatUnreadListeners.delete(fn);
+  },
 };
 
 // ----------------------------------------------------------------- boot
@@ -7493,6 +8081,7 @@ window.addEventListener("online", () => {
   // A working network just showed itself: anything still owed to the
   // circle goes now.
   outbox.flush();
+  chat.flush();
   render();
 });
 
@@ -7502,6 +8091,8 @@ window.addEventListener("online", () => {
 document.addEventListener("visibilitychange", () => {
   if (!pageShown() || state.locked) return;
   catchUp();
+  chat.purge();
+  chat.flush();
   healthAt = 0;
   if (!state.sharing && (state.stopRecord?.route === "system" || state.stopRecord?.route === "stalled")) {
     resumeShareIfArmed().catch((e) => window.__starlingErrors.push(`share resume: ${String(e)}`));
@@ -7532,6 +8123,10 @@ window.addEventListener("hashchange", () => {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (ui.closeTopOverlay()) return;
+  if (chatLayer && !chatLayer.hidden) {
+    closeChat();
+    return;
+  }
   if (pickName !== null) {
     backOutOfPick();
     return;
@@ -7609,7 +8204,7 @@ async function boot() {
     for (const n of document.querySelectorAll(".web-only")) n.remove();
     const about = document.getElementById("ob-about");
     if (about) about.hidden = false;
-    byTestid("onboarding-relay")?.addEventListener("click", promptStartRelay);
+    byTestid("onboarding-relay")?.addEventListener("click", () => promptStartRelay({ required: noBuiltInRelay() }));
   }
 
   byTestid("onboarding-demo").addEventListener("click", startDemo);
@@ -7850,6 +8445,8 @@ async function boot() {
     if (!state.locked) {
       if (params.get("demo") === "1") startDemo();
       else if (invite) promptJoin(invite);
+      // First run of a build with no relay in it: ask before anything else.
+      else if (!relayConfigured()) promptStartRelay({ required: true });
     }
   }
 

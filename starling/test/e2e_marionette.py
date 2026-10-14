@@ -297,8 +297,14 @@ def near(m, latlon, tol=0.001):
 
 
 def wait_overlay_gone(b):
-    wait_for(lambda: b.exec("return document.querySelector('.ov-wrap') === null"),
+    # Sheets and dialogs close themselves; a tab page (Places, Circle) under
+    # them stays until the Map tab is chosen, so go back to the map too.
+    wait_for(lambda: b.exec("return document.querySelector('.ov-wrap:not(.ov-page-wrap)') === null"),
              timeout=10, desc=f"{b.name} overlay closed")
+    b.exec("if (document.querySelector('.ov-page-wrap'))"
+           " document.querySelector('[data-testid=\"tab-map\"]').click(); return true;")
+    wait_for(lambda: b.exec("return document.querySelector('.ov-wrap') === null"),
+             timeout=10, desc=f"{b.name} back on the map")
 
 
 def sheet_to_peek(b):
@@ -311,6 +317,7 @@ def sheet_to_peek(b):
 
 
 def set_offgrid(b):
+    b.click('[data-testid="tab-circle"]')
     b.click('[data-testid="settings-open"]')
     wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
              timeout=10, desc=f"{b.name} settings sheet")
@@ -318,7 +325,7 @@ def set_offgrid(b):
         "var cells = document.querySelectorAll("
         "'[data-testid=\"settings-sheet\"] .seg-cell');"
         "for (var i = 0; i < cells.length; i++) {"
-        "  if (cells[i].textContent === 'Off-grid') { cells[i].click(); return true; }"
+        "  if (cells[i].textContent === 'Offline') { cells[i].click(); return true; }"
         "} return false;")
     if not ok:
         raise E2EError(f"{b.name}: Off-grid basemap cell not found")
@@ -384,6 +391,7 @@ def flow_a_create(a):
         raise E2EError(f"bad channel id: {channel}")
 
     # Off-grid basemap first (clean map shots), then the settings screenshot.
+    a.click('[data-testid="tab-circle"]')
     a.click('[data-testid="settings-open"]')
     wait_for(lambda: a.exec("return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
              timeout=10, desc="A settings sheet")
@@ -391,7 +399,7 @@ def flow_a_create(a):
         "var cells = document.querySelectorAll("
         "'[data-testid=\"settings-sheet\"] .seg-cell');"
         "for (var i = 0; i < cells.length; i++) {"
-        "  if (cells[i].textContent === 'Off-grid') { cells[i].click(); return true; }"
+        "  if (cells[i].textContent === 'Offline') { cells[i].click(); return true; }"
         "} return false;")
     if not ok:
         raise E2EError("A: Off-grid basemap cell not found")
@@ -620,9 +628,10 @@ def cross_visibility(a, b):
     if not blair:
         raise E2EError(f"A member card missing Blair: {cards}")
     # Auto units follow the browser's region, so an en-US Firefox prints miles.
-    m = re.search(r"(\d+(?:\.\d+)?)\s*(km|mi)\b", blair["sub"])
+    # The app speaks Polish, so the decimal separator is a comma.
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*(km|mi)\b", blair["sub"])
     lo, hi = (1.0, 1.4) if m and m.group(2) == "km" else (0.6, 0.9)
-    if not m or not (lo <= float(m.group(1)) <= hi):
+    if not m or not (lo <= float(m.group(1).replace(",", ".")) <= hi):
         raise E2EError(f"A card distance implausible (want ~1.2 km or ~0.75 mi): {blair['sub']!r}")
     log(f"A card: Blair / {blair['sub']!r}")
 
@@ -758,7 +767,7 @@ def flow_help_beacon(b):
         if not re.fullmatch(r"-?\d+\.\d{5}, -?\d+\.\d{5}", coords or "") or coords != want:
             raise E2EError(f"helper coordinates {coords!r}, the sharer is at {want!r}")
         expires = c.exec("return document.querySelector('#hv-expires').textContent")
-        if not (expires or "").startswith("Link works until"):
+        if not (expires or "").startswith("Link działa do"):
             raise E2EError(f"helper page does not say when the link ends: {expires!r}")
         maps = c.exec("return document.querySelector('#hv-maps').getAttribute('href')")
         if not (maps or "").startswith("https://www.openstreetmap.org/?mlat="):
@@ -770,9 +779,10 @@ def flow_help_beacon(b):
         catalogs = c.exec(
             "return performance.getEntriesByType('resource')"
             ".map(function (e) { return e.name; }).filter(function (n) { return /strings-/.test(n); })")
-        if catalogs:
-            raise E2EError(f"an English helper page fetched language catalogs: {catalogs}")
-        log("English helper page fetched no language catalog")
+        # The helper page speaks the app's language, Polish, and fetches that catalog only.
+        if [n.rsplit("/", 1)[-1] for n in catalogs] != ["strings-pl.js"]:
+            raise E2EError(f"the helper page fetched other language catalogs: {catalogs}")
+        log("helper page fetched the Polish catalog and no other")
 
         # The secret must not linger in the address bar or this browser's
         # history, where it would outlive the emergency and sync away.

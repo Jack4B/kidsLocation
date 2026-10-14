@@ -152,6 +152,10 @@ async function main() {
       RATE_GET_MIN: process.env.RATE_GET_MIN,
       ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
       TRIM_EVERY: process.env.TRIM_EVERY,
+      // The app build this relay is the link host for (assetlinks.json and
+      // the invite landing page). Unset keeps the upstream app's statement.
+      ANDROID_PACKAGE: process.env.ANDROID_PACKAGE,
+      ANDROID_CERT_SHA256: process.env.ANDROID_CERT_SHA256,
     },
   });
 

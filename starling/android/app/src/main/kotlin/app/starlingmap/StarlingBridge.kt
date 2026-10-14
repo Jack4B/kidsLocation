@@ -60,6 +60,8 @@ class StarlingBridge(private val app: Context) {
     // "Show names and places in notifications". Each tag is its own
     // notification, and a tap selects `member`. The lock screen keeps the
     // generic line unless `onLock` is true.
+    // Also a chat message (kind "chat", member "chat"): the sender's name, and
+    // the text only when the person switched message text on.
     @JavascriptInterface
     fun notifyDetail(title: String, body: String, tag: String, kind: String, member: String, onLock: Boolean) {
         Events.postDetail(app, title.take(80), body.take(160), tag.take(64), kind.take(16), member.take(64), onLock)

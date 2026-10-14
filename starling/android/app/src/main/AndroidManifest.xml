@@ -66,7 +66,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="starlingmap.app" />
+                <!-- The family relay's host, from RELAY_URL at build time (build.gradle.kts). -->
+                <data android:scheme="https" android:host="${relayHost}" />
             </intent-filter>
         </activity>
 

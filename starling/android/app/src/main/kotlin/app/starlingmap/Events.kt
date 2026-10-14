@@ -29,6 +29,7 @@ object Events {
         MainActivity.ARRIVE_CHANNEL to R.string.notif_arrive_channel,
         MainActivity.LEAVE_CHANNEL to R.string.notif_leave_channel,
         MainActivity.CHECKIN_CHANNEL to R.string.notif_checkin_channel,
+        MainActivity.CHAT_CHANNEL to R.string.notif_chat_channel,
     )
 
     // Never the SOS channel: only post(urgent = true) reaches that one.
@@ -36,6 +37,7 @@ object Events {
         "arrive" -> MainActivity.ARRIVE_CHANNEL
         "leave" -> MainActivity.LEAVE_CHANNEL
         "checkin" -> MainActivity.CHECKIN_CHANNEL
+        "chat" -> MainActivity.CHAT_CHANNEL
         else -> MainActivity.EVENTS_CHANNEL
     }
 
@@ -45,14 +47,25 @@ object Events {
         show(ctx, R.string.app_name, if (urgent) R.string.notif_sos_text else R.string.notif_locked_text, tag, urgent, channelFor(kind))
     }
 
-    // Opt-in only (see StarlingBridge.notifyDetail). The one path where a caller's words reach a notification field.
+    // Opt-in only (see StarlingBridge.notifyDetail), and chat. The one path where a caller's words reach a
+    // notification field. A chat notice names the sender and carries the text only when the page was told it may;
+    // the lock screen gets a generic line from resources unless onLock.
+    // Chat without onLock never uses the caller's words at all, not even in the private version: Android shows
+    // that version on a secure lock screen whenever "show all notification content" is on, which is its default.
+    // The page already sends only generic words then; this keeps a page bug from leaking a name or a message.
     fun postDetail(ctx: Context, title: String, body: String, tag: String, kind: String, member: String, onLock: Boolean) {
         if (title.isEmpty()) return
+        if (kind == "chat" && !onLock) {
+            show(ctx, R.string.app_name, R.string.notif_chat_text, tag, false, channelFor(kind),
+                Detail(ctx.getString(R.string.app_name), ctx.getString(R.string.notif_chat_text), member, false, R.string.notif_chat_text))
+            return
+        }
         show(ctx, R.string.app_name, R.string.notif_locked_text, tag, false, channelFor(kind),
-            Detail(title, body, member, onLock))
+            Detail(title, body, member, onLock, if (kind == "chat") R.string.notif_chat_text else R.string.notif_place_text))
     }
 
-    class Detail(val title: String, val body: String, val member: String, val onLock: Boolean)
+    class Detail(val title: String, val body: String, val member: String, val onLock: Boolean,
+        @StringRes val lockedRes: Int = R.string.notif_place_text)
 
     // The share reminder (ShareReminder). Its words say nothing about a circle or a person.
     fun postShareOff(ctx: Context) =
@@ -88,7 +101,7 @@ object Events {
         val heading = detail?.title ?: ctx.getString(titleRes)
         val text = detail?.body ?: ctx.getString(textRes)
         val publicHeading = if (detail?.onLock == true) heading else ctx.getString(titleRes)
-        val publicText = if (detail == null) text else if (detail.onLock) detail.body else ctx.getString(R.string.notif_place_text)
+        val publicText = if (detail == null) text else if (detail.onLock) detail.body else ctx.getString(detail.lockedRes)
         val publicVersion = NotificationCompat.Builder(ctx, channelId)
             .setSmallIcon(R.drawable.ic_stat_starling)
             .setContentTitle(publicHeading)

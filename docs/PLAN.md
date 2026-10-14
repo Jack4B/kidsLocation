@@ -34,6 +34,7 @@ Zależy od F0-1 i D1.
 | F1-3 | Konfiguracja produkcyjna: `PUBLIC_ORIGIN`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, limity `RATE_POST_MIN` i `RATE_GET_MIN` | C | X | Opisane w `docs/` bez żadnych sekretów |
 | F1-4 | Test na dwóch telefonach z Androidem: utworzenie kręgu, zaproszenie, widoczność wzajemna, SOS, check-in, praca z wygaszonym ekranem | W | C | Lista wyników; pomiar zużycia baterii i opóźnień |
 | F1-5 | Jeśli port PHP: uruchomić zestaw testów relaya (`test/relay.test.mjs`) przeciw implementacji PHP | C | G | Te same przypadki przechodzą na obu implementacjach |
+| F1-7 | Relay rodziny jako domyślny, bez adresu w repo: `RELAY_URL` z sekretu CI do `build-config.js` i App Links, linki zaproszeń na domenie relaya, `assetlinks.json` z `ANDROID_PACKAGE` i `ANDROID_CERT_SHA256` (`docs/WDROZENIE-CT8.md`) | C | G | Świeża instalacja nie łączy się z `starlingmap.app`; link zaproszenia otwiera aplikację. Stan: kod gotowy 2026-10-14, czeka na sekret `RELAY_URL` i zmienne relaya od właściciela |
 | F1-8 | Własne APK: `applicationId` `app.kidslocation`, rosnący `versionCode` z numeru przebiegu CI, podpis kluczem rodziny w CI, wydania pod Obtainium (`docs/PODPIS-APK.md`) | C | G | Nowe APK z CI instaluje się na poprzednie jako aktualizacja. Stan: w toku 2026-10-14, czeka na klucz od właściciela |
 
 Uwagi: aplikacja przyjmuje wyłącznie adresy `https://` dla własnego relaya. Wszyscy
@@ -60,6 +61,11 @@ Makiety i tokeny: `docs/DESIGN.md`. Zmiany głównie w `app/css/app.css`, `app/j
 ## Faza 3: czat
 
 Zależy od D2. Najpierw projekt, dopiero potem kod.
+
+Stan 2026-10-14: ADR-001 przyjęty z decyzjami domyślnymi (`docs/adr/ADR-001-czat.md`).
+F3-1 do F3-6 i opis protokołu (F3-8, poza `PROTOCOL.md`) wdrożone na gałęzi
+`zadanie/F3-czat`, czeka na scalenie. Otwarte: F3-7 (pole możliwości), dopisek do
+`PROTOCOL.md` za zgodą właściciela, sprawdzenie na prawdziwym telefonie.
 
 | ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
 |---|---|---|---|---|

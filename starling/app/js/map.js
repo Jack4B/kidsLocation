@@ -9,6 +9,13 @@ const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const ATTRIB = '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 const RING_RADII = [250, 500, 1000, 2000];
+
+// Where the map opens before this phone has a fix of its own: the whole of
+// Poland, the country this family lives in. Not the world view, which shows
+// nothing anyone can use; the first fix replaces it with the street view.
+export const DEFAULT_VIEW = { lat: 52.07, lon: 19.48, zoom: 6 };
+// Close enough to read street names around a person.
+export const STREET_ZOOM = 16;
 const MOVE_MS = 400;
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
@@ -26,6 +33,11 @@ function warmTileHost() {
   }
 }
 
+// The first letter of a name, as a person would write it on a badge.
+export function initialOf(name) {
+  return Array.from(String(name || "").trim())[0]?.toLocaleUpperCase() || "";
+}
+
 export function createMapView(container, { onMarkerTap } = {}) {
   const L = globalThis.L;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -39,7 +51,7 @@ export function createMapView(container, { onMarkerTap } = {}) {
   });
   const attribution = L.control.attribution({ position: "bottomleft", prefix: false });
   attribution.addTo(map);
-  map.setView([20, 0], 3);
+  map.setView([DEFAULT_VIEW.lat, DEFAULT_VIEW.lon], DEFAULT_VIEW.zoom);
 
   let tiles = null;
   let rings = [];
@@ -95,6 +107,8 @@ export function createMapView(container, { onMarkerTap } = {}) {
     drawRings();
   }
 
+  // A person is an initial on their color with their name and the age of
+  // the last signal under it; you are the accent dot. Never a bare dot.
   function buildMarkerEl() {
     const root = document.createElement("div");
     root.className = "mk";
@@ -103,6 +117,7 @@ export function createMapView(container, { onMarkerTap } = {}) {
     const ava = document.createElement("div");
     ava.className = "mk-ava";
     const emoji = document.createElement("span");
+    emoji.className = "mk-letter";
     ava.appendChild(emoji);
     const name = document.createElement("div");
     name.className = "mk-name";
@@ -165,7 +180,7 @@ export function createMapView(container, { onMarkerTap } = {}) {
     root.addEventListener?.("animationcancel", done);
   }
 
-  // data: {lat, lon, name, emoji, hue, status, self, sharing, ts, now}
+  // data: {lat, lon, name, caption, emoji, hue, status, self, sharing, ts, now}
   function upsert(id, data) {
     let m = markers.get(id);
     let born = false;
@@ -180,8 +195,8 @@ export function createMapView(container, { onMarkerTap } = {}) {
       born = true;
     }
     const { root, emoji, name } = m.parts;
-    emoji.textContent = data.emoji || "";
-    name.textContent = data.name || "";
+    emoji.textContent = data.self ? "" : initialOf(data.name) || data.emoji || "";
+    name.textContent = data.caption || data.name || "";
     root.style.setProperty("--m-hue", String(data.hue ?? 0));
     root.classList.toggle("mk-self", !!data.self);
     root.classList.toggle("mk-sharing", !!data.self && !!data.sharing);
@@ -290,7 +305,12 @@ export function createMapView(container, { onMarkerTap } = {}) {
       );
       const tag = document.createElement("div");
       tag.className = "place-tag";
-      tag.textContent = p.name;
+      const pin = document.createElement("span");
+      pin.className = "place-tag-pin";
+      pin.setAttribute("aria-hidden", "true");
+      const label = document.createElement("span");
+      label.textContent = p.name;
+      tag.append(pin, label);
       // The tag rides the ring's north edge, not its center, so it never sits
       // on top of whoever is standing at the place. 1 degree of latitude is
       // ~111320 m everywhere.
@@ -304,6 +324,15 @@ export function createMapView(container, { onMarkerTap } = {}) {
     }
   }
 
+  // Jump, without flying, so the point sits in the open map above the sheet.
+  // The opening view and the first fix use this; a flight there would be
+  // motion nobody asked for.
+  function showAt(lat, lon, zoom = STREET_ZOOM, yOffset = 110) {
+    const p = map.project([lat, lon], zoom);
+    p.y += yOffset;
+    map.setView(map.unproject(p, zoom), zoom, { animate: false });
+  }
+
   // Fly so the target sits above the bottom sheet, not centered under it.
   function focusOn(lat, lon, zoom = 16, yOffset = 110) {
     const z = Math.max(map.getZoom(), zoom);
@@ -313,13 +342,19 @@ export function createMapView(container, { onMarkerTap } = {}) {
     map.flyTo(c, z, { duration: reduced.matches ? 0 : 0.7 });
   }
 
-  function fitAll(positions, { animate = false } = {}) {
+  // The padding keeps every framed marker out from under the floating
+  // controls: the circle switcher on top, the button column on the right,
+  // and the sheet with the SOS button at the bottom.
+  function fitAll(positions, { animate = false, maxZoom = STREET_ZOOM } = {}) {
     if (!positions.length) return;
     const bounds = L.latLngBounds(positions.map((p) => [p.lat, p.lon]));
     map.fitBounds(bounds, {
-      paddingTopLeft: [48, 120],
-      paddingBottomRight: [48, 280],
-      maxZoom: 16,
+      // Keep every badge and its caption clear of the floating controls:
+      // the circle pill and banners at the top, the round buttons on the
+      // right, and the sheet with the SOS button at the bottom.
+      paddingTopLeft: [56, 150],
+      paddingBottomRight: [100, 300],
+      maxZoom,
       animate: animate && !reduced.matches,
     });
   }
@@ -346,6 +381,7 @@ export function createMapView(container, { onMarkerTap } = {}) {
     setTrail,
     clearTrail,
     focusOn,
+    showAt,
     fitAll,
     invalidate: () => map.invalidateSize(),
   };

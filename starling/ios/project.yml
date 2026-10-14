@@ -22,7 +22,9 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleDisplayName: Starling
+        CFBundleDisplayName: Blisko
+        # Polish is the language this build speaks; system dialogs follow it.
+        CFBundleDevelopmentRegion: pl
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -31,10 +33,10 @@ targets:
         # Read to your circle only, only while the app is open, and iOS asks
         # you first. The wrapper cannot read location in the background at
         # all; the string promises no more than the platform allows.
-        NSLocationWhenInUseUsageDescription: Starling shares your location with your circle only while the app is open. It is encrypted so that only your circle can read it.
+        NSLocationWhenInUseUsageDescription: Blisko udostępnia twoją lokalizację kręgowi tylko wtedy, gdy aplikacja jest otwarta. Jest zaszyfrowana tak, że odczyta ją tylko twój krąg.
         # Only when you tap "Scan theirs" on a safety number. Frames go to the
         # decoder in the page and nowhere else; nothing is saved or sent.
-        NSCameraUsageDescription: Starling uses the camera only to scan a safety number code someone shows you. Nothing is saved or sent.
+        NSCameraUsageDescription: Blisko używa aparatu tylko do zeskanowania kodu numeru bezpieczeństwa, który ktoś ci pokazuje. Nic nie jest zapisywane ani wysyłane.
         # Standard WebCrypto algorithms only; exempt, nothing proprietary.
         ITSAppUsesNonExemptEncryption: false
     settings:

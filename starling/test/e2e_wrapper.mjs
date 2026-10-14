@@ -19,9 +19,13 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const HTTP_PORT = 8933;
-const CDP_PORT = 9334;
+// E2E_HTTP_PORT and E2E_CDP_PORT move them when another checkout already
+// holds the defaults.
+const HTTP_PORT = Number(process.env.E2E_HTTP_PORT) || 8933;
+const CDP_PORT = Number(process.env.E2E_CDP_PORT) || 9334;
 const BASE = `http://127.0.0.1:${HTTP_PORT}`;
+// The relay the served page has built in (serve_local writes build-config.js from it).
+const E2E_RELAY = "https://relay.e2e.test";
 const SHOTS = path.join(ROOT, "test", "screenshots");
 
 const fails = [];
@@ -123,21 +127,35 @@ async function bootAndRead(c, { wrapper }) {
   })()`);
 }
 
+// Settings opens from the Circle tab's "All settings" row. The row is built
+// when the Circle page renders, so wait for it instead of clicking blind.
+async function openSettings(c) {
+  await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="tab-circle"]')`), "the Circle tab");
+  await c.evalJs(`document.querySelector('[data-testid="tab-circle"]').click()`);
+  await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="settings-open"]')`), "the All settings row");
+  await c.evalJs(`document.querySelector('[data-testid="settings-open"]').click()`);
+}
+
+// The About group's two credit lines: the upstream one (Blisko is built on
+// Starling, GPL-3.0) and the one naming the original author with links out.
+function readCreditLines(c) {
+  return c.evalJs(`(() => {
+    const p = document.querySelector('[data-testid="about-credit"]');
+    if (!p) return null;
+    const upstream = [...document.querySelectorAll(".about-credit")].find((n) => n !== p);
+    return {
+      upstream: upstream ? upstream.textContent : null,
+      text: p.textContent,
+      links: [...p.querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href"), a.target, a.rel].join(" ")),
+    };
+  })()`);
+}
+
 async function readCredit(c) {
   await c.evalJs(`document.querySelector('[data-testid="onboarding-demo"]').click()`);
   await waitFor(() => c.evalJs("window.__starlingApi.state.demo === true"), "demo running");
-  await c.evalJs(`document.querySelector('[data-testid="settings-open"]').click()`);
-  return waitFor(
-    () => c.evalJs(`(() => {
-      const p = document.querySelector('[data-testid="about-credit"]');
-      if (!p) return null;
-      return {
-        text: p.textContent,
-        links: [...p.querySelectorAll("a")].map((a) => [a.textContent, a.getAttribute("href"), a.target, a.rel].join(" ")),
-      };
-    })()`),
-    "the credit line in Settings",
-  );
+  await openSettings(c);
+  return waitFor(() => readCreditLines(c), "the credit line in Settings");
 }
 
 // The sharing notification's Check in button: the wrapper pushes {"checkin":true}
@@ -151,7 +169,7 @@ const CHECKIN_BRIDGE = `${BRIDGE_STUB.replace(/};$/, "")}
   const real = window.fetch.bind(window);
   window.__posts = 0;
   window.fetch = (input, init) => {
-    const url = String(input?.url || input).replace("https://starlingmap.app", location.origin);
+    const url = String(input?.url || input).replace("${E2E_RELAY}", location.origin);
     if ((init?.method || "GET") === "POST" && url.includes("/api/v2/f/")) window.__posts++;
     return real(url, init);
   };
@@ -180,7 +198,7 @@ async function checkinScenario() {
   await c.evalJs(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await sleep(500);
 
-  await c.evalJs(`document.querySelector('[data-testid="settings-open"]').click()`);
+  await openSettings(c);
   await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="settings-share-checkin"]')`), "the check-in row in Settings");
   const row = await c.evalJs(`(() => {
     const r = document.querySelector('[data-testid="settings-share-checkin"]');
@@ -191,7 +209,7 @@ async function checkinScenario() {
   })()`);
   check(
     "check-in: the Settings row says what it does",
-    row.text.includes("Check in from the sharing notification") && row.text.includes("It cannot cancel an SOS."),
+    row.text.includes("Check-in z powiadomienia o udostępnianiu") && row.text.includes("Nie anuluje SOS."),
     row.text,
   );
   check("check-in: it starts off and a tap turns it on in the wrapper", row.first === "false" && row.after === "true" && JSON.stringify(row.set) === "[true]", JSON.stringify(row));
@@ -226,10 +244,14 @@ async function checkinScenario() {
 }
 
 async function main() {
+  // A server left on the port by another checkout would answer the health
+  // probe with a different build of the app and every check would read it.
+  const taken = await fetch(`${BASE}/api/v2/health`).then(() => true).catch(() => false);
+  if (taken) throw new Error(`port ${HTTP_PORT} already serves something; set E2E_HTTP_PORT`);
   const profile = mkdtempSync(path.join(tmpdir(), "starling-wrapper-e2e-"));
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
     cwd: ROOT,
-    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000" },
+    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000", RELAY_URL: E2E_RELAY },
     stdio: "ignore",
   });
   const chromium = spawn(
@@ -263,17 +285,22 @@ async function main() {
     check("wrapper: no APK download card inside the app", !w.landingApp);
     check("wrapper: no install-yourself nudge inside the app", !w.installCard);
     check("wrapper: no FAQ, no site footer", !w.faq && !w.footer);
-    check("wrapper: about link shown and points at the bare site", w.aboutShown && w.aboutHref === "https://starlingmap.app/", w.aboutHref);
+    check("wrapper: relay button shown, no link out to the upstream site", w.aboutShown && w.aboutHref === null, w.aboutHref);
     check("wrapper: create and demo buttons present", w.createShown && w.demoShown);
     check("wrapper: console clean", w.errs.length === 0, JSON.stringify(w.errs));
     const shot = await wrap.send("Page.captureScreenshot", { format: "png" });
     writeFileSync(path.join(SHOTS, "22-wrapper-start.png"), Buffer.from(shot.result.data, "base64"));
     const credit = await readCredit(wrap);
-    check("wrapper: Settings says who made it", credit.text.startsWith("Made by Munzzyy"), credit.text);
+    check(
+      "wrapper: Settings says it is built on Starling under the GPL",
+      credit.upstream === "Na bazie Starling, wolnego oprogramowania na licencji GPL-3.0.",
+      String(credit.upstream),
+    );
+    check("wrapper: Settings names the original author", credit.text === "Autor oryginału: Munzzyy · Kod źródłowy", credit.text);
     check(
       "wrapper: the credit links leave the app instead of navigating it",
       credit.links.join("|") ===
-        "Munzzyy https://github.com/munzzyy _blank noopener noreferrer|Source code https://github.com/munzzyy/starling _blank noopener noreferrer",
+        "Munzzyy https://github.com/munzzyy _blank noopener noreferrer|Kod źródłowy https://github.com/munzzyy/starling _blank noopener noreferrer",
       credit.links.join("|"),
     );
     wrap.close();
@@ -303,12 +330,13 @@ async function main() {
       errs: (window.__starlingErrors || []).slice(0, 5),
     }))()`);
     check("demo: forced off-grid with the banner up", demoState.offgrid && demoState.banner);
-    check("demo: the invented places are Home and The fountain", demoState.tags === "Home,The fountain", demoState.tags);
+    check("demo: the invented places are Dom and Fontanna", demoState.tags === "Dom,Fontanna", demoState.tags);
     check("demo: console clean", demoState.errs.length === 0, JSON.stringify(demoState.errs));
     web.close();
 
-    // A Spanish system boots a Spanish app: bridge stub plus a language
-    // override, before any page script runs.
+    // The app is Polish first: a phone set to Spanish still boots it in
+    // Polish (bridge stub plus a language override, before any page script
+    // runs), and Spanish stays one tap away in Settings.
     const esTab = await newTab();
     await esTab.send("Page.addScriptToEvaluateOnNewDocument", { source: BRIDGE_STUB });
     await esTab.send("Page.addScriptToEvaluateOnNewDocument", {
@@ -326,11 +354,38 @@ async function main() {
       tagline: document.querySelector("#screen-onboarding .ob-tagline").textContent,
       errs: (window.__starlingErrors || []).slice(0, 3),
     }))()`);
-    check("es: document language follows the system", esState.lang === "es", esState.lang);
-    check("es: the start screen speaks Spanish", esState.create === "Crear un círculo" && esState.tagline === "Tu gente, en tu mapa. Nadie más.", JSON.stringify([esState.create, esState.tagline]));
+    check("es: a Spanish system still boots in Polish", esState.lang === "pl", esState.lang);
+    check("es: the start screen speaks Polish", esState.create === "Utwórz krąg" && esState.tagline === "Twoi bliscy na twojej mapie. Nikt więcej.", JSON.stringify([esState.create, esState.tagline]));
     const esCredit = await readCredit(esTab);
-    check("es: the credit line is translated", esCredit.text === "Hecho por Munzzyy \u00b7 Código fuente", esCredit.text);
+    check("es: the credit line is in Polish", esCredit.text === "Autor oryginału: Munzzyy \u00b7 Kod źródłowy", esCredit.text);
     check("es: console clean", esState.errs.length === 0, JSON.stringify(esState.errs));
+
+    // Picking Español in Settings switches the app; reopened Settings is Spanish.
+    const picked = await esTab.evalJs(`(() => {
+      const cell = [...document.querySelectorAll(".seg-cell")].find((b) => b.textContent === "Español");
+      if (!cell) return false;
+      cell.click();
+      return true;
+    })()`);
+    check("es: Settings offers Español", picked);
+    await waitFor(() => esTab.evalJs("document.documentElement.lang === 'es'"), "document language es");
+    await esTab.evalJs(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
+    await waitFor(() => esTab.evalJs(`!document.querySelector('[data-testid="about-credit"]')`), "Settings closed");
+    await openSettings(esTab);
+    const esPicked = await waitFor(() => readCreditLines(esTab), "the credit line after picking Spanish");
+    check("es: after picking Español the credit line is translated", esPicked.text === "Hecho por Munzzyy \u00b7 Código fuente", esPicked.text);
+    const esErrs = await esTab.evalJs("(window.__starlingErrors || []).slice(0, 3)");
+    check("es: console clean after switching", esErrs.length === 0, JSON.stringify(esErrs));
+    // The tabs share one browser profile, so the saved choice would carry
+    // into the next scenario: switch back to Polski and check that sticks too.
+    const back = await esTab.evalJs(`(() => {
+      const cell = [...document.querySelectorAll(".seg-cell")].find((b) => b.textContent === "Polski");
+      if (!cell) return false;
+      cell.click();
+      return true;
+    })()`);
+    check("es: Settings offers Polski", back);
+    await waitFor(() => esTab.evalJs("document.documentElement.lang === 'pl' && window.__starlingApi.state.settings.lang === 'pl'"), "back to Polish");
     esTab.close();
 
     await checkinScenario();

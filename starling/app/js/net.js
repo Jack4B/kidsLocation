@@ -98,7 +98,7 @@ const POSITION_KINDS = new Set(["loc", "checkin", "sos", "bye"]);
 // re-pinned: their points are dropped and the change is surfaced, because
 // re-pinning on the relay's say-so is the whole of the "burgle into the group"
 // attack.
-export function createRoster({ channelId, ratchet, selfId, pinned, onControl, onKeyChange }) {
+export function createRoster({ channelId, ratchet, selfId, pinned, onControl, onKeyChange, onChat }) {
   const members = new Map();
   const seen = new Map(); // memberId -> { e, ts } of the last accepted position
   // Control messages get their own dedup, a bounded set rather than a moving
@@ -112,6 +112,11 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
   // temporary withholding into a permanent one.
   const controlSeen = new Set();
   const CONTROL_SEEN_CAP = 512;
+  // Chat messages get a bounded set of their own for the same reason: they
+  // must never move the position watermark, and a position must never make a
+  // chat message look old. The durable dedup is the chat archive's; this one
+  // only spares it a second look within one run.
+  const chatSeen = new Set();
 
   function controlFresh(id, e, ts) {
     const key = `${id}|${e}|${ts}`;
@@ -120,6 +125,14 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
     if (controlSeen.size > CONTROL_SEEN_CAP) {
       controlSeen.delete(controlSeen.values().next().value);
     }
+    return true;
+  }
+
+  function chatFresh(id, e, ts) {
+    const key = `${id}|${e}|${ts}`;
+    if (chatSeen.has(key)) return false;
+    chatSeen.add(key);
+    if (chatSeen.size > CONTROL_SEEN_CAP) chatSeen.delete(chatSeen.values().next().value);
     return true;
   }
 
@@ -242,6 +255,23 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
           await onControl?.(entry.m, obj, p.e);
           continue;
         }
+        if (obj.t === "chat") {
+          // A message, not a position: it never touches the member's record,
+          // their status or the replay mark, so a chat cannot turn an SOS
+          // into "live" and a relay serving it late cannot bury a position.
+          // The backlog rule is the same as for positions: keys held past
+          // the window open re-keys only. The sender is believed the way a
+          // position's sender is (pinned on first sight), never the way a
+          // control message's is.
+          if (Number.isSafeInteger(ratchet.backlogFloor) && p.e < ratchet.backlogFloor) continue;
+          if (!chatFresh(entry.m, p.e, p.ts)) continue;
+          try {
+            await onChat?.(entry.m, obj, p.e, p.ts);
+          } catch {
+            // a broken archive write must not stop the rest of the feed
+          }
+          continue;
+        }
         // A kind from a newer version must not overwrite an SOS with "live".
         if (typeof obj.t === "string" && !POSITION_KINDS.has(obj.t)) continue;
         // A backlog read holds keys past the window for re-keys only; positions there stay hidden.
@@ -295,6 +325,7 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
       members.clear();
       seen.clear();
       controlSeen.clear();
+      chatSeen.clear();
     },
   };
 }

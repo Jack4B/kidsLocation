@@ -344,10 +344,26 @@ export function installDom({ hostname = "127.0.0.1", interactive: live = false, 
 
 // main.js boots on import and its boot is async, so a check has to wait for it
 // to settle before touching state.
-export async function loadApp(harness) {
+//
+// The app boots in Polish, its default (i18n.test.mjs holds that). These
+// checks read the English source copy, so by default the page is switched to
+// English once boot settles and repainted, the same as a person choosing
+// English in Settings. Pass { lang: "pl" } to keep the default.
+export async function loadApp(harness, { lang = "en" } = {}) {
   const mod = await import("../app/js/main.js");
   await settle();
-  return { mod, internals: globalThis.window.__starlingInternals, api: globalThis.window.__starlingApi, harness };
+  const internals = globalThis.window.__starlingInternals;
+  if (lang !== "pl") {
+    // In the settings too, so a check that boots the app again stays in English.
+    if (internals?.state?.settings) internals.state.settings.lang = lang;
+    const i18n = await import("../app/js/i18n.js");
+    await i18n.loadLocale(lang);
+    i18n.setLocale(lang);
+    i18n.translateDom();
+    internals?.render?.();
+    await settle();
+  }
+  return { mod, internals, api: globalThis.window.__starlingApi, harness };
 }
 
 export const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms));

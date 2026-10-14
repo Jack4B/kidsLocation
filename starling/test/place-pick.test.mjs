@@ -70,7 +70,7 @@ test("Escape backs out to Places, and a later tap saves nothing", async () => {
 test("Escape closes a sheet opened over a pick before it backs out of the pick", async () => {
   reset();
   internals.startPlacePick("Gym");
-  harness.fire(harness.node('[data-testid="settings-open"]'), "click");
+  await internals.openSettings();
   await settle();
   assert.ok(ui.overlaysOpen(), "Settings is open over the armed pick");
   harness.fire(document, "keydown", { key: "Escape" });

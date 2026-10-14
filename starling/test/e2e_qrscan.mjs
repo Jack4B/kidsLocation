@@ -228,7 +228,7 @@ async function main() {
 
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
     cwd: ROOT,
-    env: { ...process.env, STARLING_TEST: "1", STARLING_WRAPPER_HEADERS: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000" },
+    env: { ...process.env, STARLING_TEST: "1", STARLING_WRAPPER_HEADERS: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000", RELAY_URL: "https://relay.e2e.test" },
     stdio: "ignore",
   });
   const chromium = startChromium(CDP_PORT, profile, y4m);
@@ -265,12 +265,12 @@ async function main() {
     check("Scan theirs is offered in the app", await shown(app, '[data-testid="safety-scan"]'));
     check("the web-only note is hidden in the app", !(await shown(app, '[data-testid="safety-scan-note"]')));
     const boRow = `[data-testid="member-row"][data-member="${bo.memberId}"]`;
-    check("Bo's row starts out not verified", (await text(app, `${boRow} .verify-pill`)) === "Not verified");
+    check("Bo's row starts out not verified", (await text(app, `${boRow} .verify-pill`)) === "Niesprawdzone");
 
     await click(app, '[data-testid="safety-show-qr"]');
     await waitFor(() => app.evalJs(`!!document.querySelector('[data-testid="safety-qr-card"] svg')`), "own code drawn");
     const ownLabel = await app.evalJs(`document.querySelector('[data-testid="safety-qr-card"] svg').getAttribute("aria-label")`);
-    check("own code is labelled for a screen reader", ownLabel === "Safety number QR code", ownLabel);
+    check("own code is labelled for a screen reader", ownLabel === "Kod QR numeru bezpieczeństwa", ownLabel);
     await click(app, '[data-testid="safety-qr"] .ov-close');
     await waitFor(() => app.evalJs(`!document.querySelector('[data-testid="safety-qr"]')`), "own code closed");
 
@@ -301,17 +301,17 @@ async function main() {
 
     await waitFor(() => shown(app, '[data-testid="scan-result"]'), "scan verdict", 20000);
     const verdict = await text(app, '[data-testid="scan-result"] .ov-body');
-    check("the verdict says the code matches Bo", /matches the keys this phone holds for Bo/.test(verdict || ""), verdict);
+    check("the verdict says the code matches Bo", /pasuje do kluczy, które ten telefon ma dla osoby Bo/.test(verdict || ""), verdict);
     check("the verdict shows Bo's number", (await text(app, '[data-testid="scan-number"]'))?.replace(/\s+/g, " ").trim() === boNumber);
     const sheetGone = await waitFor(() => app.evalJs(`!document.querySelector('[data-testid="scan-sheet"]')`), "scan sheet gone", 5000).catch(() => false);
     check("the scan sheet is gone once the code read", sheetGone === true);
     check("every camera track is ended after the read", await app.evalJs(`window.__streams.length === 1 && window.__streams[0].getTracks().every((t) => t.readyState === "ended")`));
     check("the page CSP let the stream play as it stands", cspComplaints(app).length === 0, cspComplaints(app).join(" | "));
 
-    check("Bo's row is still not verified before the tap", (await text(app, `${boRow} .verify-pill`)) === "Not verified");
+    check("Bo's row is still not verified before the tap", (await text(app, `${boRow} .verify-pill`)) === "Niesprawdzone");
     await click(app, '[data-testid="scan-mark-verified"]');
-    await waitFor(() => app.evalJs(`document.querySelector('${boRow} .verify-pill')?.textContent === "Verified"`), "Bo marked verified");
-    check("the mark lands on Bo's row", (await text(app, `${boRow} .verify-pill`)) === "Verified");
+    await waitFor(() => app.evalJs(`document.querySelector('${boRow} .verify-pill')?.textContent === "Sprawdzone"`), "Bo marked verified");
+    check("the mark lands on Bo's row", (await text(app, `${boRow} .verify-pill`)) === "Sprawdzone");
     const verdictGone = await waitFor(() => app.evalJs(`!document.querySelector('[data-testid="scan-result"]')`), "verdict gone", 5000).catch(() => false);
     check("the verdict closed after marking", verdictGone === true);
     check("no page errors", ((await app.evalJs("window.__starlingErrors || []")) || []).length === 0, JSON.stringify(await app.evalJs("window.__starlingErrors || []")));
@@ -319,9 +319,9 @@ async function main() {
     // ------------------------------------------------- camera turned down
     await app.evalJs("window.__denyCamera = true");
     await click(app, '[data-testid="safety-scan"]');
-    await waitFor(() => app.evalJs(`/turned down/.test(document.querySelector('[data-testid="scan-status"]')?.textContent || "")`), "denied message");
-    check("a denied camera says so and offers settings", await app.evalJs(`(() => { const b = [...document.querySelectorAll('[data-testid="scan-sheet"] button')].find((x) => x.textContent === "Open app settings"); return !!b && !b.hidden; })()`));
-    await app.evalJs(`[...document.querySelectorAll('[data-testid="scan-sheet"] button')].find((x) => x.textContent === "Open app settings").click()`);
+    await waitFor(() => app.evalJs(`/Odmówiono dostępu/.test(document.querySelector('[data-testid="scan-status"]')?.textContent || "")`), "denied message");
+    check("a denied camera says so and offers settings", await app.evalJs(`(() => { const b = [...document.querySelectorAll('[data-testid="scan-sheet"] button')].find((x) => x.textContent === "Otwórz ustawienia aplikacji"); return !!b && !b.hidden; })()`));
+    await app.evalJs(`[...document.querySelectorAll('[data-testid="scan-sheet"] button')].find((x) => x.textContent === "Otwórz ustawienia aplikacji").click()`);
     check("the settings button reaches the bridge", (await app.evalJs("window.__settingsOpened === true")));
     await click(app, '[data-testid="scan-sheet"] .ov-close');
     await waitFor(() => app.evalJs(`!document.querySelector('[data-testid="scan-sheet"]')`), "scan sheet closed");
@@ -336,9 +336,9 @@ async function main() {
     check("the paste sheet offers Scan a code in the app", await shown(app, '[data-testid="paste-scan"]'));
     await click(app, '[data-testid="paste-scan"]');
     await waitFor(() => shown(app, '[data-testid="scan-sheet"]'), "invite scan sheet");
-    check("the invite scanner says what it is for", (await text(app, '[data-testid="scan-sheet"] .ov-title')) === "Scan an invite code");
+    check("the invite scanner says what it is for", (await text(app, '[data-testid="scan-sheet"] .ov-title')) === "Zeskanuj kod zaproszenia");
     const turnedAway = await waitFor(
-      () => app.evalJs(`document.querySelector('[data-testid="scan-status"]')?.textContent === "That is a safety number code, not an invite."`),
+      () => app.evalJs(`document.querySelector('[data-testid="scan-status"]')?.textContent === "To jest kod numeru bezpieczeństwa, a nie zaproszenie."`),
       "the safety code turned away",
       20000,
     ).catch(() => false);
@@ -389,14 +389,21 @@ async function main() {
     const scanGone = await waitFor(() => joiner.evalJs(`!document.querySelector('[data-testid="scan-sheet"]')`), "scan sheet gone", 5000).catch(() => false);
     check("the scan sheet is gone once the invite read", scanGone === true);
     check("the camera ended once the invite read", await joiner.evalJs(`window.__streams.length === 1 && window.__streams[0].getTracks().every((t) => t.readyState === "ended")`));
-    check("the join sheet is the request for this circle", /You have an invite to a circle/.test((await text(joiner, '[data-testid="join-sheet"]')) || ""));
+    check("the join sheet is the request for this circle", /Masz zaproszenie do kręgu/.test((await text(joiner, '[data-testid="join-sheet"]')) || ""));
     check("no page errors on the fresh phone", ((await joiner.evalJs("window.__starlingErrors || []")) || []).length === 0, JSON.stringify(await joiner.evalJs("window.__starlingErrors || []")));
     joiner.close();
   } finally {
     chromium.kill();
     chromium2?.kill();
     server.kill();
-    rmSync(work, { recursive: true, force: true });
+    // Chromium flushes its profile on the way down; a leftover temp dir is
+    // harmless, a teardown throw masking real results is not.
+    await sleep(400);
+    try {
+      rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // still shutting down; the OS temp cleaner owns it now
+    }
   }
 
   if (fails.length) {

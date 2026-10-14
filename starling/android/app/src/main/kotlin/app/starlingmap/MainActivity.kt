@@ -32,7 +32,9 @@ class MainActivity : FragmentActivity() {
     companion object {
         const val ASSET_HOST = "appassets.androidplatform.net"
         const val START_URL = "https://$ASSET_HOST/index.html"
-        const val APP_HOST = "starlingmap.app"
+        // The family relay's host: invite links on it open here. From RELAY_URL
+        // at build time, the same value the App Links filter claims.
+        val APP_HOST: String = BuildConfig.RELAY_HOST
         const val EXTRA_MEMBER = "member"
         const val PREFS = "starling"
         const val PREF_TOR = "tor"
@@ -40,6 +42,9 @@ class MainActivity : FragmentActivity() {
         const val ARRIVE_CHANNEL = "events_arrive"
         const val LEAVE_CHANNEL = "events_leave"
         const val CHECKIN_CHANNEL = "events_checkin"
+        // Family chat messages: their own channel, so a person can give them
+        // their own sound or silence them without silencing circle alerts.
+        const val CHAT_CHANNEL = "events_chat"
         // A new id, not a raised importance on EVENTS_CHANNEL: a channel's
         // sound and vibration are as fixed after creation as its importance
         // is, so an existing install's routine channel can never grow the

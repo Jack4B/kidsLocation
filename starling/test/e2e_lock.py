@@ -102,13 +102,14 @@ def main():
         log("second circle stashed, back on the first")
 
         # Turn on app lock through settings.
+        b.click('[data-testid="tab-circle"]')
         b.click('[data-testid="settings-open"]')
         wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
                  timeout=10, desc="settings open")
         # The App-lock switch is the switch inside the App lock group. Click the
         # "Require passcode" switch by walking to it, then fill the passcode sheet.
         b.exec(
-            "const g=[...document.querySelectorAll('.set-group')].find(s=>/App lock/.test(s.textContent));"
+            "const g=[...document.querySelectorAll('.set-group')].find(s=>/Blokada aplikacji/.test(s.textContent));"
             "if(!g) return false; g.querySelector('.switch').click(); return true;"
         )
         wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"passcode-sheet\"]')"),
@@ -193,6 +194,7 @@ def main():
 
         # Duress: setting it to the unlock passcode is refused, a distinct
         # code is accepted, and typing it on the lock screen erases the lot.
+        b.click('[data-testid="tab-circle"]')
         b.click('[data-testid="settings-open"]')
         wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"duress-set\"]')"),
                  timeout=10, desc="duress button")
