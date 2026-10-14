@@ -26,6 +26,9 @@ Nie zrobiono:
 - Nie sprawdzano CT8 (wersja Node, długo działające procesy).
 - Makiety nie były sprawdzane wizualnie ani na prawdziwym ekranie.
 
-Następny krok: właściciel wykonuje F0-1, F0-2 i F0-3; potem F0-5 i F1-1.
+Repozytorium `Jack4B/kidsLocation` założył właściciel; Claude wgrał do niego tę zawartość
+na `main` (commit `5ffc0c8`). F0-3 jest w połowie: zostaje podpięcie Gemini i Groka.
+
+Następny krok: właściciel wykonuje F0-1 i F0-2 oraz podpina Gemini i Groka; potem F0-5 i F1-1.
 
 Pytania do właściciela: wynik `node -v` na CT8; czy jest Mac; gdzie ma leżeć kod (D4).

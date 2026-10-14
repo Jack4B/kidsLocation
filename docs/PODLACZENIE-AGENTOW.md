@@ -6,8 +6,7 @@ dostawcy, zanim cokolwiek zapłacisz lub zainstalujesz.
 
 ## 1. Repozytorium
 
-- Załóż **prywatne** repozytorium (propozycja nazwy: `starling-rodzina`) na koncie `Jack4B`.
-- Wgraj zawartość tej paczki (instrukcja w wiadomości, która ją dostarczyła).
+- Repozytorium `Jack4B/kidsLocation` istnieje i ma wgrany początkowy plan. Upewnij się, że jest **prywatne**.
 - Włącz ochronę gałęzi `main`: wymagany PR, brak bezpośrednich pushy i force-pushy.
   Jeśli kod trafi do tego repozytorium (D4), dodaj plik `CODEOWNERS`, który wskazuje Ciebie
   jako właściciela `app/js/crypto.js`, `app/js/wire.js` i `docs/PROTOCOL.md`.
