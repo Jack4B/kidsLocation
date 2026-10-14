@@ -69,6 +69,19 @@ na tym PR). Budowy Androida lokalnie nie uruchamiano.
 Następny krok: F1-7 (własny applicationId, klucz podpisu, wersje, domyślny relay i linki
 zaproszeń poza starlingmap.app), równolegle F1-4 (test dwóch Androidów na relayu CT8).
 Otwarte PR-y z dokumentami (#1 do #6, #8) mają wpisy w HANDOFF i będą wymagały rebase.
+## 2026-10-14, Claude, F3-0 (szkic ADR czatu)
+
+Zrobiono: szkic `docs/adr/ADR-001-czat.md` (status „proponowana") z pomiarami w
+`docs/adr/ADR-001-pomiary.md` i skryptami w `docs/adr/pomiary/`. Skrypty tylko importują
+`wire.js`, `crypto.js` i `ratchet.js` z lokalnego klonu forka; uruchomione ponownie dają ten sam
+wynik co zapisane pliki `wynik-measure*.txt`. Skrót w D2.
+
+Nie sprawdzono: kodu klientów 0.17.1 (wiedza o traktowaniu nieznanego typu pochodzi z
+`PROTOCOL.md` i `CHANGELOG`), równoległej wysyłki z dwóch kontekstów JS na Androidzie, rytmu
+postów na prawdziwym telefonie.
+
+Następny krok: recenzja Gemini i Groka, potem odpowiedzi właściciela na pytania P1 do P8 z ADR.
+Kod czatu (F3-1 i dalej) dopiero po zatwierdzeniu ADR i zdjęciu zakazu pisania kodu.
 
 ---
 

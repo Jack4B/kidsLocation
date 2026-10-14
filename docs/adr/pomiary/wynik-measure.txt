@@ -1,0 +1,92 @@
+== Stale z wire.js ==
+{
+  PAD_LEN: 512,
+  PAD_RESERVE: 24,
+  MAX_BODY: 2048,
+  TRAIL_CAP: 240,
+  TTL_h: 24,
+  budget: 488
+}
+
+== Najwiekszy obecny komunikat (worstCase z testu) ==
+bajty: 482 wolne do PAD_LEN: 30
+wariant 'pole x na istniejacym komunikacie': narzut pola 7 B; miejsce na tekst do PAD_LEN-PAD_RESERVE: -1 B; do PAD_LEN: 23 B
+
+== Koperty czatu (pusty tekst) ==
+E1 minimalna {v,ts,t,x}                  narzut 47 B; na tekst: 441 B (z rezerwa), 465 B (bez rezerwy)
+E2 + name/emoji/hue (najdluzsze)         narzut 174 B; na tekst: 314 B (z rezerwa), 338 B (bez rezerwy)
+E3 = E1 + odpowiedz re (8 hex + ts)      narzut 80 B; na tekst: 408 B (z rezerwa), 432 B (bez rezerwy)
+E4 = E2 + re                             narzut 207 B; na tekst: 281 B (z rezerwa), 305 B (bez rezerwy)
+
+udzial liter z diakrytykami w probce: 7.3% bajtow/znak w probce: 1.073
+
+== Pojemnosc (jednostki UTF-16 .length) dla E1 minimalna {v,ts,t,x} ==
+ASCII (a)                            z rezerwa (488):  441   do PAD_LEN (512):  465
+polskie same diakrytyki              z rezerwa (488):  220   do PAD_LEN (512):  232
+typowy polski tekst (probka)         z rezerwa (488):  407   do PAD_LEN (512):  430
+emoji (2 jednostki UTF-16, 4 B)      z rezerwa (488):  221   do PAD_LEN (512):  233
+cudzyslow " (escape 2 B)             z rezerwa (488):  220   do PAD_LEN (512):  232
+CJK 3 B                              z rezerwa (488):  147   do PAD_LEN (512):  155
+
+== Pojemnosc (jednostki UTF-16 .length) dla E2 + name/emoji/hue (najdluzsze) ==
+ASCII (a)                            z rezerwa (488):  314   do PAD_LEN (512):  338
+polskie same diakrytyki              z rezerwa (488):  157   do PAD_LEN (512):  169
+typowy polski tekst (probka)         z rezerwa (488):  289   do PAD_LEN (512):  312
+emoji (2 jednostki UTF-16, 4 B)      z rezerwa (488):  157   do PAD_LEN (512):  169
+cudzyslow " (escape 2 B)             z rezerwa (488):  157   do PAD_LEN (512):  169
+CJK 3 B                              z rezerwa (488):  104   do PAD_LEN (512):  112
+
+== Pojemnosc (jednostki UTF-16 .length) dla E3 = E1 + odpowiedz re (8 hex + ts) ==
+ASCII (a)                            z rezerwa (488):  408   do PAD_LEN (512):  432
+polskie same diakrytyki              z rezerwa (488):  204   do PAD_LEN (512):  216
+typowy polski tekst (probka)         z rezerwa (488):  377   do PAD_LEN (512):  399
+emoji (2 jednostki UTF-16, 4 B)      z rezerwa (488):  205   do PAD_LEN (512):  217
+cudzyslow " (escape 2 B)             z rezerwa (488):  204   do PAD_LEN (512):  216
+CJK 3 B                              z rezerwa (488):  136   do PAD_LEN (512):  144
+
+== Pojemnosc (jednostki UTF-16 .length) dla E4 = E2 + re ==
+ASCII (a)                            z rezerwa (488):  281   do PAD_LEN (512):  305
+polskie same diakrytyki              z rezerwa (488):  140   do PAD_LEN (512):  152
+typowy polski tekst (probka)         z rezerwa (488):  261   do PAD_LEN (512):  280
+emoji (2 jednostki UTF-16, 4 B)      z rezerwa (488):  141   do PAD_LEN (512):  153
+cudzyslow " (escape 2 B)             z rezerwa (488):  140   do PAD_LEN (512):  152
+CJK 3 B                              z rezerwa (488):   93   do PAD_LEN (512):  101
+
+== 280 znakow w kopercie E1 (ts realny 13 cyfr i MAX_SAFE 16 cyfr) ==
+ASCII (a)                            len 280 bajty: 327 / 324 MIESCI SIE
+polskie same diakrytyki              len 280 bajty: 607 / 604 NIE MIESCI SIE
+typowy polski tekst (probka)         len 280 bajty: 351 / 348 MIESCI SIE
+emoji (2 jednostki UTF-16, 4 B)      len 280 bajty: 607 / 604 NIE MIESCI SIE
+cudzyslow " (escape 2 B)             len 280 bajty: 607 / 604 NIE MIESCI SIE
+CJK 3 B                              len 280 bajty: 887 / 884 NIE MIESCI SIE
+
+cleanText usuwa nowa linie: "ab"
+
+== Szyfrowanie prawdziwym sealMessage/buildPost ==
+alg ed25519 plaintext JSON 484 B; szyfrogram 528 B; c w b64u 704 znakow (limit checkPostShape 720); cialo POST 1063 B (MAX_BODY 2048)
+checkPostShape przyjmuje: true ; klucze widoczne dla relaya: m,alg,pk,epk,e,ts,n,c,sig
+openMessage odtwarza t: chat len x: 407
+rozmiar szyfrogramu pozycji: 528 B, czatu: 528 B: relay nie odroznia typow po rozmiarze
+
+== Koszt odczytu since=0 (wiersz w GET ~ 882 B) ==
+czlonkow  4, cap  240: ~0.85 MB
+czlonkow  4, cap  960: ~3.39 MB
+czlonkow  4, cap 1440: ~5.08 MB
+czlonkow  4, cap 5760: ~20.32 MB
+czlonkow  6, cap  240: ~1.27 MB
+czlonkow  6, cap  960: ~5.08 MB
+czlonkow  6, cap 1440: ~7.62 MB
+czlonkow  6, cap 5760: ~30.48 MB
+czlonkow 16, cap  240: ~3.39 MB
+czlonkow 16, cap  960: ~13.55 MB
+czlonkow 16, cap 1440: ~20.32 MB
+czlonkow 16, cap 5760: ~81.29 MB
+
+== Ile czasu trwa 240 wpisow nadawcy na relayu ==
+samochod/rower, 1 wpis co 3 s (dolny prog sendLoc)            12 min (0.20 h)
+rower ~5 m/s: 25 m co 5 s + timer 15 s (~16/min)              15 min (0.25 h)
+pieszo ~1,4 m/s: 25 m co ~18 s + timer 15 s (~7/min)          33 min (0.55 h)
+kadencja 15 s (domyslna, takze w bezruchu bez stillSave)      60 min (1.00 h)
+kadencja 60 s                                                240 min (4.00 h)
+kadencja 300 s / tryb bezruchu Androida                     1200 min (20.00 h)
+TRIM_EVERY=16: trim co ~16 postow (losowo); po trimie zostaje dokladnie 240 najnowszych, wiec czat moze przezyc srednio do ~16 wpisow dluzej, ale nie wolno na tym polegac.
