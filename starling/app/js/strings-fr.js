@@ -43,7 +43,6 @@ export const fr = {
   "The person who shared this link stopped their emergency share or checked in safe. The last known position stays on the map.": "La personne qui a partagé ce lien a arrêté son partage d'urgence ou a fait savoir qu'elle est en sécurité. La dernière position connue reste sur la carte.",
   "This help link is no longer active. The last known position stays on the map; ask for a fresh link if the emergency is still going on.": "Ce lien d'aide n'est plus actif. La dernière position connue reste sur la carte ; demandez un nouveau lien si l'urgence continue.",
   "This link has expired": "Ce lien a expiré",
-  "This page needs JavaScript. The person's position arrives encrypted and is decrypted here, in your browser, with a key carried in this link that never reaches any server; without JavaScript there is nothing that can do that decryption. If you are on Tor Browser's Safest setting, allow JavaScript for this page to see them.": "Cette page a besoin de JavaScript. La position de la personne arrive chiffrée et est déchiffrée ici, dans votre navigateur, avec une clé transportée dans ce lien qui n'atteint jamais aucun serveur ; sans JavaScript, rien ne peut faire ce déchiffrement. Si vous utilisez le Navigateur Tor au niveau « Le plus sûr », autorisez JavaScript pour cette page afin de voir la personne.",
   "This session has ended": "Cette session est terminée",
   "Verified": "Vérifié",
   "Waiting for a location...": "En attente d'une position...",
