@@ -662,7 +662,7 @@ a.land-download {
   font-family: var(--font);
 }
 
-.leaflet-control-attribution {
+.leaflet-container .leaflet-control-attribution {
   background: var(--surface);
   color: var(--ink-2);
   font-size: 0.6875rem;
@@ -672,7 +672,7 @@ a.land-download {
   margin: 0 0 10px 10px !important;
 }
 
-.leaflet-control-attribution a {
+.leaflet-container .leaflet-control-attribution a {
   color: var(--ink-2);
   text-decoration: none;
 }
@@ -2506,6 +2506,11 @@ a.land-download {
   line-height: 1.1;
 }
 
+/* Cards in a scrolling page keep their height; the page scrolls instead. */
+.ov-body > * {
+  flex-shrink: 0;
+}
+
 .ov-page .ov-body {
   flex: 1;
   min-height: 0;
@@ -3026,7 +3031,7 @@ div.danger-zone,
 /* The code is always dark on white, in both themes, so every camera reads it. */
 .qr-card {
   align-self: center;
-  width: min(70vw, 250px);
+  width: min(56vw, 210px);
   padding: 14px;
   border-radius: var(--r-lg);
   background: #ffffff;

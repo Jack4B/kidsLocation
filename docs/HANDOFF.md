@@ -247,3 +247,50 @@ Nie zrobiono lub nie sprawdzono:
 
 Następny krok: recenzja i scalenie przez prowadzącego; decyzje do ewentualnej zmiany przez
 właściciela są w sekcji „Decyzje przyjęte 2026-10-14” w ADR-001.
+
+---
+
+## 2026-10-14, Claude, F2 nowy wygląd (gałąź `zadanie/F2-1-nowy-wyglad`)
+
+Wynik bazowy przed zmianą (z `origin/wydanie/1.0`, po `npm ci` i `tools/sync-vendor.sh`):
+1118 testów, 1084 przeszło, 34 pominięto, 0 nie przeszło.
+
+Zrobiono (F2-1 do F2-5, F2-7, F2-8 według makiet i przeglądu z 2026-10-14):
+
+- Tokeny jasne i ciemne w `app/css/tokens.css` (motyw systemu albo ręczny), z poprawkami
+  przeglądu: `--warn` #95500A w jasnym, osobny `--outline` na obramowania kontrolek,
+  obwódka pływających przycisków w ciemnym. Fonty Figtree i Bricolage Grotesque (OFL)
+  kopiowane z npm przez `tools/sync-vendor.sh` do `app/vendor/fonts`, bez Google Fonts.
+- Mapa: pigułka kręgu, okrągłe przyciski (styl mapy, pokaż wszystkich, moja pozycja),
+  znaczniki z inicjałem i podpisem, „brak sygnału” przerywaną linią, miejsca z podpisem.
+  Arkusz z kartami osób przewijanymi w bok, „Przytrzymaj SOS” na krawędzi arkusza.
+- Dolna nawigacja: Mapa, Czat (czat z F3, licznik nieprzeczytanych w kolorze akcentu),
+  Miejsca, Krąg. Karta osoby z chipami, akcjami, osią „Ostatnia godzina” z trasy
+  (`app/js/timeline.js`) i wierszem tożsamości. Ekran Krąg; Ustawienia są pod
+  „Wszystkie ustawienia” (koło zębate zniknęło z pigułki).
+- F2-2: mapa przed pierwszym odczytem pokazuje zapisane miejsca albo Polskę (zoom 6),
+  po pierwszym odczycie przechodzi na użytkownika w zoomie ulic, chyba że ktoś już
+  przesunął mapę. Własna pozycja nie jest nigdzie zapisywana (prywatność).
+- Teksty: polskie w `strings-pl.js`, lista w `docs/nowe-teksty-F2-1.md`.
+- Testy: `test/timeline.test.mjs`, `test/redesign-nav.test.mjs`. Zmiana zamierzona
+  w istniejących: `place-pick` i `units` otwierają Ustawienia przez `openSettings()`;
+  skrypty e2e otwierają Ustawienia z zakładki Krąg i Miejsca z zakładki; `e2e_sheet_drag`
+  sprawdza przewijanie na pełnej wysokości z wypełniaczem; `e2e_chat` otwiera czat zakładką.
+
+Wynik po zmianie (po scaleniu F1-7, F2-6 i F3): 1225 testów, 1191 przeszło, 34 pominięto,
+0 nie przeszło. `check-clean.sh` przechodzi. E2E w Chromium: `e2e_chat`, `e2e_sheet_drag`,
+`e2e_share_resume`, `e2e_qrscan` przechodzą; `e2e_wrapper` ma 7 niepowodzeń z F2-6
+(oczekuje angielskich tekstów i hiszpańskiego z systemu), niezwiązanych z wyglądem.
+Zrzuty: `/mnt/project-files/wydanie-1.0/wyglad/`.
+
+Nie zrobiono lub nie sprawdzono:
+
+- Skrypty e2e w Pythonie (Firefox/Marionette) zaktualizowane, ale nieuruchomione.
+- Ekran zgody na lokalizację przed pytaniem systemu (start-2): nowa funkcja, poza zakresem.
+- Ekran powitalny według start-1 (ilustracja, lista zaufania): zostawiony, bo logo
+  i treść strony startowej należą do zadania marki.
+- Edytor miejsca jako osobny ekran z podglądem mapy (miejsca-2): jest rozwijany wiersz.
+- Zaproszenie jako strona z przyciskami obok siebie (zaproszenie-1): zostało arkuszem.
+- Przegląd na prawdziwym telefonie (F2-8), build Androida.
+
+Następny krok: recenzja i scalenie przez prowadzącego.

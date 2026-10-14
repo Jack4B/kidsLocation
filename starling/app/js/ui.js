@@ -3178,7 +3178,9 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
   // peek snap never clips content that appeared after the last measure.
   if ("ResizeObserver" in window) {
     new ResizeObserver(() => {
-      if (!dragging && snap === "peek") apply(false);
+      // At any snap: the body's height is what the drag region leaves, and
+      // that region shrinks when an SOS hides the people row.
+      if (!dragging) apply(false);
     }).observe(dragEl);
   }
   function heightFor(name) {
