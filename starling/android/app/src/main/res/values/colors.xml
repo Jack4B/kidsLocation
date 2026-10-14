@@ -4,5 +4,7 @@
     <color name="starling_bg">#f4f6fb</color>
     <color name="starling_fg">#101522</color>
     <color name="starling_fg_dim">#4a5568</color>
+    <!-- Launcher icon background, the same in both themes: the mark is drawn for a light field. -->
+    <color name="icon_bg">#EAF5F1</color>
     <color name="check_text">@color/starling_fg</color>
 </resources>
