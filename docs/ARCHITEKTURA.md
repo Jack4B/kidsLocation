@@ -22,7 +22,8 @@ Gdy kod i ten plik się rozjeżdżają, wygrywa kod i trzeba poprawić plik.
 
 Zależności: brak zależności uruchomieniowych. Jedyna zależność deweloperska to Leaflet 1.9.4,
 dociągany skryptem `tools/sync-vendor.sh`. Bez niego dwa testy padają (sprawdzają, że pliki
-Leaflet istnieją na dysku). Na Node 22.22 przechodzi 1082 testy, 34 jest pominiętych.
+Leaflet istnieją na dysku). Po `npm ci` i `bash tools/sync-vendor.sh` na Node 24.21.0 i na
+Node 22.22.0 przechodzi 1084 testy, 34 jest pominiętych, 0 błędów (F0-5).
 
 ## Protokół w skrócie (szczegóły: `docs/PROTOCOL.md` w forku)
 

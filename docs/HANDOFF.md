@@ -6,6 +6,30 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F0-5 (testy bazowe)
+
+Zrobiono (fork `Jack4B/starling`, wersja 0.21.0, commit `8ec6dad`, lokalny klon tylko do odczytu):
+
+```
+node -v                          # v24.21.0 (oficjalna paczka z nodejs.org, suma SHA-256 sprawdzona)
+npm ci --ignore-scripts          # instaluje tylko Leaflet 1.9.4 (zależność deweloperska)
+bash tools/sync-vendor.sh        # vendor synced: leaflet 1.9.4 (unminified)
+node --test test/*.test.mjs
+  tests 1118, pass 1084, fail 0, cancelled 0, skipped 34, duration_ms 32618
+```
+
+Ten sam zestaw na Node 22.22.0 (wersja zbliżona do CT8): tests 1118, pass 1084, fail 0,
+skipped 34. Jedyna różnica to ostrzeżenie `ExperimentalWarning` dla `node:sqlite` w logu.
+Dwa testy, które padały w fazie 0, przechodzą po `sync-vendor.sh` (to był brak Leafleta).
+
+Nie zrobiono: testów e2e (wymagają Firefoksa i Pythona z Marionette), testów Kotlina w
+`android/` ani niczego na urządzeniach. W forku nic nie zmieniono, nic nie wypchnięto.
+
+Następny krok: recenzja Gemini (powtórzyć te cztery komendy i porównać liczby). Ten wynik jest
+punktem odniesienia dla każdego przyszłego PR-a z kodem.
+
+---
+
 ## 2026-10-14, Claude, przekazanie do nowej sesji
 
 Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła
