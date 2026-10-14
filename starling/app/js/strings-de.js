@@ -517,7 +517,6 @@ export const de = {
   "Was": "Vorher",
   "Watch the demo": "Demo ansehen",
   "west": "Westen",
-  "What Starling is and how it works &#8599;": "Was Starling ist und wie es funktioniert &#8599;",
   "When you are safe": "Wenn du in Sicherheit bist",
   "While you share, your position also goes to {host}.": "Während du teilst, geht deine Position auch an {host}.",
   "Who could read you": "Wer deine Position lesen könnte",
@@ -809,4 +808,7 @@ export const de = {
   "Cycling": "Mit dem Rad",
   "Driving": "Im Auto",
   "Save battery when still is on. After 2 minutes without moving, Starling sends every 5 minutes. The relay cannot read where you are, but it can tell from the slower timing that you are sitting still. You can turn it off under Sharing in settings.": "Akku sparen im Stillstand ist an. Nach 2 Minuten ohne Bewegung sendet Starling nur noch alle 5 Minuten. Das Relay kann nicht lesen, wo du bist, sieht aber am langsameren Takt, dass du still sitzt. Du kannst es in den Einstellungen unter Teilen ausschalten.",
+  "Connect to your family relay": "Mit dem Relay deiner Familie verbinden",
+  "Enter your family relay's address.": "Gib die Adresse des Relays deiner Familie ein.",
+  "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.": "Diese App hat keine Relay-Adresse eingebaut. Gib die Adresse des Relays deiner Familie ein, zum Beispiel https://relay.example.org. Die ganze Familie nutzt dasselbe, und bis es eingetragen ist, wird nichts gesendet.",
 };
