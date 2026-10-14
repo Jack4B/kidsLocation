@@ -48,6 +48,11 @@ Zostaje do sprawdzenia na CT8 (właściciel, kilka minut):
    czyszczenie po 24 godzinach i tak dzieje się przy każdym odczycie.
 3. Czy proces przeżywa restart serwera i czy limity konta (procesy, pamięć) nie zabijają go.
 
+Wynik F1-1 (szczegóły w `docs/OBCIAZENIE-RELAYA.md`): jeden post to około 8 zapisanych wierszy
+D1. Krąg 7 osób robi od około 69 000 (spokojny dzień) do około 574 000 (dzień podróży) zapisów na
+dobę, przy darmowym limicie 100 000. Opcja B wymaga więc płatnego planu Cloudflare; na darmowym
+rodzina przestałaby się widzieć w dniu z dłuższą jazdą.
+
 Wniosek: wersja Node przestała blokować opcję A. Jeśli punkty 2 i 3 dadzą odpowiedź twierdzącą,
 rekomendacja to A. Liczby obciążenia dla opcji B: F1-1.
 
