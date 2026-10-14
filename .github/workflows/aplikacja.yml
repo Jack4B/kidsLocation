@@ -125,7 +125,7 @@ jobs:
           "$APKSIGNER" verify --print-certs "$OUT" | head -3
           # Public: the signing certificate's fingerprint, in the form the
           # relay's ANDROID_CERT_SHA256 setting wants (docs/WDROZENIE-CT8.md).
-          FP=$("$APKSIGNER" verify --print-certs "$OUT" | sed -n 's/^Signer.* certificate SHA-256 digest: //p' | head -1 | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+          FP=$(keytool -printcert -jarfile "$OUT" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1)
           [ -n "$FP" ] || { echo "could not read the signing certificate fingerprint"; exit 1; }
           echo "ANDROID_CERT_SHA256=$FP"
           echo "Relay setting for App Links: \`ANDROID_CERT_SHA256=$FP\`" >> "$GITHUB_STEP_SUMMARY"
