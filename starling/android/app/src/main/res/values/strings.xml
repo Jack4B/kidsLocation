@@ -7,6 +7,8 @@
     <string name="notif_arrive_channel">Przyjścia</string>
     <string name="notif_leave_channel">Wyjścia</string>
     <string name="notif_checkin_channel">Check-iny</string>
+    <string name="notif_chat_channel">Wiadomości</string>
+    <string name="notif_chat_text">Nowa wiadomość</string>
     <string name="notif_sos_channel">Alarmy SOS</string>
     <string name="notif_sos_text">Otwórz Blisko teraz.</string>
     <string name="notif_title">Udostępniasz lokalizację kręgowi</string>

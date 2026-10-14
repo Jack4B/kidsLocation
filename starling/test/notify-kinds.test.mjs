@@ -220,14 +220,16 @@ test("checkAlerts tags arrivals, departures, check-ins and low battery with thei
 
 test("Android gives arrivals, departures and check-ins channels of their own and the SOS channel stays out of reach", () => {
   const main = kt("MainActivity.kt");
-  const ids = ["EVENTS_CHANNEL", "ARRIVE_CHANNEL", "LEAVE_CHANNEL", "CHECKIN_CHANNEL", "SOS_CHANNEL"].map(
+  // CHAT_CHANNEL: family chat messages (kidsLocation F3).
+  const ids = ["EVENTS_CHANNEL", "ARRIVE_CHANNEL", "LEAVE_CHANNEL", "CHECKIN_CHANNEL", "SOS_CHANNEL", "CHAT_CHANNEL"].map(
     (n) => main.match(new RegExp(`const val ${n} = "([^"]+)"`))?.[1],
   );
-  assert.equal(new Set(ids).size, 5, `five distinct channel ids: ${ids}`);
+  assert.equal(new Set(ids).size, 6, `six distinct channel ids: ${ids}`);
   assert.equal(ids[0], "events", "the general channel keeps its id, so existing sound choices stay");
 
   const events = kt("Events.kt");
-  assert.match(events, /"arrive" -> MainActivity\.ARRIVE_CHANNEL\r?\n\s*"leave" -> MainActivity\.LEAVE_CHANNEL\r?\n\s*"checkin" -> MainActivity\.CHECKIN_CHANNEL\r?\n\s*else -> MainActivity\.EVENTS_CHANNEL/);
+  assert.match(events, /"arrive" -> MainActivity\.ARRIVE_CHANNEL\r?\n\s*"leave" -> MainActivity\.LEAVE_CHANNEL\r?\n\s*"checkin" -> MainActivity\.CHECKIN_CHANNEL\r?\n\s*"chat" -> MainActivity\.CHAT_CHANNEL\r?\n\s*else -> MainActivity\.EVENTS_CHANNEL/);
+  assert.match(events, /MainActivity\.CHAT_CHANNEL to R\.string\.notif_chat_channel,/);
   assert.doesNotMatch(events.slice(events.indexOf("fun channelFor"), events.indexOf("fun post")), /SOS_CHANNEL/);
   assert.match(events, /val channelId = if \(urgent\) ensureSosChannel\(ctx\) else routine/);
   assert.match(
