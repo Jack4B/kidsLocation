@@ -25,6 +25,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HTTP_PORT = 8941;
 const CDP_PORT = 9341;
 const BASE = `http://127.0.0.1:${HTTP_PORT}`;
+// The relay the served page has built in (serve_local writes build-config.js from it).
+const E2E_RELAY = "https://relay.e2e.test";
 
 const fails = [];
 function check(name, cond, detail = "") {
@@ -123,7 +125,7 @@ async function main() {
   const profile = mkdtempSync(path.join(tmpdir(), "starling-resume-e2e-"));
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
     cwd: ROOT,
-    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000" },
+    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000", RELAY_URL: E2E_RELAY },
     stdio: "ignore",
   });
   const chromium = spawn("chromium", [
@@ -149,7 +151,7 @@ async function main() {
     await c.open;
     await c.send("Page.enable");
     await c.send("Runtime.enable");
-    // A wrapped page posts to the canonical relay; send that to the local one instead.
+    // A wrapped page posts to its built-in relay; send that to the local one instead.
     const cors = [
       { name: "access-control-allow-origin", value: BASE },
       { name: "access-control-allow-methods", value: "GET, POST" },
@@ -178,7 +180,7 @@ async function main() {
         body,
       });
     });
-    await c.send("Fetch.enable", { patterns: [{ urlPattern: "https://starlingmap.app/*", requestStage: "Request" }] });
+    await c.send("Fetch.enable", { patterns: [{ urlPattern: `${E2E_RELAY}/*`, requestStage: "Request" }] });
     await c.send("Page.addScriptToEvaluateOnNewDocument", { source: BRIDGE });
     await c.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 

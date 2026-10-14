@@ -373,7 +373,6 @@ export const fr = {
   "The circle keeps the name its creator gave it. You can rename it for yourself in settings.": "Le cercle garde le nom que son créateur lui a donné. Vous pouvez le renommer pour vous dans les réglages.",
   "Was": "Avant",
   "Watch the demo": "Voir la démo",
-  "What Starling is and how it works &#8599;": "Ce qu'est Starling et comment ça marche &#8599;",
   "When you are safe": "Quand vous êtes en sécurité",
   "Wrong passcode. Try again.": "Code d'accès incorrect. Réessayez.",
   "You already asked to join. They still have to let you in.": "Vous avez déjà demandé à rejoindre le cercle. On doit encore vous laisser entrer.",
@@ -809,6 +808,9 @@ export const fr = {
   "Cycling": "À vélo",
   "Driving": "En voiture",
   "Save battery when still is on. After 2 minutes without moving, Starling sends every 5 minutes. The relay cannot read where you are, but it can tell from the slower timing that you are sitting still. You can turn it off under Sharing in settings.": "Économiser la batterie à l'arrêt est activé. Après 2 minutes sans bouger, Starling envoie toutes les 5 minutes. Le relais ne peut pas lire où vous êtes, mais il voit au rythme plus lent que vous restez immobile. Vous pouvez le désactiver dans les réglages, sous Partage.",
+  "Connect to your family relay": "Se connecter au relais de votre famille",
+  "Enter your family relay's address.": "Saisissez l'adresse du relais de votre famille.",
+  "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.": "Cette app n'a aucune adresse de relais intégrée. Saisissez l'adresse du relais de votre famille, par exemple https://relay.example.org. Toute la famille utilise le même, et rien n'est envoyé tant qu'il n'est pas défini.",
   // Family chat (kidsLocation F3). English until a translator fills these in.
   "{n} new message": "{n} new message",
   "{n} new messages": "{n} new messages",
