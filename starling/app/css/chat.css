@@ -1,0 +1,494 @@
+/* Family chat (chatview.js). Self-contained: every rule is scoped under .cht
+   or .cht-screen, so nothing else in the app changes when this file loads.
+
+   Colors come from the redesign's token names (--surface, --surface2, --ink2,
+   --accentInk, --accentSoft, as in docs/makiety Czat and Zasady), each with a
+   fallback to the token the current theme already defines, so the screen
+   looks right today and picks up the new palette when it lands. */
+
+.cht {
+  --c-bg: var(--bg, #0a0d14);
+  --c-surface: var(--surface, var(--bg-1, #101522));
+  --c-surface2: var(--surface2, var(--bg-2, #171e30));
+  --c-ink: var(--ink, #e6ebf5);
+  --c-ink2: var(--ink2, var(--ink-2, #9aa7bd));
+  --c-line: var(--line, rgba(148, 163, 184, 0.12));
+  --c-accent: var(--accent, #2dd4bf);
+  --c-accent-ink: var(--accentInk, var(--accent-ink, #06211e));
+  --c-accent-soft: var(--accentSoft, color-mix(in srgb, var(--accent, #2dd4bf) 18%, transparent));
+  --c-sos: var(--sos, #f43f5e);
+  --c-warn: var(--warn, #fbbf24);
+  /* Accent used AS TEXT. The current light theme's teal is too pale for text
+     on white (under 2:1), so light mode darkens it; the redesign's darker
+     accent stays at 4.5:1 or better either way. */
+  --c-accent-text: var(--c-accent);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--font, system-ui, sans-serif);
+}
+
+:root[data-theme="light"] .cht {
+  --c-accent-text: color-mix(in srgb, var(--c-accent) 55%, #000);
+}
+
+/* The full-screen layer main.js opens it in until the bottom navigation
+   takes over. */
+.cht-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+}
+.cht-screen[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ head */
+
+.cht-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 76px;
+  box-sizing: border-box;
+  padding: calc(var(--safe-top, 0px) + 10px) 12px 10px 20px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line);
+}
+.cht-head:has(.cht-back) {
+  padding-left: 4px;
+}
+.cht-titles {
+  flex: 1;
+  min-width: 0;
+}
+.cht-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cht-e2e {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-accent-text);
+}
+.cht-avas {
+  display: flex;
+  flex: none;
+}
+.cht-ava {
+  width: 36px;
+  height: 36px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid var(--c-surface);
+  color: #14201c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+.cht-ava + .cht-ava {
+  margin-left: -10px;
+}
+.cht-iconbtn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--c-ink2);
+  cursor: pointer;
+  padding: 0;
+}
+.cht-back {
+  color: var(--c-ink);
+}
+.cht-iconbtn:focus-visible,
+.cht-chip:focus-visible,
+.cht-send:focus-visible,
+.cht-more:focus-visible,
+.cht-retry:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ info */
+
+.cht-info {
+  flex: none;
+  max-height: 55%;
+  overflow-y: auto;
+  padding: 12px 20px 8px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-line);
+}
+.cht-info[hidden] {
+  display: none;
+}
+.cht-info-line {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--c-ink2);
+}
+.cht-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-top: 1px solid var(--c-line);
+  cursor: pointer;
+}
+.cht-toggle-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cht-toggle-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+.cht-toggle-note {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--c-ink2);
+}
+.cht-switch {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  accent-color: var(--c-accent);
+}
+
+/* -------------------------------------------------------------- timeline */
+
+.cht-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cht-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 8px;
+}
+.cht-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cht-note {
+  align-self: center;
+  box-sizing: border-box;
+  max-width: 330px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--c-surface2);
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--c-ink2);
+  text-align: center;
+}
+.cht-empty {
+  align-self: center;
+  margin: 24px 0 0;
+  font-size: 14px;
+  color: var(--c-ink2);
+}
+.cht-empty[hidden],
+.cht-more[hidden] {
+  display: none;
+}
+.cht-more {
+  align-self: center;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--c-accent-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cht-day {
+  align-self: center;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink2);
+}
+.cht-day::first-letter {
+  text-transform: uppercase;
+}
+.cht-sys {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 6px 12px 6px 10px;
+  border-radius: 14px;
+  background: var(--c-accent-soft);
+  color: var(--c-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.cht-sys svg {
+  flex: none;
+  color: var(--c-accent-text);
+}
+.cht-gap {
+  align-self: center;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  max-width: 330px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--c-warn) 45%, transparent);
+  background: color-mix(in srgb, var(--c-warn) 10%, transparent);
+  color: var(--c-ink);
+  font-size: 13px;
+  line-height: 18px;
+}
+.cht-gap svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--c-warn);
+}
+
+.cht-msg {
+  max-width: min(270px, 78%);
+  display: flex;
+  flex-direction: column;
+}
+.cht-theirs {
+  align-self: flex-start;
+}
+.cht-mine {
+  align-self: flex-end;
+}
+.cht-from {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink2);
+  margin: 0 0 3px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cht-bubble {
+  padding: 10px 14px;
+  font-size: 15.5px;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.cht-theirs .cht-bubble {
+  border-radius: 18px 18px 18px 6px;
+  background: var(--c-surface);
+  box-shadow: 0 0 0 1px var(--c-line);
+}
+.cht-mine .cht-bubble {
+  border-radius: 18px 18px 6px 18px;
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+}
+.cht-failed .cht-bubble {
+  opacity: 0.7;
+}
+.cht-meta {
+  font-size: 12px;
+  color: var(--c-ink2);
+  margin: 3px 12px 0;
+}
+.cht-mine .cht-meta {
+  text-align: right;
+}
+.cht-retry {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--c-sos);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------- footer */
+
+.cht-foot {
+  flex: none;
+  padding: 4px 0 calc(var(--safe-bottom, 0px) + 4px);
+  background: var(--c-bg);
+}
+.cht-chips {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cht-chips::-webkit-scrollbar {
+  display: none;
+}
+.cht-chips[hidden] {
+  display: none;
+}
+/* 48 px to touch, 36 px to see, as in the mockup. */
+.cht-chip {
+  flex: none;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-ink);
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.cht-chip-face {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 1.5px var(--c-line);
+  background: var(--c-surface);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cht-chip:active .cht-chip-face {
+  background: var(--c-accent-soft);
+}
+.cht-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.cht-compose {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 16px 4px;
+  margin: 0;
+}
+.cht-field {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  box-sizing: border-box;
+  border-radius: 24px;
+  background: var(--c-surface);
+  box-shadow: inset 0 0 0 1.5px var(--c-line);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+}
+.cht-field:focus-within {
+  box-shadow: inset 0 0 0 2px var(--c-accent);
+}
+.cht-field-over,
+.cht-field-over:focus-within {
+  box-shadow: inset 0 0 0 2px var(--c-sos);
+}
+.cht-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 15.5px;
+}
+.cht-input::placeholder {
+  color: var(--c-ink2);
+  opacity: 1;
+}
+.cht-count {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--c-ink2);
+  font-variant-numeric: tabular-nums;
+}
+.cht-count-over {
+  color: var(--c-sos);
+  font-weight: 700;
+}
+.cht-send {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--c-accent);
+  color: var(--c-accent-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.cht-send:disabled {
+  background: var(--c-surface2);
+  color: var(--c-ink2);
+  cursor: default;
+}
+.cht-problem,
+.cht-off {
+  margin: 4px 16px 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+.cht-problem {
+  color: var(--c-sos);
+  font-weight: 600;
+}
+.cht-off {
+  color: var(--c-ink2);
+  padding-bottom: 8px;
+}
+.cht-problem[hidden],
+.cht-off[hidden] {
+  display: none;
+}
+
+/* The entry point in the current map sheet: a tool button like Places. */
+.tool-badge.cht-badge {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}

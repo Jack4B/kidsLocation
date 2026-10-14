@@ -109,7 +109,7 @@ import {
 } from "./lock.js";
 import { createPlaceTracker, sanitizePlaces, newPlaceId, fenceSnap, announces, DEFAULT_RADIUS } from "./places.js";
 import { ASK_GAP_MS, ASK_WINDOW_MS, DUE_GRACE_MS, DUE_WARN_MS, OK_WINDOW_MS, overdue, storedTimer, warnDue } from "./checkin.js";
-import { debugHooks, apiUrl, customRelayInUse, isWrapped, isBundled, native, pageShown, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
+import { debugHooks, apiUrl, customRelayInUse, isWrapped, isBundled, isIOSWrapped, native, pageShown, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
 import {
   isSealedRecordError,
   GEN_SLOT,
@@ -143,6 +143,8 @@ import * as ui from "./ui.js";
 import { createMapView } from "./map.js";
 import { createPoller, createRoster, createSender, statusOf, displayStatus, sortMembers, staleAfter } from "./net.js";
 import { createOutbox } from "./outbox.js";
+import { createChatController, chatNotice } from "./chat.js";
+import { mountChat } from "./chatview.js";
 import { buildDataExport } from "./export.js";
 import { startBeacon } from "./helpsession.js";
 import { startWatch, batteryLevel, activityFor, medianSpeed } from "./geo.js";
@@ -224,6 +226,8 @@ const state = {
     batAlerts: true, // say when a member's battery runs low
     detailAlerts: false, // Android: one notification per place event, with name, place and time
     detailOnLock: false, // Android: let those words show on a locked screen too
+    chatPreview: false, // Android: put a message's text in its notification, not only who wrote
+    chatOnLock: false, // Android: let that show on a locked screen too
     shareReminder: 0, // ms after a stop you chose before the phone says sharing is off; 0 is never
     units: "auto", // "metric", "imperial", or the region in the phone's language
   },
@@ -390,6 +394,24 @@ const outbox = createOutbox({
     render();
   },
 });
+// Family chat (chat.js). Its own first-in-first-out line through the live
+// sender, never the outbox, whose one slot per type would let a second
+// message replace the first. The archive is loaded per circle by loadChat
+// and written under the same at-rest rule as places.
+const chat = createChatController({
+  send: async (fields) => {
+    if (state.demo || state.locked || !sender) throw new Error("no sender");
+    return sender.send(fields);
+  },
+  save: () => writeChatAtRest(),
+  onChange: () => chatChanged(),
+  onIncoming: (item) => onChatIncoming(item),
+});
+// The full-screen layer the chat opens in from the map sheet, and the view
+// mounted in it. Built on first open.
+let chatLayer = null;
+let chatView = null;
+const chatUnreadListeners = new Set();
 // The invite-channel loops: one on the inviting side watching for join
 // requests, one on the joining side waiting for a welcome. Both are plain stop
 // functions, and both are memory only.
@@ -554,6 +576,11 @@ function openMemberFromNotification() {
     // an older wrapper without the method
   }
   if (!id || state.locked || state.demo) return;
+  // A chat notification names the chat, not a member; member ids are hex.
+  if (id === "chat") {
+    openChat();
+    return;
+  }
   if (members().some((r) => r.id === id)) focusMember(id);
 }
 globalThis.__starlingOpenMember = openMemberFromNotification;
@@ -749,6 +776,7 @@ function ensureMapUI() {
   $("#sos-help").addEventListener("click", openHelpLink);
   byTestid("members-open").addEventListener("click", openMembers);
   byTestid("places-open").addEventListener("click", openPlaces);
+  installChatEntry();
   byTestid("status-open").addEventListener("click", openStatus);
   $("#banner-keys-open").addEventListener("click", openMembers);
   $("#banner-pick-center").addEventListener("click", () => mapView.pickCenter());
@@ -1501,6 +1529,7 @@ function renderTools() {
   }
   const timerBtn = byTestid("timer-open");
   if (timerBtn) timerBtn.onclick = openCheckinTimer;
+  renderChatEntry();
   const placesSub = $("#places-tool-sub");
   if (placesSub) {
     const n = state.places.length;
@@ -1776,6 +1805,7 @@ async function enterCircle() {
   // the alert the teardown raised is already on screen.
   if (!state.gen) return;
   await loadPlaces();
+  await loadChat().catch((e) => window.__starlingErrors.push(`chat: ${String(e)}`));
   // A watch-only member is exactly who an SOS notification exists for, and
   // they may never touch the share toggle that used to be the only thing
   // that asked. Ask when a circle becomes real instead. Android silently
@@ -2026,7 +2056,11 @@ async function leaveDestroyedCircle(circles) {
   // device class the catch-up destruct exists for.
   //
   // So: erase first, and let the bookkeeping fail on its own if it must.
+  const gone = state.identity?.memberId;
   const res = await leaveActive(kv, lockCtx(), { circles, toIndex: 0 });
+  // The circle's chat goes with its keys. Bookkeeping like the mark below:
+  // the erase above already happened and this may not veto it.
+  await forgetChat(gone).catch(() => {});
   try {
     await dbSet(DESTROYED_KEY, 1);
   } catch {
@@ -2143,6 +2177,7 @@ function setupNet() {
     pinned: pinnedStore,
     onControl,
     onKeyChange,
+    onChat: (from, obj, e, ts) => chat.receive(from, obj, e, ts),
   });
   let lastTsCache = null;
   const seedLastTs = (v) => {
@@ -2893,6 +2928,231 @@ function addPlace(name, lat, lon) {
   return savePlaces();
 }
 
+// ------------------------------------------------------------------ chat
+
+// The chat archive follows the places rule: sealed under the vault key while
+// the lock is on, plaintext otherwise, exactly one form on disk. Every
+// circle's chat is one record keyed by this device's member id in that
+// circle. Nothing is written before the archive was read, or an empty
+// memory would overwrite what is on disk.
+async function writeChatAtRest() {
+  if (!chat.loaded()) return;
+  const form = atRestForm(lockCtx());
+  if (!form.ok) throw new Error("locked: refusing to write chat");
+  const archive = chat.archive();
+  if (form.sealed) {
+    await dbSet("vaultChat", await sealUnderVault(form.vaultKey, te.encode(JSON.stringify(archive))));
+    await dbDel("chat");
+  } else {
+    await dbSet("chat", JSON.parse(JSON.stringify(archive)));
+    await dbDel("vaultChat");
+  }
+}
+
+// The member ids this device still holds a circle under. A chat log for any
+// other id is a circle that is gone, possibly through a leave that crashed
+// before it got here.
+function chatCircleIds() {
+  return new Set([state.identity?.memberId, ...state.circles.map((c) => c.identity?.memberId)].filter(Boolean));
+}
+
+// Read the archive once per unlock, with the same residue sweep as places,
+// then point the controller at the active circle.
+async function loadChat() {
+  if (!state.identity) return;
+  if (chat.loaded()) {
+    chat.setCircle(state.identity.memberId);
+    return;
+  }
+  const form = atRestForm(lockCtx());
+  if (!form.ok) return;
+  let raw = null;
+  let reseal = false;
+  if (form.sealed) {
+    const blob = await dbGet("vaultChat");
+    if (blob) {
+      const bytes = await openUnderVault(form.vaultKey, blob);
+      if (bytes) {
+        try {
+          raw = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {
+          raw = null;
+        }
+      }
+    }
+    const stray = await dbGet("chat");
+    if (stray !== undefined && stray !== null) {
+      if (!raw) raw = stray;
+      reseal = true;
+    }
+  } else {
+    raw = await dbGet("chat");
+    if (await dbGet("vaultChat")) await dbDel("vaultChat");
+  }
+  chat.adopt(raw, chatCircleIds());
+  chat.setCircle(state.identity.memberId);
+  if (reseal) await writeChatAtRest();
+}
+
+// A circle left or erased takes its chat along; the last one takes the record.
+async function forgetChat(memberId) {
+  if (!memberId) return;
+  await chat.forget(memberId);
+  if (!Object.keys(chat.archive().circles).length) {
+    await dbDel("chat");
+    await dbDel("vaultChat");
+  }
+}
+
+const chatVisible = () => !!chatLayer && !chatLayer.hidden && pageShown();
+
+// A message from someone else just landed. On screen in the chat it is
+// simply read; elsewhere in the app a toast names who wrote; with the app in
+// the background (Android) a notification does, and carries the text only
+// when the person switched that on.
+function onChatIncoming(item) {
+  if (state.demo) return;
+  if (chatVisible()) return;
+  const name = displayName(item.from, t("Someone"));
+  if (pageShown()) {
+    ui.toast(t("New message from {name}", { name }));
+    return;
+  }
+  notifyChat(item, name);
+}
+
+function notifyChat(item, name) {
+  const n = native();
+  if (typeof n?.notifyDetail !== "function") return;
+  const note = chatNotice({
+    name,
+    text: item.x,
+    preview: state.settings.chatPreview === true,
+    onLock: state.settings.chatOnLock === true,
+    t,
+  });
+  try {
+    // One tag for all of chat: a new message replaces the last notice
+    // instead of stacking. The member slot names the chat, so a tap opens it.
+    n.notifyDetail(note.title, note.body, "chat", "chat", "chat", note.onLock);
+  } catch {
+    // an older wrapper without the method
+  }
+}
+
+function chatPlatform() {
+  if (isIOSWrapped() || native()?.platform?.() === "ios") return "ios";
+  return isWrapped() ? "android" : "web";
+}
+
+function chatDeps() {
+  return {
+    items: () => chat.items(),
+    nameOf: (id) => displayName(id, t("A member")),
+    people: () =>
+      [...state.pinned.keys()]
+        .filter((id) => id !== state.identity?.memberId)
+        .map((id) => ({ id, name: displayName(id, ""), hue: hueFromMemberId(id) })),
+    circleName: () => ui.circleLabel(state.circleName),
+    post: (text) => chat.post(text),
+    retry: (id) => chat.retry(id),
+    markRead: () => {
+      if (chatVisible()) chat.markRead();
+    },
+    isVisible: chatVisible,
+    available: () => {
+      if (state.demo) return { ok: false, why: t("Chat is off in the demo.") };
+      if (!state.gen || !state.identity) return { ok: false, why: t("Chat starts once you are in a circle.") };
+      return { ok: true };
+    },
+    lockOn: () => !!state.lock?.enabled,
+    platform: chatPlatform,
+    canNotify: () => typeof native()?.notifyDetail === "function",
+    settings: () => state.settings,
+    onSetting: (key, value) => onSettingChange(key, value),
+    onClose: closeChat,
+  };
+}
+
+function openChat() {
+  if (state.locked || !state.identity) return;
+  if (!chatLayer) {
+    chatLayer = document.createElement("section");
+    chatLayer.className = "cht-screen";
+    chatLayer.dataset.testid = "chat-screen";
+    chatLayer.setAttribute("role", "dialog");
+    chatLayer.setAttribute("aria-label", t("Chat"));
+    document.body.append(chatLayer);
+    chatView = mountChat(chatLayer, chatDeps());
+  }
+  ui.closeAllOverlays();
+  chatLayer.hidden = false;
+  chatView.scrollToEnd();
+  chatView.update();
+  chat.markRead();
+}
+
+function closeChat() {
+  if (!chatLayer || chatLayer.hidden) return;
+  chatLayer.hidden = true;
+  renderChatEntry();
+  byTestid("chat-open")?.focus?.();
+}
+
+function chatChanged() {
+  if (chatView && chatLayer && !chatLayer.hidden) chatView.update();
+  renderChatEntry();
+  const n = chat.unread();
+  for (const fn of chatUnreadListeners) {
+    try {
+      fn(n);
+    } catch {
+      // a listener's own problem
+    }
+  }
+}
+
+// The way in from today's map sheet: a tool row like Places, with the unread
+// count as its badge. Built here rather than in index.html so the coming
+// navigation can replace it without touching the page.
+function installChatEntry() {
+  const tools = $(".sheet-tools");
+  if (!tools || typeof tools.prepend !== "function" || byTestid("chat-open")) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "tool-btn";
+  b.id = "chat-open";
+  b.dataset.testid = "chat-open";
+  const label = document.createElement("span");
+  label.className = "tool-label";
+  label.textContent = t("Chat");
+  const sub = document.createElement("span");
+  sub.className = "tool-sub";
+  sub.id = "chat-tool-sub";
+  const badge = document.createElement("span");
+  badge.className = "tool-badge cht-badge";
+  badge.id = "chat-badge";
+  badge.dataset.testid = "chat-badge";
+  badge.hidden = true;
+  b.append(label, sub, badge);
+  b.addEventListener("click", openChat);
+  tools.prepend(b);
+  renderChatEntry();
+}
+
+function renderChatEntry() {
+  const sub = $("#chat-tool-sub");
+  const badge = $("#chat-badge");
+  if (!sub || !badge) return;
+  const n = chat.unread();
+  sub.textContent = n
+    ? t(n === 1 ? "{n} new message" : "{n} new messages", { n })
+    : t("Short messages to your circle, end-to-end encrypted");
+  badge.hidden = !n;
+  badge.textContent = String(n);
+  badge.setAttribute("aria-label", t(n === 1 ? "{n} new message" : "{n} new messages", { n }));
+}
+
 // The members this generation opened with, as written down with it, read out
 // of a record that may predate the field.
 function adoptGenRoster(meta) {
@@ -3074,6 +3334,9 @@ async function enableLock(passcode) {
     await writePlacesAtRest().catch((e) => {
       window.__starlingErrors.push(`places: ${String(e)}`);
     });
+    await writeChatAtRest().catch((e) => {
+      window.__starlingErrors.push(`chat: ${String(e)}`);
+    });
     return true;
   } finally {
     releaseCircleGuard();
@@ -3107,6 +3370,9 @@ async function disableLock(passcode) {
     // lock gone it could never be opened again anyway.
     await writePlacesAtRest().catch((e) => {
       window.__starlingErrors.push(`places: ${String(e)}`);
+    });
+    await writeChatAtRest().catch((e) => {
+      window.__starlingErrors.push(`chat: ${String(e)}`);
     });
     return true;
   } finally {
@@ -3426,6 +3692,10 @@ function lockNow() {
   // The retry line holds nothing across a lock: what a locked device must
   // not act on, it forgets.
   outbox.clear();
+  // Every decrypted message leaves memory and the screen; the archive on disk
+  // comes back at the next unlock.
+  closeChat();
+  chat.reset();
   // Before the pollers, for the same reason the vault key goes: a generation
   // being held open for a re-key race is chain keys, and a locked device holds
   // none.
@@ -4943,6 +5213,8 @@ const leaveCircle = () =>
   withCircleGuard(async () => {
     if (!shareCapable() || state.demo || state.locked || !state.gen) return false;
     if (state.sharing) await awaitBye(await setSharing(false));
+    const leaving = state.identity?.memberId;
+    closeChat();
     teardownNet();
     stopJoinWatch();
     clearInterval(rekeyTimer);
@@ -4965,6 +5237,7 @@ const leaveCircle = () =>
       await enterCircle();
       throw e;
     }
+    await forgetChat(leaving).catch((e) => window.__starlingErrors.push(`chat: ${String(e)}`));
     if (res.active) {
       state.circles = res.circles;
       applyActive(res.active);
@@ -5333,6 +5606,8 @@ async function panic() {
   // Nothing may race the wipe: a queued retry firing between the store's
   // death and the reload would be this device's last word, sent by a ghost.
   outbox.clear();
+  chat.reset();
+  closeChat();
   sender?.cancel?.();
   // In the wrapper the bridge runs the same full wipe the PanicKit trigger
   // does: Keystore wrap key, notification channels, then the OS-level clear
@@ -7140,6 +7415,8 @@ function checkAlerts() {
             ev.type === "arrive" ? t("{who} arrived at {place}", { who, place: ev.placeName }) : t("{who} left {place}", { who, place: ev.placeName });
           ui.toast(msg);
           navigator.vibrate?.(80);
+          // The same moment as a line in the chat, on this phone only.
+          if (!state.demo) chat.system({ from: rec.id, ev: ev.type, place: ev.placeName });
           const wordy = state.settings.detailAlerts === true;
           notifyEvent(msg, wordy ? fmtClock(now) : "", `place-${rec.id}`, ev.type, {
             tag: `p${now.toString(36)}${(placeSeq++).toString(36)}`,
@@ -7476,6 +7753,21 @@ if (debugHooks()) window.__starlingInternals = {
   },
   leaveCircle,
   enableLock,
+  disableLock,
+  chat,
+  loadChat,
+  writeChatAtRest,
+  forgetChat,
+  openChat,
+  closeChat,
+  chatDeps,
+  notifyChat,
+  onChatIncoming,
+  // For the coming bottom navigation: the unread count, every time it changes.
+  onChatUnread: (fn) => {
+    chatUnreadListeners.add(fn);
+    return () => chatUnreadListeners.delete(fn);
+  },
 };
 
 // ----------------------------------------------------------------- boot
@@ -7493,6 +7785,7 @@ window.addEventListener("online", () => {
   // A working network just showed itself: anything still owed to the
   // circle goes now.
   outbox.flush();
+  chat.flush();
   render();
 });
 
@@ -7502,6 +7795,8 @@ window.addEventListener("online", () => {
 document.addEventListener("visibilitychange", () => {
   if (!pageShown() || state.locked) return;
   catchUp();
+  chat.purge();
+  chat.flush();
   healthAt = 0;
   if (!state.sharing && (state.stopRecord?.route === "system" || state.stopRecord?.route === "stalled")) {
     resumeShareIfArmed().catch((e) => window.__starlingErrors.push(`share resume: ${String(e)}`));
@@ -7532,6 +7827,10 @@ window.addEventListener("hashchange", () => {
 document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (ui.closeTopOverlay()) return;
+  if (chatLayer && !chatLayer.hidden) {
+    closeChat();
+    return;
+  }
   if (pickName !== null) {
     backOutOfPick();
     return;

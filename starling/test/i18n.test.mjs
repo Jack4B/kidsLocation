@@ -150,7 +150,7 @@ test("no user-visible literal bypasses the translator", () => {
   // or a spoken attribute, invisible to both the chokepoints and the
   // extractor. Anything matching here must be wrapped in t() or allowlisted
   // with a reason.
-  const files = ["app/js/main.js", "app/js/ui.js", "app/js/helpview.js"];
+  const files = ["app/js/main.js", "app/js/ui.js", "app/js/helpview.js", "app/js/chatview.js"];
   const allow = new Set([
     // product name + version, language-invariant
     "Starling ${VERSION}",
