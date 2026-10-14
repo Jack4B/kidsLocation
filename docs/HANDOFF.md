@@ -6,6 +6,33 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F2-9 (makiety brakujących ekranów)
+
+Zrobiono: `docs/makiety/makiety-F2-9.html` (samodzielny plik, bez zasobów z sieci, otwiera się
+w zwykłej przeglądarce), 13 ekranów w obu motywach: Miejsca (lista, edycja z promieniem,
+wskazanie na mapie), aktywny SOS (u wysyłającego, u odbiorcy w aplikacji i na ekranie blokady),
+zaproszenie (kod QR i link, skan lub wklejenie, prośba z numerem bezpieczeństwa), pierwsze
+uruchomienie (powitanie, lokalizacja, utworzenie kręgu, czekanie). Zrzuty w `docs/makiety/png/`
+(zrzut całej strony `png/calosc.png` generuje `node narzedzia/full.cjs`, nie jest w repozytorium),
+generator i skrypty w `docs/makiety/narzedzia/`, opis i 12 pytań do właściciela w `DESIGN.md`.
+
+Sprawdzono: kontrast wszystkich par tekstu wzorem WCAG (`docs/makiety/kontrast.txt`, najniższy
+4,76 do 1; para akcent na powierzchni 2 w jasnym, 4,45, zakazana w DESIGN); render w Chromium
+przez Playwright z automatyczną kontrolą przepełnień i celów dotyku; brak półpauz i pauz.
+
+Nie sprawdzono: docelowych czcionek (w kontenerze ich nie ma, zrzuty używają zastępczej),
+dużej czcionki systemowej, ekranów węższych niż 390, czytnika ekranu.
+
+Ustalenia z forka ważne dla właściciela: miejsca są tylko lokalne (`places.js` linie 1 do 14,
+co przeczy podpisowi na planszy Osoba); powiadomienie SOS na Androidzie nie ma imienia ani
+miejsca (`Events.kt` linie 42 do 45); fork pyta o lokalizację dopiero przy pierwszym
+udostępnianiu.
+
+Następny krok: recenzja Gemini, odpowiedzi właściciela na pytania z sekcji „Do decyzji
+właściciela" w `DESIGN.md`.
+
+---
+
 ## 2026-10-14, Claude, przekazanie do nowej sesji
 
 Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła
