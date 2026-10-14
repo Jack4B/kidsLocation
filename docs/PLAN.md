@@ -20,7 +20,7 @@ Skróty: C = Claude, G = Gemini, X = Grok, W = właściciel.
 | F0-1 | Sprawdzić hosting CT8: `node -v`, czy działa `node:sqlite`, czy można trzymać długo działający proces i wystawić go na HTTPS przez domenę | W | C | Wynik wpisany w `docs/DECYZJE.md` (D1) |
 | F0-2 | Ustalić ścieżkę iOS: czy jest Mac z Xcode, czy płatne konto Apple, czy syn może dostać telefon z Androidem | W | C | Decyzja D3 zamknięta |
 | F0-3 | Założyć repozytorium i podpiąć modele (`docs/PODLACZENIE-AGENTOW.md`) | W | brak | Repo istnieje, Claude ma dostęp do zapisu, Gemini i Grok mają sposób pracy |
-| F0-4 | Rozstrzygnąć układ repozytoriów (D4): kod w forku, tu tylko dokumenty, czy wszystko razem | W | C | Decyzja D4 zamknięta |
+| F0-4 | Rozstrzygnąć układ repozytoriów (D4): kod w forku, tu tylko dokumenty, czy wszystko razem | W | C | Decyzja D4 zamknięta. **Zrobione 2026-10-14: B, kod w `starling/` (PR F0-4).** |
 | F0-5 | Baza testowa: sklonować fork, `bash tools/sync-vendor.sh`, uruchomić testy na Node 24 | C | G | Liczba testów i wynik w HANDOFF (wersja 0.21.0: 1118 testów, 34 pominięte). Stan: wykonane 2026-10-14, czeka na recenzję G |
 
 ## Faza 1: własny serwer pośredniczący (relay)

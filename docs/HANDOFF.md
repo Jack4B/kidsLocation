@@ -6,6 +6,30 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F0-4: kod aplikacji w tym repozytorium (D4 = B)
+
+Zrobiono:
+
+- Właściciel wybrał D4 = B i zdjął zakaz pisania kodu (karta decyzji w projekcie, 14.10).
+- Zaimportowano `Jack4B/starling` (0.21.0, `8ec6dad`, 234 commity) do `starling/` przez
+  `git subtree add`, z pełną historią. Licencja GPL-3.0-or-later zostaje w `starling/LICENSE`.
+- Dodano `.github/workflows/aplikacja.yml`: testy na Ubuntu z Node 22 i 24, `check-clean`,
+  kontrola prywatności powiadomień, budowa niepodpisanego APK z kontrolą uprawnień.
+  Względem CI forka: bez macOS i Windows (minuty w prywatnym repo), iOS tylko ręcznie
+  (`workflow_dispatch` z opcją `ios`), bez lustra GitLab. Uruchamia się tylko przy
+  zmianach w `starling/`.
+- Zaktualizowano `AGENTS.md` (ścieżki, testy, upstream), D4 w `DECYZJE.md`, F0-4 w `PLAN.md`.
+
+Sprawdzono (uruchomione w `starling/` na Node 22.22.0, po `npm ci` i
+`bash tools/sync-vendor.sh`): `node --test test/*.test.mjs` daje 1118 testów, 1084 przeszło,
+34 pominięto, 0 nie przeszło (tak samo jak w forku). `bash tools/check-clean.sh`: czysto.
+
+Nie sprawdzono: nowy workflow nie był jeszcze uruchomiony na GitHubie (pierwszy przebieg
+na tym PR). Budowy Androida lokalnie nie uruchamiano.
+
+Następny krok: F1-7 (własny applicationId, klucz podpisu, wersje, domyślny relay i linki
+zaproszeń poza starlingmap.app), równolegle F1-4 (test dwóch Androidów na relayu CT8).
+Otwarte PR-y z dokumentami (#1 do #6, #8) mają wpisy w HANDOFF i będą wymagały rebase.
 ## 2026-10-14, Claude, F0-5 (testy bazowe)
 
 Zrobiono (fork `Jack4B/starling`, wersja 0.21.0, commit `8ec6dad`, lokalny klon tylko do odczytu):
