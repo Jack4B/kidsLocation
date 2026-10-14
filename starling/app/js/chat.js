@@ -70,9 +70,11 @@ export function chatMeasure(raw) {
   const bytesLeft = CHAT_TEXT_BUDGET - bytes;
   const limit = Math.min(CHAT_SOFT_CHARS, chars + bytesLeft);
   let reason = null;
+  // Over both limits, the character limit is the one to name: it is the
+  // number a person can see.
   if (!chars) reason = "empty";
-  else if (bytesLeft < 0) reason = "bytes";
   else if (chars > CHAT_SOFT_CHARS) reason = "chars";
+  else if (bytesLeft < 0) reason = "bytes";
   return { text, chars, bytes, bytesLeft, limit, ok: reason === null, reason };
 }
 
@@ -429,7 +431,13 @@ export function createChatController({ send, save, onChange, onIncoming, now = (
   let saving = Promise.resolve();
   let dirty = false;
 
-  const log = () => (self ? (archive.circles[self] ||= emptyLog()) : null);
+  // Reading never creates a log: a left circle's empty log must not come
+  // back to disk because something asked for its unread count.
+  const log = (create = false) => {
+    if (!self) return null;
+    if (create && !archive.circles[self]) archive.circles[self] = emptyLog();
+    return archive.circles[self] || null;
+  };
   const changed = () => onChange?.();
 
   function persist() {
@@ -499,7 +507,7 @@ export function createChatController({ send, save, onChange, onIncoming, now = (
     circle: () => self,
     // From the roster: one decrypted chat message from a pinned member.
     receive(from, obj, e, ts) {
-      const l = log();
+      const l = log(true);
       if (!l || from === self) return null;
       const item = ingestChat(l, { from, e, ts, obj }, now());
       if (!item) return null;
@@ -509,7 +517,7 @@ export function createChatController({ send, save, onChange, onIncoming, now = (
       return item;
     },
     post(raw) {
-      const l = log();
+      const l = log(true);
       const m = chatMeasure(raw);
       if (!l) return { ok: false, reason: "no-circle" };
       if (!m.ok) return { ok: false, reason: m.reason, measure: m };
@@ -530,7 +538,7 @@ export function createChatController({ send, save, onChange, onIncoming, now = (
       return true;
     },
     system(ev) {
-      const l = log();
+      const l = log(true);
       if (!l) return null;
       const item = addSystem(l, ev, now());
       if (item) {
@@ -561,7 +569,10 @@ export function createChatController({ send, save, onChange, onIncoming, now = (
     pending: () => queue.pending(),
     // Leaving or erasing a circle takes its chat with it.
     forget(memberId) {
-      if (memberId === self) dropQueue();
+      if (memberId === self) {
+        dropQueue();
+        self = null;
+      }
       if (!archive.circles[memberId]) return Promise.resolve();
       delete archive.circles[memberId];
       changed();

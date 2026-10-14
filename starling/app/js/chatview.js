@@ -302,11 +302,12 @@ export function mountChat(container, deps) {
     const meta = el("div", "cht-meta");
     meta.dataset.testid = "chat-meta";
     wrap.append(meta);
+    wrap.chtMeta = meta;
     return wrap;
   }
 
   function paintMeta(node, it, ctx) {
-    const meta = node.querySelector?.(".cht-meta") || node.lastChild;
+    const meta = node.chtMeta;
     meta.replaceChildren();
     node.classList.toggle("cht-failed", it.mine && it.st === "failed");
     if (!it.mine) {
