@@ -372,7 +372,6 @@ export const fr = {
   "The circle keeps the name its creator gave it. You can rename it for yourself in settings.": "Le cercle garde le nom que son créateur lui a donné. Vous pouvez le renommer pour vous dans les réglages.",
   "Was": "Avant",
   "Watch the demo": "Voir la démo",
-  "What Starling is and how it works ↗": "Ce qu'est Starling et comment ça marche ↗",
   "When you are safe": "Quand vous êtes en sécurité",
   "Wrong passcode. Try again.": "Code d'accès incorrect. Réessayez.",
   "You already asked to join. They still have to let you in.": "Vous avez déjà demandé à rejoindre le cercle. On doit encore vous laisser entrer.",
@@ -815,4 +814,7 @@ export const fr = {
   "Open source": "Code source ouvert",
   "Read these digits out to whoever invited you. The same number shows next to your request on their phone, and that is how they know it is you asking.": "Lis ces chiffres à voix haute à la personne qui t'a invité. Le même numéro s'affiche à côté de ta demande sur son téléphone, et c'est ainsi qu'elle sait que c'est bien toi.",
   "Server keeps nothing past 24h": "Le serveur ne garde rien au-delà de 24 h",
+  "Connect to your family relay": "Se connecter au relais de votre famille",
+  "Enter your family relay's address.": "Saisissez l'adresse du relais de votre famille.",
+  "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.": "Cette app n'a aucune adresse de relais intégrée. Saisissez l'adresse du relais de votre famille, par exemple https://relay.example.org. Toute la famille utilise le même, et rien n'est envoyé tant qu'il n'est pas défini.",
 };

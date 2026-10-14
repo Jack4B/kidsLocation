@@ -228,7 +228,7 @@ async function main() {
 
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
     cwd: ROOT,
-    env: { ...process.env, STARLING_TEST: "1", STARLING_WRAPPER_HEADERS: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000" },
+    env: { ...process.env, STARLING_TEST: "1", STARLING_WRAPPER_HEADERS: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000", RELAY_URL: "https://relay.e2e.test" },
     stdio: "ignore",
   });
   const chromium = startChromium(CDP_PORT, profile, y4m);

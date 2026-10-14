@@ -32,7 +32,9 @@ class MainActivity : FragmentActivity() {
     companion object {
         const val ASSET_HOST = "appassets.androidplatform.net"
         const val START_URL = "https://$ASSET_HOST/index.html"
-        const val APP_HOST = "starlingmap.app"
+        // The family relay's host: invite links on it open here. From RELAY_URL
+        // at build time, the same value the App Links filter claims.
+        val APP_HOST: String = BuildConfig.RELAY_HOST
         const val EXTRA_MEMBER = "member"
         const val PREFS = "starling"
         const val PREF_TOR = "tor"

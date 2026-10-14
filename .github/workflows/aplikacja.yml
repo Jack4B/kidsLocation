@@ -77,8 +77,16 @@ jobs:
         run: bash tools/check-notification-privacy.sh
       - name: Vendor sync
         run: npm ci && bash tools/sync-vendor.sh
+      # RELAY_URL (repository secret) becomes the app's default relay and its
+      # App Links host; Gradle writes it into the APK's js/build-config.js and
+      # never prints it. Empty on pull requests from forks: the APK then asks
+      # for a relay on first run (docs/WDROZENIE-CT8.md).
       - name: Build release APK (unsigned)
-        run: cd android && ./gradlew --no-daemon assembleRelease lint testDebugUnitTest
+        env:
+          RELAY_URL: ${{ secrets.RELAY_URL }}
+        run: |
+          if [ -n "$RELAY_URL" ]; then echo "family relay: set from secrets"; else echo "family relay: not set, the app will ask for one"; fi
+          cd android && ./gradlew --no-daemon assembleRelease lint testDebugUnitTest
       - name: Assert only the expected permissions
         run: |
           AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | tail -1)
@@ -115,6 +123,11 @@ jobs:
             --out "$OUT" android/app/build/outputs/apk/release/app-release-unsigned.apk
           rm -f "$RUNNER_TEMP/family.jks"
           "$APKSIGNER" verify --print-certs "$OUT" | head -3
+          # Public: the signing certificate's fingerprint, in the form the
+          # relay's ANDROID_CERT_SHA256 setting wants (docs/WDROZENIE-CT8.md).
+          FP=$("$APKSIGNER" verify --print-certs "$OUT" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+          echo "ANDROID_CERT_SHA256=$FP"
+          echo "Relay setting for App Links: \`ANDROID_CERT_SHA256=$FP\`" >> "$GITHUB_STEP_SUMMARY"
           echo "apk=starling/$OUT" >> "$GITHUB_OUTPUT"
           echo "tag=apk-$VERSION-$FAMILY_BUILD" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4

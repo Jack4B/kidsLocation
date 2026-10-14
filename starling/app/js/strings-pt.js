@@ -516,7 +516,6 @@ export const pt = {
   "Was": "Antes",
   "Watch the demo": "Ver a demonstração",
   "west": "oeste",
-  "What Starling is and how it works ↗": "O que é o Starling e como funciona ↗",
   "When you are safe": "Quando você estiver em segurança",
   "While you share, your position also goes to {host}.": "Enquanto você compartilha, sua posição também vai para {host}.",
   "Who could read you": "Quem pode ler o que você envia",
@@ -815,4 +814,7 @@ export const pt = {
   "Open source": "Código aberto",
   "Read these digits out to whoever invited you. The same number shows next to your request on their phone, and that is how they know it is you asking.": "Leia estes dígitos em voz alta para quem te convidou. O mesmo número aparece ao lado do seu pedido no celular da pessoa, e é assim que ela sabe que é você.",
   "Server keeps nothing past 24h": "O servidor não guarda nada depois de 24 h",
+  "Connect to your family relay": "Conectar ao relay da sua família",
+  "Enter your family relay's address.": "Digite o endereço do relay da sua família.",
+  "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.": "Este app não tem nenhum endereço de relay embutido. Digite o endereço do relay da sua família, como https://relay.example.org. Toda a família usa o mesmo, e nada é enviado até ele estar definido.",
 };

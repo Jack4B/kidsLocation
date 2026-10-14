@@ -1953,6 +1953,53 @@ test("the start screen sets a relay before the first circle, and refuses junk or
   }
 });
 
+// The family build gets its relay from RELAY_URL at build time. A build
+// without it (a fork, a pull request) must not quietly post to its own asset
+// origin: it asks for a relay first, and empty is not an answer there.
+test("a wrapped build with no relay in it asks for one before creating or joining", async () => {
+  const host = document.getElementById("overlays");
+  const saved = { relay: state.relay, joining: state.joining, gen: state.gen, circles: state.circles, demo: state.demo, locked: state.locked };
+  const hadBridge = "StarlingNative" in globalThis;
+  const bridge = globalThis.StarlingNative;
+  globalThis.StarlingNative = bridge ?? {};
+  try {
+    Object.assign(state, { relay: "", joining: null, gen: null, circles: [], demo: false, locked: false });
+    envMod.setDefaultRelay("");
+    envMod.setApiBase(null);
+    assert.equal(envMod.relayConfigured(), false);
+    assert.equal(await internals.saveStartRelay(""), false, "empty is nowhere, not a default");
+
+    host.children.length = 0;
+    internals.promptCreate();
+    const sheet = findTestid(host, "start-relay-sheet");
+    assert.ok(sheet, "creating asks for the relay first");
+    assert.equal(findTestid(host, "identity-sheet"), null);
+
+    host.children.length = 0;
+    internals.promptJoin(await relayInvite(""));
+    assert.ok(findTestid(host, "start-relay-sheet"), "a link with no relay in it asks too");
+    assert.equal(findTestid(host, "join-sheet"), null, "no request goes out to nowhere");
+
+    host.children.length = 0;
+    internals.promptJoin(await relayInvite("https://relay.example.org"));
+    assert.ok(findTestid(host, "join-sheet"), "a link that names its relay adopts it instead of asking");
+
+    assert.equal(await internals.saveStartRelay("https://relay.example.org"), true);
+    assert.equal(envMod.relayConfigured(), true);
+    host.children.length = 0;
+    internals.promptCreate();
+    assert.ok(findTestid(host, "identity-sheet"), "with a relay, creating goes ahead");
+  } finally {
+    host.children.length = 0;
+    Object.assign(state, saved);
+    await dbDel("relay");
+    if (hadBridge) globalThis.StarlingNative = bridge;
+    else delete globalThis.StarlingNative;
+    envMod.setDefaultRelay("");
+    envMod.setApiBase(null);
+  }
+});
+
 
 test("a passcode unlock re-wraps a pre-0.16 PBKDF2 record under Argon2id, once", async () => {
   const K = newVaultKey();
