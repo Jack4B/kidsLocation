@@ -6,6 +6,37 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, wydanie 1.0: integracja na gałęzi `wydanie/1.0`
+
+Zrobiono:
+
+- Scalone do `wydanie/1.0` (PR #12 do main): F1-7 (własny serwer i linki zaproszeń),
+  F1-8 (własne APK), F2-6 (polski, marka Blisko, ikony), F3 (czat, ADR-001 wariant A),
+  F2-1 do F2-8 (nowy wygląd według makiet, czcionki lokalne, nawigacja z Czatem),
+  F2-6b (testy e2e pod polski), F3-9 (powiadomienia czatu bez imienia i treści na
+  zablokowanym ekranie, chyba że użytkownik włączy), F2-5b (przesunięcie palca z SOS
+  nie wysyła już SOS po 1,2 s).
+- F5-1 częściowo: przegląd bezpieczeństwa całego diffu przez osobnego agenta Claude
+  (nie inny model). Pliki zamrożone bez zmian, brak XSS, sekretów i zapytań do stron
+  trzecich. M1 i L1 poprawione (F3-9). Pozostałe uwagi niskie: czat jawny w IndexedDB bez
+  blokady aplikacji (jak miejsca), uszkodzony zapieczętowany zapis czatu nadpisywany,
+  link pomocy `/help` nie istnieje na serwerze Node.
+
+Sprawdzono: `npm test` 1231 testów, 1197 przechodzi, 34 pominięte, 0 błędów; `e2e_wrapper`,
+`e2e_chat`, `e2e_share_resume`, `e2e_qrscan`, `e2e_sheet_drag` (4 razy z rzędu) przechodzą;
+`check-clean.sh` i `check-notification-privacy.sh` czyste; CI na PR #12 zielone.
+
+Nie zrobiono: test na prawdziwych telefonach (F1-4, F5-2), iOS (D3), dodatek do
+`PROTOCOL.md` o typie `chat` (plik zamrożony, opis w `starling/docs/CHAT.md`, wymaga zgody
+właściciela), ekrany z makiet: zgoda przed uprawnieniami, osobny edytor miejsca,
+zaproszenie jako pełna strona, ilustracja powitalna.
+
+Do decyzji właściciela: powiadomienia o miejscach (`detailAlerts`, domyślnie wyłączone) po
+włączeniu nadal mogą pokazać imię i miejsce na zablokowanym ekranie przy domyślnych
+ustawieniach Androida.
+
+---
+
 ## 2026-10-14, Claude, F2-6: aplikacja po polsku i marka Blisko
 
 Zrobiono:
