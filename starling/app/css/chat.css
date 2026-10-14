@@ -1,27 +1,25 @@
-/* Family chat (chatview.js). Self-contained: every rule is scoped under .cht
-   or .cht-screen, so nothing else in the app changes when this file loads.
+/* Family chat (chatview.js). Every rule is scoped under .cht or
+   .cht-screen, so nothing else in the app changes when this file loads.
 
-   Colors come from the redesign's token names (--surface, --surface2, --ink2,
-   --accentInk, --accentSoft, as in docs/makiety Czat and Zasady), each with a
-   fallback to the token the current theme already defines, so the screen
-   looks right today and picks up the new palette when it lands. */
+   Colors come from tokens.css; the --c-* names are local aliases so the rules
+   below read the same as the Czat mockup. Control borders use --outline,
+   which holds 3:1 against the surface in both themes. */
 
 .cht {
-  --c-bg: var(--bg, #0a0d14);
-  --c-surface: var(--surface, var(--bg-1, #101522));
-  --c-surface2: var(--surface2, var(--bg-2, #171e30));
-  --c-ink: var(--ink, #e6ebf5);
-  --c-ink2: var(--ink2, var(--ink-2, #9aa7bd));
-  --c-line: var(--line, rgba(148, 163, 184, 0.12));
-  --c-accent: var(--accent, #2dd4bf);
-  --c-accent-ink: var(--accentInk, var(--accent-ink, #06211e));
-  --c-accent-soft: var(--accentSoft, color-mix(in srgb, var(--accent, #2dd4bf) 18%, transparent));
-  --c-sos: var(--sos, #f43f5e);
-  --c-warn: var(--warn, #fbbf24);
-  /* Accent used AS TEXT. The current light theme's teal is too pale for text
-     on white (under 2:1), so light mode darkens it; the redesign's darker
-     accent stays at 4.5:1 or better either way. */
-  --c-accent-text: var(--c-accent);
+  --c-bg: var(--bg);
+  --c-surface: var(--surface);
+  --c-surface2: var(--surface-2);
+  --c-ink: var(--ink);
+  --c-ink2: var(--ink-2);
+  --c-line: var(--line);
+  --c-outline: var(--outline);
+  --c-accent: var(--accent);
+  --c-accent-ink: var(--accent-ink);
+  --c-accent-soft: var(--accent-soft);
+  --c-sos: var(--sos);
+  --c-warn: var(--warn);
+  /* Accent used as text: both themes' accents hold 4.5:1 on their surfaces. */
+  --c-accent-text: var(--accent);
 
   display: flex;
   flex-direction: column;
@@ -32,16 +30,16 @@
   font-family: var(--font, system-ui, sans-serif);
 }
 
-:root[data-theme="light"] .cht {
-  --c-accent-text: color-mix(in srgb, var(--c-accent) 55%, #000);
-}
-
-/* The full-screen layer main.js opens it in until the bottom navigation
-   takes over. */
+/* The Chat tab: the screen above the navigation bar, like the other tab
+   pages, so the map keeps running under it and the tabs stay in reach. */
 .cht-screen {
   position: fixed;
-  inset: 0;
-  z-index: 65;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h, 80px) + var(--safe-bottom, 0px));
+  height: auto;
+  z-index: 50;
 }
 .cht-screen[hidden] {
   display: none;
@@ -69,6 +67,7 @@
 }
 .cht-title {
   margin: 0;
+  font-family: var(--font-head, inherit);
   font-size: 22px;
   font-weight: 700;
   line-height: 28px;
@@ -348,7 +347,7 @@
 
 .cht-foot {
   flex: none;
-  padding: 4px 0 calc(var(--safe-bottom, 0px) + 4px);
+  padding: 4px 0 8px;
   background: var(--c-bg);
 }
 .cht-chips {
@@ -383,7 +382,7 @@
   height: 36px;
   padding: 0 14px;
   border-radius: 18px;
-  box-shadow: inset 0 0 0 1.5px var(--c-line);
+  box-shadow: inset 0 0 0 1.5px var(--c-outline);
   background: var(--c-surface);
   font-size: 14px;
   font-weight: 600;
@@ -410,7 +409,7 @@
   box-sizing: border-box;
   border-radius: 24px;
   background: var(--c-surface);
-  box-shadow: inset 0 0 0 1.5px var(--c-line);
+  box-shadow: inset 0 0 0 1.5px var(--c-outline);
   display: flex;
   align-items: center;
   gap: 8px;

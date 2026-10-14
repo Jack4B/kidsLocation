@@ -134,13 +134,17 @@ try {
   }
   console.log("B joined; both on one channel");
 
-  // ---- the chat entry is in the sheet, and opens the chat screen
+  // ---- the Chat tab is in the navigation bar, and opens the chat screen
   for (const p of [a, b]) {
-    const has = await p.page.evaluate(() => !!document.querySelector('[data-testid="chat-open"]'));
-    check(`${p.name}: Chat row in the map sheet`, has);
+    const has = await p.page.evaluate(() => !!document.querySelector('[data-testid="tab-chat"]'));
+    check(`${p.name}: Chat tab in the navigation bar`, has);
   }
-  await a.click("chat-open");
+  await a.click("tab-chat");
   await waitFor(() => a.page.evaluate(() => !document.querySelector('[data-testid="chat-screen"]').hidden), "A chat open");
+  check(
+    "A: the Chat tab is marked current",
+    await a.page.evaluate(() => document.querySelector('[data-testid="tab-chat"]').getAttribute("aria-current") === "page"),
+  );
   check("A: the honesty note is on screen", await a.page.isVisible('[data-testid="chat-note"]'));
 
   // ---- A writes, B reads
@@ -161,7 +165,19 @@ try {
     { nudge: b.nudge },
   );
   check("B: unread badge shows 1", badge === "1", badge);
-  await b.click("chat-open");
+  check(
+    "B: the badge is in the accent color, not SOS red",
+    await b.page.evaluate(() => {
+      const bg = getComputedStyle(document.querySelector('[data-testid="chat-badge"]')).backgroundColor;
+      const probe = document.createElement("i");
+      probe.style.color = "var(--accent)";
+      document.body.append(probe);
+      const accent = getComputedStyle(probe).color;
+      probe.remove();
+      return bg === accent;
+    }),
+  );
+  await b.click("tab-chat");
   await waitFor(() => b.page.evaluate(() => !document.querySelector('[data-testid="chat-screen"]').hidden), "B chat open");
   const bSees = await b.page.evaluate(() => [...document.querySelectorAll('[data-testid="chat-theirs"]')].map((n) => n.innerText));
   check("B: reads A's message with A's name", bSees.length === 1 && bSees[0].includes("Marta") && bSees[0].includes("Jestem już w domu, obiad za 20 minut."), JSON.stringify(bSees));
@@ -231,9 +247,15 @@ try {
   await shot(a, "czat-informacje-ciemny.png");
   await a.click("chat-info");
 
-  // ---- the way back, and the map's entry row
+  // ---- the way back: the back arrow, and the Map tab
   await a.click("chat-close");
   await waitFor(() => a.page.evaluate(() => document.querySelector('[data-testid="chat-screen"]').hidden), "A chat closed");
+  check(
+    "A: the Map tab is current again",
+    await a.page.evaluate(() => document.querySelector('[data-testid="tab-map"]').getAttribute("aria-current") === "page"),
+  );
+  await b.click("tab-map");
+  await waitFor(() => b.page.evaluate(() => document.querySelector('[data-testid="chat-screen"]').hidden), "B chat closed by the Map tab");
   await a.page.evaluate(() => {
     document.documentElement.dataset.theme = "light";
   });

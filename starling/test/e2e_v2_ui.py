@@ -230,6 +230,7 @@ def main():
         a.escape()
 
         # --------------------------------------------- keys and history settings
+        a.click('[data-testid="tab-circle"]')
         a.click('[data-testid="settings-open"]')
         wait_for(lambda: q(a, "return !!document.querySelector('[data-testid=\"rekey-open\"]')"),
                  timeout=15, desc="A settings keys group")

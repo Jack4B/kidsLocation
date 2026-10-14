@@ -9,7 +9,7 @@ import { bearingDeg, compassWord, fmtClock, fmtDistance, fmtRelTime, getUnits, h
 import { HISTORY_CHOICES } from "./ratchet.js";
 import { t, currentLocale, LOCALE_CHOICES, BRAND } from "./i18n.js";
 import { isBundled, native, pageShown } from "./env.js";
-import { PLACE_RADII, MAX_PLACES, MAX_NAME_LEN } from "./places.js";
+import { PLACE_RADII, MAX_PLACES, MAX_NAME_LEN, EXIT_FACTOR, EXIT_PAD_M } from "./places.js";
 import { DEFAULT_TIMER_MIN, TIMER_CHOICES_MIN } from "./checkin.js";
 import { staleAfter } from "./net.js";
 import { VERSION } from "./version.js";
@@ -103,29 +103,34 @@ export function trapFocus(root, { autofocus = true } = {}) {
 
 const overlayStack = [];
 
-export function openOverlay({ title, testid, className, onClose } = {}) {
+// `page` makes it a tab page instead of a sheet: full height above the
+// navigation bar, a big title and no close button, and no focus trap, because
+// the navigation bar under it must stay reachable.
+export function openOverlay({ title, testid, className, onClose, page = false } = {}) {
   const host = document.getElementById("overlays");
-  const wrap = el("div", "ov-wrap");
+  const wrap = el("div", page ? "ov-wrap ov-page-wrap" : "ov-wrap");
   const scrim = el("div", "ov-scrim");
-  const panel = el("section", `ov-panel${className ? " " + className : ""}`);
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-modal", "true");
+  const panel = el("section", `ov-panel${page ? " ov-page" : ""}${className ? " " + className : ""}`);
+  panel.setAttribute("role", page ? "region" : "dialog");
+  if (!page) panel.setAttribute("aria-modal", "true");
   if (title) panel.setAttribute("aria-label", t(title));
   if (testid) panel.dataset.testid = testid;
 
   const head = el("header", "ov-head");
   const grab = el("div", "grabber");
-  const titleEl = el("h2", "ov-title", title || "");
+  const titleEl = el(page ? "h1" : "h2", "ov-title", title || "");
   const x = btn("icon-btn ov-close", "✕", "Close");
-  head.append(titleEl, x);
+  head.append(titleEl);
+  if (!page) head.append(x);
   const body = el("div", "ov-body");
-  panel.append(grab, head, body);
+  if (page) panel.append(head, body);
+  else panel.append(grab, head, body);
   wrap.append(scrim, panel);
   host.append(wrap);
 
   const prevFocus = document.activeElement;
   panel.tabIndex = -1;
-  const untrap = trapFocus(panel, { autofocus: false });
+  const untrap = page ? () => {} : trapFocus(panel, { autofocus: false });
   panel.focus();
   requestAnimationFrame(() => wrap.classList.add("open"));
 
@@ -138,8 +143,8 @@ export function openOverlay({ title, testid, className, onClose } = {}) {
     const i = overlayStack.indexOf(entry);
     if (i >= 0) overlayStack.splice(i, 1);
     wrap.classList.remove("open");
-    setTimeout(() => wrap.remove(), 280);
-    if (prevFocus && document.contains(prevFocus)) prevFocus.focus?.();
+    setTimeout(() => wrap.remove(), page ? 0 : 280);
+    if (!page && prevFocus && document.contains(prevFocus)) prevFocus.focus?.();
     onClose?.();
   }
   entry.close = close;
@@ -161,6 +166,29 @@ export function closeAllOverlays() {
 }
 
 export const overlaysOpen = () => overlayStack.length > 0;
+
+// The basemap choices, shared by Settings and the map's own style button.
+const BASEMAP_CHOICES = [
+  { value: "auto", label: "Auto" },
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+  { value: "none", label: "Off-grid" },
+];
+
+// The map style button: the same choice as in Settings, one tap from the map.
+export function openMapStyleSheet({ value, onChange, onClose }) {
+  const ov = openOverlay({ title: "Map style", testid: "map-style-sheet", className: "ov-mapstyle", onClose });
+  ov.body.append(
+    segControl({
+      label: "Basemap",
+      note: "Street maps load tiles from OpenStreetMap, which sees your map viewport. Off-grid loads nothing.",
+      options: BASEMAP_CHOICES,
+      value,
+      onChange,
+    }),
+  );
+  return { close: ov.close };
+}
 
 // ------------------------------------------------------------ hold-to-fire
 // Arms on pointerdown, fires after ms with a radial progress ring (--p).
@@ -1842,29 +1870,34 @@ const PLACE_ALERT_CHOICES = [
   { value: "off", label: "Off" },
 ];
 
-export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFence, onAlerts, onRemove, onClose }) {
-  const ov = openOverlay({ title: "Places", testid: "places-sheet", className: "ov-places", onClose });
+function alertWord(v) {
+  if (v === "arrive") return t("arrive only");
+  if (v === "leave") return t("leave only");
+  if (v === "off") return t("no alerts");
+  return t("arrive and leave");
+}
+
+// Places: the list of named spots with who is there now, each one opening in
+// place to its name, radius, alerts and privacy fence. `page` shows it as the
+// Places tab; `readOnly` is the demo's view of its own invented spots.
+export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFence, onAlerts, onRemove, onClose, page = false, readOnly = false }) {
+  const ov = openOverlay({ title: "Places", testid: "places-sheet", className: "ov-places", onClose, page });
   const b = ov.body;
 
-  b.append(
-    el(
-      "p",
-      "ov-note",
-      "Name the spots that matter, like Home or School, and Starling tells you when someone in your circle arrives or leaves. Places are stored only on this phone. They are never sent anywhere, and the relay cannot learn they exist.",
-    ),
-    el(
-      "p",
-      "ov-note",
-      "A place with the privacy fence on shares only its center while you are inside it, never your exact spot within. Your circle still sees you are there; what they stop seeing is where in there. An SOS always sends your real position.",
-    ),
+  const note = el("div", "card-tint places-note");
+  note.append(
+    icon("lock", 18),
+    el("p", "places-note-text", "Places are stored only on this phone. The server and the rest of your circle do not know they exist."),
   );
+  b.append(note);
+  if (readOnly) b.append(el("p", "field-note", "Exit the demo to edit your places."));
 
-  const listEl = el("div", "place-list");
+  const listEl = el("div", "card list-card place-list");
   const addBox = el("div", "place-add");
   b.append(listEl, addBox);
 
   const radiusSeg = (place) => {
-    const seg = el("div", "seg seg-mini");
+    const seg = el("div", "seg");
     seg.setAttribute("role", "radiogroup");
     seg.setAttribute("aria-label", t("{name} radius", { name: place.name }));
     for (const r of PLACE_RADII) {
@@ -1881,9 +1914,7 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
   };
 
   const alertsSeg = (place) => {
-    const wrap = el("div", "place-alerts");
-    wrap.append(el("span", "place-alerts-label", "Alerts"));
-    const seg = el("div", "seg seg-mini");
+    const seg = el("div", "seg");
     seg.setAttribute("role", "radiogroup");
     seg.setAttribute("aria-label", t("{name} alerts", { name: place.name }));
     const current = place.alerts ?? "both";
@@ -1897,39 +1928,102 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
       cell.addEventListener("click", () => onAlerts?.(place.id, opt.value));
       seg.append(cell);
     }
-    wrap.append(seg);
-    return wrap;
+    return seg;
   };
+
+  // Which place is open for editing; one at a time.
+  let openId = null;
 
   function placeRow(place) {
     const row = el("div", "place-row");
     row.dataset.place = place.id;
-    const head = el("div", "place-row-head");
+    const editId = `place-edit-${place.id}`;
+
+    // The row itself: what a glance needs, and a tap opens the rest.
+    const sum = btn("place-sum", null);
+    sum.setAttribute("aria-expanded", String(openId === place.id));
+    sum.setAttribute("aria-controls", editId);
+    const badge = el("span", "place-badge");
+    badge.append(icon("pin", 22));
+    const text = el("span", "place-sum-text");
+    text.append(
+      el("span", "place-sum-name", place.name),
+      el(
+        "span",
+        "place-sum-meta",
+        t("{radius} · {alerts}", { radius: fmtDistance(place.radius), alerts: alertWord(place.alerts ?? "both") }),
+      ),
+    );
+    if (place.fence) {
+      const fenceTag = el("span", "place-sum-fence");
+      fenceTag.append(icon("shield", 16), el("span", "btn-label", "Privacy fence"));
+      text.append(fenceTag);
+    }
+    const here = el("span", "field-note place-here");
+    here.dataset.testid = "place-here";
+    hereEls.set(place.id, here);
+    text.append(here);
+    sum.append(badge, text, icon("chevron", 20, "ico place-sum-go"));
+    sum.addEventListener("click", () => {
+      openId = openId === place.id ? null : place.id;
+      sig = null;
+      paint();
+    });
+
+    // The editor, in place under its row.
+    const edit = el("div", "place-edit");
+    edit.id = editId;
+    edit.hidden = openId !== place.id;
+    const nameField = el("label", "field");
+    nameField.append(el("span", "field-label", "Name"));
     const nameIn = el("input", "text-input place-name");
     nameIn.type = "text";
     nameIn.maxLength = MAX_NAME_LEN;
     nameIn.value = place.name;
     nameIn.setAttribute("aria-label", t("Place name"));
+    nameIn.disabled = readOnly;
     nameIn.addEventListener("change", () => {
       const v = nameIn.value.trim().slice(0, MAX_NAME_LEN);
       if (v) onRename(place.id, v);
       else nameIn.value = place.name;
     });
-    const rm = btn("icon-btn place-remove", "✕", t("Remove {name}", { name: place.name }));
-    rm.addEventListener("click", () => onRemove(place.id));
-    head.append(nameIn, rm);
-    const fence = el("label", "place-fence");
+    nameField.append(nameIn);
+    const radiusField = el("div", "field");
+    radiusField.append(el("span", "field-label", "Radius"), radiusSeg(place));
+    radiusField.append(
+      el(
+        "p",
+        "field-note",
+        t("Arriving counts inside {r}. Leaving counts only past about {exit}, so a jumpy GPS fix does not send false alerts.", {
+          r: fmtDistance(place.radius),
+          exit: fmtDistance(place.radius * EXIT_FACTOR + EXIT_PAD_M),
+        }),
+      ),
+    );
+    const alertsField = el("div", "field place-alerts");
+    alertsField.append(el("span", "field-label place-alerts-label", "Alerts"), alertsSeg(place));
+
+    const fence = el("label", "switch-row place-fence");
+    const fenceText = el("span", "switch-text");
+    fenceText.append(
+      el("span", "switch-label place-fence-text", "Privacy fence"),
+      el("span", "field-note", "While you are here, your circle sees only the middle of this place. An SOS always sends your exact position."),
+    );
     const fenceIn = document.createElement("input");
     fenceIn.type = "checkbox";
-    fenceIn.className = "place-fence-check";
+    fenceIn.className = "place-fence-check switch-input";
+    fenceIn.setAttribute("role", "switch");
     fenceIn.checked = !!place.fence;
+    fenceIn.disabled = readOnly;
     fenceIn.setAttribute("aria-label", t("Privacy fence for {name}", { name: place.name }));
     fenceIn.addEventListener("change", () => onFence?.(place.id, fenceIn.checked));
-    fence.append(fenceIn, el("span", "place-fence-text", "Privacy fence"));
-    const here = el("p", "field-note place-here");
-    here.dataset.testid = "place-here";
-    hereEls.set(place.id, here);
-    row.append(head, here, radiusSeg(place), alertsSeg(place), fence);
+    fence.append(fenceText, fenceIn);
+
+    const rm = btn("btn-pill btn-pill-danger place-remove", null, t("Remove {name}", { name: place.name }));
+    rm.append(icon("trash", 20), el("span", "btn-label", "Remove place"));
+    rm.addEventListener("click", () => onRemove(place.id));
+    edit.append(nameField, radiusField, alertsField, fence, rm);
+    row.append(sum, edit);
     return row;
   }
 
@@ -1951,14 +2045,21 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
 
   function rebuild() {
     const places = api.places();
-    const nextSig = JSON.stringify(places.map((p) => [p.id, p.name, p.radius, !!p.fence, p.alerts ?? "both"]));
+    const nextSig = JSON.stringify([openId, places.map((p) => [p.id, p.name, p.radius, !!p.fence, p.alerts ?? "both"])]);
     if (nextSig === sig) return;
     sig = nextSig;
     hereEls.clear();
     listEl.replaceChildren(...places.map(placeRow));
+    listEl.hidden = !places.length;
     addBox.replaceChildren();
+    if (readOnly) return;
+    const count = el(
+      "p",
+      "field-note place-count",
+      t("{n} of {max} places. Arrive and leave alerts come only to this phone.", { n: places.length, max: MAX_PLACES }),
+    );
     if (places.length >= MAX_PLACES) {
-      addBox.append(el("p", "field-note", t("That is the lot: {n} places is the cap.", { n: MAX_PLACES })));
+      addBox.append(el("p", "field-note", t("That is the lot: {n} places is the cap.", { n: MAX_PLACES })), count);
       return;
     }
     const nameField = el("label", "field");
@@ -1979,13 +2080,15 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
       }
       return v;
     };
-    const hereBtn = btn("btn btn-secondary", "Save my current spot");
+    const hereBtn = btn("btn-pill", null);
+    hereBtn.append(icon("locate", 20), el("span", "btn-label", "My position"));
     hereBtn.dataset.testid = "place-add-here";
     hereBtn.addEventListener("click", async () => {
       const v = takeName();
       if (v) await onAdd(v);
     });
-    const pickBtn = btn("btn btn-ghost", "Pick on the map");
+    const pickBtn = btn("btn-pill", null);
+    pickBtn.append(icon("map", 20), el("span", "btn-label", "Pick on the map"));
     pickBtn.dataset.testid = "place-add-pick";
     pickBtn.addEventListener("click", () => {
       const v = takeName();
@@ -1994,7 +2097,7 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
       onPick(v);
     });
     actions.append(hereBtn, pickBtn);
-    addBox.append(nameField, actions);
+    addBox.append(nameField, actions, count);
   }
   paint();
 
@@ -2147,16 +2250,20 @@ export function openPasscodeSheet({ title, intro, cta, confirm = false, current 
   return ov;
 }
 
-export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoResume, shareClock, shareCheckin, still, background, forward, lock, lockActions, onChange, onMembers, onInvite, onPlaces, onPanic, onLeave, onExport, onClose }) {
+export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoResume, shareClock, shareCheckin, still, background, forward, lock, lockActions, onChange, onMembers, onInvite, onPlaces, onPanic, onLeave, onExport, onClose, focus = null }) {
   const ov = openOverlay({ title: "Settings", testid: "settings-sheet", className: "ov-settings", onClose });
   const b = ov.body;
 
+  // The Circle screen's rows open Settings at the group they speak for.
+  const sections = new Map();
   const group = (title) => {
     const g = el("section", "set-group");
     g.append(el("h3", "set-title", title));
     b.append(g);
+    sections.set(title, g);
     return g;
   };
+  let rekeyBtn = null;
 
   // Circle
   const gCircle = group("Circle");
@@ -2200,7 +2307,7 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
       el("p", "field-note", "Everyone in this circle, their safety numbers, and who you have checked."),
     );
 
-    const rekeyBtn = btn("btn btn-secondary", "New keys now");
+    rekeyBtn = btn("btn btn-secondary", "New keys now");
     rekeyBtn.dataset.testid = "rekey-open";
     const rekeyBox = el("div", "confirm-box");
     rekeyBox.hidden = true;
@@ -2710,11 +2817,7 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
     segControl({
       label: "Basemap",
       note: "Street maps load tiles from OpenStreetMap, which sees your map viewport. Off-grid loads nothing.",
-      options: [
-        { value: "dark", label: "Dark" },
-        { value: "light", label: "Light" },
-        { value: "none", label: "Off-grid" },
-      ],
+      options: BASEMAP_CHOICES,
       value: values.settings.basemap,
       onChange: (v) => onChange("basemap", v),
     }),
@@ -3039,6 +3142,12 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
     el("p", "ov-note", "The relay that passes your updates along stores only encrypted data it cannot read, and deletes it after 24 hours. The protocol is open, so anyone can check these claims against the code."),
   );
 
+  const FOCUS_GROUPS = { lock: "App lock", keys: "Keys and history", rekey: "Keys and history", advanced: "Advanced", panic: "Danger zone" };
+  if (focus === "rekey") rekeyBtn?.click();
+  if (focus === "panic") panicBtn.click();
+  const focusGroup = sections.get(FOCUS_GROUPS[focus]);
+  if (focusGroup) requestAnimationFrame(() => focusGroup.scrollIntoView?.({ block: "start" }));
+
   // The high-risk history window switches steady sending on by itself, so the
   // two controls have to be able to hear about each other.
   return {
@@ -3060,14 +3169,18 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
   let snap = "peek";
   let dragging = false;
   let untrap = null;
-  const H = () => window.innerHeight;
+  // The sheet's own box is the room it moves in: the screen above the
+  // navigation bar. Before layout (or in a test DOM) fall back to the window.
+  const H = () => sheetEl.offsetHeight || window.innerHeight;
 
   const peekH = () => dragEl.offsetHeight + 8;
   // The drag region grows when the avatar strip fills in; re-apply so the
   // peek snap never clips content that appeared after the last measure.
   if ("ResizeObserver" in window) {
     new ResizeObserver(() => {
-      if (!dragging && snap === "peek") apply(false);
+      // At any snap: the body's height is what the drag region leaves, and
+      // that region shrinks when an SOS hides the people row.
+      if (!dragging) apply(false);
     }).observe(dragEl);
   }
   function heightFor(name) {
@@ -3272,34 +3385,150 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
   };
 }
 
+// ------------------------------------------------------------------ icons
+
+// Line icons drawn with createElementNS from fixed path data: no markup
+// strings, nothing from the network. 24-unit viewBox, stroked in currentColor.
+const ICONS = {
+  battery: ["rect:3,8,16,8,2", "M21 11v2"],
+  target: ["circle:12,12,3", "circle:12,12,8"],
+  clock: ["circle:12,12,9", "M12 7v5l3 2"],
+  chat: ["M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"],
+  navigate: ["M3 11l18-8-8 18-2-8-8-2z"],
+  back: ["M19 12H5M11 6l-6 6 6 6"],
+  chevron: ["M9 6l6 6-6 6"],
+  shieldOk: ["M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z", "M9 12l2 2 4-4"],
+  shieldWarn: ["M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z", "M12 8.5v4M12 15.5v.01"],
+  lock: ["rect:5,11,14,9,2", "M8 11V8a4 4 0 0 1 8 0v3"],
+  server: ["rect:3,4,18,6,2", "rect:3,14,18,6,2", "M7 7v.01M7 17v.01"],
+  refresh: ["M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5"],
+  trash: ["M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"],
+  plus: ["M12 5v14M5 12h14"],
+  home: ["M4 11l8-7 8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"],
+  pin: ["M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z", "circle:12,11,2.2"],
+  map: ["M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"],
+  locate: ["circle:12,12,3", "circle:12,12,8", "M12 2v3M12 19v3M2 12h3M19 12h3"],
+  shield: ["M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"],
+  settings: ["circle:12,12,3", "M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"],
+};
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+export function icon(name, size = 20, cls = "ico") {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", cls);
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.9");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  for (const part of ICONS[name] || []) {
+    let node;
+    if (part.startsWith("circle:")) {
+      const [cx, cy, r] = part.slice(7).split(",");
+      node = document.createElementNS(SVG_NS, "circle");
+      node.setAttribute("cx", cx);
+      node.setAttribute("cy", cy);
+      node.setAttribute("r", r);
+    } else if (part.startsWith("rect:")) {
+      const [x, y, w, h, rx] = part.slice(5).split(",");
+      node = document.createElementNS(SVG_NS, "rect");
+      node.setAttribute("x", x);
+      node.setAttribute("y", y);
+      node.setAttribute("width", w);
+      node.setAttribute("height", h);
+      node.setAttribute("rx", rx);
+    } else {
+      node = document.createElementNS(SVG_NS, "path");
+      node.setAttribute("d", part);
+    }
+    svg.append(node);
+  }
+  return svg;
+}
+
 // ------------------------------------------------------------ member cards
 
 const CHIP_TEXT = { live: "Live", sos: "SOS", overdue: "Missed check-in", checkin: "Checked in", stopped: "Stopped", stale: "Last seen" };
 
+// The first letter of a name, for the round badge every person wears.
+export function initialOf(name) {
+  return Array.from(String(name || "").trim())[0]?.toLocaleUpperCase() || "";
+}
+
+// How long ago, in the words a person says: "now", or "6 min ago".
+export function agoText(msAgo) {
+  return msAgo < 15_000 ? t("now") : t("{time} ago", { time: fmtRelTime(msAgo) });
+}
+
+// The short line under a name on a card and in the Circle list: where they
+// are, or what state they are in. The long line (memberSubLine) is what a
+// screen reader hears and what the person sheet shows in full.
+export function personLine(rec, now, status, place) {
+  if (status === "sos") return t("Sending SOS");
+  if (status === "overdue") return t("Missed check-in");
+  if (status === "stale" || status === "stopped") return t("No signal");
+  if (place) return t("At {place}", { place });
+  if (status === "checkin") return t("Checked in");
+  const doing = activityWord(rec.act);
+  if (doing) return doing;
+  if (rec.mode === "coarse") return t("Neighborhood");
+  return t("Live");
+}
+
+// A marker's caption: the name, then the place for someone live inside one,
+// otherwise the age of the last signal. A dot never goes without a name and
+// a time once it is old enough for the time to matter.
+export function markerCaption(rec, now, status, place) {
+  const name = rec.name || t("Member");
+  const age = now - (rec.posTs ?? rec.ts);
+  if (status === "sos") return t("{who}, SOS, {time}", { who: name, time: agoText(age) });
+  if (place && (status === "live" || status === "checkin")) return t("{who}, {place}", { who: name, place });
+  return t("{who}, {time}", { who: name, time: agoText(age) });
+}
+
 function buildAva(cls) {
   const ava = el("div", cls);
+  ava.setAttribute("aria-hidden", "true");
   ava.append(el("span", "ava-emoji"));
   return ava;
 }
 
+function batteryBit(rec) {
+  if (typeof rec.bat !== "number") return null;
+  return Math.max(1, Math.round(Math.min(1, Math.max(0, rec.bat)) * 100));
+}
+
+// A person card in the sheet's sideways row: badge, name, where or how they
+// are, then the age of the last signal and the battery.
 function buildCard(id, onTap) {
   const card = el("div", "member-card");
   card.dataset.testid = "member-card";
   card.dataset.member = id;
   card.tabIndex = 0;
   card.setAttribute("role", "button");
+  const top = el("div", "mc-top");
   const ava = buildAva("ava");
   const main = el("div", "mc-main");
   const name = el("div", "mc-name");
   name.dataset.testid = "member-name";
-  const sub = el("div", "mc-sub");
-  main.append(name, sub);
-  const side = el("div", "mc-side");
-  const chip = el("span", "chip");
-  const bat = el("div", "bat");
-  bat.append(el("div", "bat-fill"));
-  side.append(chip, bat);
-  card.append(ava, main, side);
+  const line = el("div", "mc-line");
+  main.append(name, line);
+  top.append(ava, main);
+  const foot = el("div", "mc-foot");
+  const when = el("span", "mc-when");
+  const bat = el("span", "bat");
+  bat.append(icon("battery", 16), el("span", "bat-pct"));
+  foot.append(when, bat);
+  // The full line stays on the card for anyone who reads it out: it is the
+  // card's spoken name, and the person sheet shows it in full.
+  const sub = el("div", "mc-sub vh");
+  sub.setAttribute("aria-hidden", "true");
+  card.append(top, foot, sub);
   card.addEventListener("click", () => onTap(id));
   card.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -3361,29 +3590,26 @@ export function updateMemberList(container, items, { now, mePos, statusOf, onTap
     const status = statusOf(rec, now);
     card.className = `member-card mc-${status}`;
     card.style.setProperty("--m-hue", String(rec.hue ?? 0));
-    $(".ava-emoji", card).textContent = rec.emoji || "";
+    $(".ava-emoji", card).textContent = initialOf(rec.name) || rec.emoji || "";
     $(".mc-name", card).textContent = rec.name || t("Member");
-    const subLine = memberSubLine(rec, now, mePos, placeOf?.(rec.id), status, sinceOf?.(rec.id));
+    const place = placeOf?.(rec.id);
+    const subLine = memberSubLine(rec, now, mePos, place, status, sinceOf?.(rec.id));
     $(".mc-sub", card).textContent = subLine;
-    const chip = $(".chip", card);
-    chip.textContent = t(CHIP_TEXT[status]);
-    chip.className = `chip chip-${status}`;
+    $(".mc-line", card).textContent = personLine(rec, now, status, place);
+    $(".mc-when", card).textContent = agoText(now - rec.ts);
+    const pct = batteryBit(rec);
     const bat = $(".bat", card);
-    if (typeof rec.bat === "number") {
+    if (pct !== null) {
       bat.hidden = false;
-      const pct = Math.round(Math.min(1, Math.max(0, rec.bat)) * 100);
-      $(".bat-fill", bat).style.width = `${pct}%`;
+      $(".bat-pct", bat).textContent = `${pct}%`;
       bat.classList.toggle("bat-low", rec.bat < 0.15);
-      bat.setAttribute("aria-label", t("Battery {pct} percent", { pct }));
     } else {
       bat.hidden = true;
     }
     // The label carries what the eyes get: name, status, then the same sub
     // line (caption, place, age, distance) the card paints. A label of just
     // name-and-status erases the information the card exists to give.
-    const batBit = typeof rec.bat === "number"
-      ? `, ${t("Battery {pct} percent", { pct: Math.round(Math.min(1, Math.max(0, rec.bat)) * 100) })}`
-      : "";
+    const batBit = pct !== null ? `, ${t("Battery {pct} percent", { pct })}` : "";
     card.setAttribute(
       "aria-label",
       `${rec.name || t("Member")}, ${t(CHIP_TEXT[status])}${subLine ? `, ${subLine}` : ""}${batBit}`,
@@ -3410,7 +3636,7 @@ function quietCard(id, onTap) {
   ava.append(letter);
   const main = el("div", "mc-main");
   const name = el("div", "mc-name");
-  const sub = el("div", "mc-sub");
+  const sub = el("div", "mc-line");
   main.append(name, sub);
   node.append(ava, main);
   node.addEventListener("click", () => onTap(id));
@@ -3423,7 +3649,7 @@ function quietCard(id, onTap) {
   function update({ name: who, hue }) {
     const shown = who || t("Member");
     node.style.setProperty("--m-hue", String(hue ?? 0));
-    letter.textContent = Array.from((who || "").trim())[0]?.toLocaleUpperCase() || "";
+    letter.textContent = initialOf(who);
     name.textContent = shown;
     sub.textContent = t("No recent update");
     node.setAttribute("aria-label", `${shown}, ${t("No recent update")}`);
@@ -3450,46 +3676,41 @@ export function updateQuietList(container, items, { onTap }) {
   container.hidden = !nodes.length;
 }
 
-export function updateAvaStrip(container, items, { statusOf, now }) {
-  const shown = items.slice(0, 7);
-  const existing = new Map();
-  for (const node of container.querySelectorAll(".ava[data-id]")) existing.set(node.dataset.id, node);
+// -------------------------------------------------------------- focus card
 
-  let cursor = container.firstChild;
-  for (const rec of shown) {
-    const st = statusOf(rec, now);
-    let a = existing.get(rec.id);
-    if (a) existing.delete(rec.id);
-    else {
-      a = buildAva("ava ava-mini");
-      a.dataset.id = rec.id;
-    }
-    a.style.setProperty("--m-hue", String(rec.hue ?? 0));
-    a.classList.toggle("ava-sos", st === "sos");
-    a.classList.toggle("ava-overdue", st === "overdue");
-    a.classList.toggle("ava-dim", st === "stale" || st === "stopped");
-    const emoji = $(".ava-emoji", a);
-    if (emoji.textContent !== (rec.emoji || "")) emoji.textContent = rec.emoji || "";
-    // Place it at the cursor so order tracks the sorted list without churn.
-    if (cursor !== a) container.insertBefore(a, cursor);
-    else cursor = a.nextSibling;
-  }
-  for (const node of existing.values()) node.remove();
-
-  let more = container.querySelector(".ava-more");
-  const overflow = items.length - shown.length;
-  if (overflow > 0) {
-    if (!more) {
-      more = el("div", "ava ava-mini ava-more");
-      container.append(more);
-    } else container.append(more);
-    more.textContent = `+${overflow}`;
-  } else if (more) {
-    more.remove();
-  }
+// The person sheet: who, where and since when, the battery and accuracy as
+// chips, the actions, the recent history this phone holds, and whether their
+// identity was checked. The coordinates and compass line stay at the bottom.
+function windowTitle(id) {
+  if (id === "high-risk") return t("Last 10 minutes");
+  if (id === "longer") return t("Last 6 hours");
+  if (id === "full") return t("Last 24 hours");
+  return t("Last hour");
 }
 
-// -------------------------------------------------------------- focus card
+function timelineEntry(entry, now, isLatest) {
+  const row = el("li", `tl-row tl-${entry.kind}`);
+  const dot = el("span", "tl-dot");
+  dot.setAttribute("aria-hidden", "true");
+  const text = el("div", "tl-text");
+  let title;
+  let sub;
+  const mins = Math.max(1, Math.round((entry.end - entry.start) / 60000));
+  if (entry.kind === "stay") {
+    title = entry.place ? t("At {place}", { place: entry.place }) : t("Stayed in one spot");
+    sub =
+      isLatest && now - entry.end < 5 * 60 * 1000
+        ? t("Since {time}", { time: fmtClock(entry.start) })
+        : t("Until {time}, {min} min", { time: fmtClock(entry.end), min: mins });
+  } else {
+    title = t("On the move");
+    sub = t("{dist} in {min} min", { dist: fmtDistance(entry.meters), min: mins });
+  }
+  text.append(el("div", "tl-title", title), el("div", "tl-sub", sub));
+  const time = el("time", "tl-time", fmtClock(entry.start));
+  row.append(dot, text, time);
+  return row;
+}
 
 export function renderFocusCard(root, rec, ctx) {
   const { now, mePos, statusOf, trailOn, onTrailToggle, onClose, place, since, ask, askWho, onAsk } = ctx;
@@ -3500,15 +3721,29 @@ export function renderFocusCard(root, rec, ctx) {
     const head = el("div", "fc-head");
     const ava = buildAva("ava ava-big");
     const main = el("div", "fc-main");
-    main.append(el("div", "fc-name"), el("div", "fc-sub"));
-    const x = btn("icon-btn fc-close", "✕", "Close member card");
+    main.append(el("h2", "fc-name"), el("div", "fc-sub"));
+    const x = btn("icon-btn fc-close", null, "Back to map");
+    x.append(icon("back", 22));
     x.addEventListener("click", onClose);
     head.append(ava, main, x);
-    const coords = el("div", "fc-coords");
-    const code = el("code", "fc-latlon");
-    const copyBtn = btn("btn-mini", "Copy", "Copy coordinates");
-    copyBtn.classList.add("fc-copy");
-    coords.append(code, copyBtn);
+    const chips = el("div", "fc-chips");
+    const batChip = el("span", "fc-chip fc-bat");
+    batChip.append(icon("battery", 16), el("span", "fc-chip-text"));
+    const accChip = el("span", "fc-chip fc-acc");
+    accChip.append(icon("target", 16), el("span", "fc-chip-text"));
+    const actChip = el("span", "fc-chip fc-act");
+    actChip.append(el("span", "fc-chip-text"));
+    chips.append(batChip, accChip, actChip);
+    const actions = el("div", "fc-actions");
+    const writeBtn = btn("btn-pill btn-pill-primary fc-write", null);
+    writeBtn.append(icon("chat", 20), el("span", "btn-label", "Message"));
+    const askBtn = btn("btn-pill fc-ask", null);
+    askBtn.append(icon("clock", 20), el("span", "fc-ask-text"));
+    const dir = el("a", "btn-pill btn-pill-icon fc-directions");
+    dir.target = "_blank";
+    dir.rel = "noopener noreferrer";
+    dir.append(icon("navigate", 20));
+    actions.append(writeBtn, askBtn, dir);
     // The rendezvous line: which way and how far, as words first. Pure
     // local math from two already-decrypted points; asking for a route
     // would hand a mapping service both of you.
@@ -3517,21 +3752,59 @@ export function renderFocusCard(root, rec, ctx) {
     arrow.setAttribute("aria-hidden", "true");
     compass.append(arrow, el("span", "fc-compass-text"));
     compass.hidden = true;
-    const actions = el("div", "fc-actions");
-    const trailBtn = btn("btn-mini fc-trail", "Trail");
-    const dir = el("a", "btn-mini fc-directions", "Directions");
-    dir.target = "_blank";
-    dir.rel = "noopener noreferrer";
-    actions.append(trailBtn, dir);
-    const askBtn = btn("btn-mini fc-ask", "Ask to check in");
-    root.append(head, coords, compass, actions, askBtn);
+    const hist = el("section", "fc-history");
+    const histHead = el("div", "fc-history-head");
+    const trailBtn = btn("btn-chip fc-trail", "Show on map");
+    histHead.append(el("h3", "fc-history-title"), trailBtn);
+    const list = el("ol", "tl-list");
+    const empty = el("p", "tl-empty", "Nothing in this window yet.");
+    hist.append(
+      histHead,
+      list,
+      empty,
+      el("p", "fc-history-note", "History reaches only as far back as the window in Circle settings. Older positions are deleted for good."),
+    );
+    const verify = btn("fc-verify", null);
+    const vIcon = el("span", "fc-verify-icon");
+    const vText = el("span", "fc-verify-text");
+    vText.append(el("span", "fc-verify-title"), el("span", "fc-verify-sub"));
+    verify.append(vIcon, vText, icon("chevron", 20, "ico fc-verify-go"));
+    const coords = el("div", "fc-coords");
+    const code = el("code", "fc-latlon");
+    const copyBtn = btn("btn-mini", "Copy", "Copy coordinates");
+    copyBtn.classList.add("fc-copy");
+    coords.append(code, copyBtn);
+    root.append(head, chips, actions, compass, hist, verify, coords);
   }
   root.className = `focus-card fc-${status}`;
   root.style.setProperty("--m-hue", String(rec.hue ?? 0));
-  $(".ava-emoji", root).textContent = rec.emoji || "";
+  $(".ava-emoji", root).textContent = initialOf(rec.name) || rec.emoji || "";
   $(".fc-name", root).textContent = rec.name || t("Member");
   $(".fc-sub", root).textContent = `${t(CHIP_TEXT[status])} · ${memberSubLine(rec, now, mePos, place, status, since)}`;
   const hasPos = Number.isFinite(rec.lat) && Number.isFinite(rec.lon);
+
+  // Chips: battery, accuracy, what they are doing. Each carries its word.
+  const pct = batteryBit(rec);
+  const batChip = $(".fc-bat", root);
+  batChip.hidden = pct === null;
+  if (pct !== null) {
+    $(".fc-chip-text", batChip).textContent = rec.bat < 0.15 ? t("Battery low, {pct}%", { pct }) : `${pct}%`;
+    batChip.classList.toggle("fc-chip-warn", rec.bat < 0.15);
+  }
+  const accChip = $(".fc-acc", root);
+  const coarse = rec.mode === "coarse";
+  accChip.hidden = !coarse && !Number.isFinite(rec.acc);
+  $(".fc-chip-text", accChip).textContent = coarse
+    ? t("Neighborhood, about 1 km")
+    : Number.isFinite(rec.acc)
+      ? t("Accuracy {dist}", { dist: fmtDistance(rec.acc) })
+      : "";
+  const actChip = $(".fc-act", root);
+  const present = status === "live" || status === "checkin" || status === "sos";
+  const doing = present ? activityWord(rec.act) : "";
+  actChip.hidden = !doing;
+  $(".fc-chip-text", actChip).textContent = doing;
+
   const latlon = hasPos ? `${rec.lat.toFixed(5)}, ${rec.lon.toFixed(5)}` : t("no position yet");
   $(".fc-latlon", root).textContent = latlon;
   const compass = $(".fc-compass", root);
@@ -3559,17 +3832,22 @@ export function renderFocusCard(root, rec, ctx) {
       toast("Copy failed", "warn");
     }
   };
+  const writeBtn = $(".fc-write", root);
+  writeBtn.hidden = !ctx.onWrite;
+  writeBtn.onclick = ctx.onWrite || null;
   const trailBtn = $(".fc-trail", root);
   trailBtn.setAttribute("aria-pressed", String(trailOn));
   trailBtn.classList.toggle("on", trailOn);
+  trailBtn.hidden = !ctx.trailAllowed;
   trailBtn.onclick = onTrailToggle;
   const askBtn = $(".fc-ask", root);
   askBtn.hidden = !ask;
   askBtn.disabled = ask !== "ready";
-  if (ask === "busy") askBtn.textContent = t("You already asked {who}", { who: askWho });
-  else askBtn.textContent = ask === "asked" ? t("Asked to check in") : t("Ask to check in");
+  $(".fc-ask-text", askBtn).textContent =
+    ask === "busy" ? t("You already asked {who}", { who: askWho }) : ask === "asked" ? t("Asked to check in") : t("Ask to check in");
   askBtn.onclick = onAsk || null;
   const dir = $(".fc-directions", root);
+  dir.setAttribute("aria-label", t("Directions to {who}", { who: rec.name || t("Member") }));
   if (hasPos) {
     // An https maps URL works everywhere; geo: has no handler on iOS Safari
     // or desktop browsers.
@@ -3585,5 +3863,156 @@ export function renderFocusCard(root, rec, ctx) {
     dir.setAttribute("aria-disabled", "true");
     dir.setAttribute("tabindex", "-1");
   }
+
+  // Recent history from the trail already in memory, inside the window.
+  $(".fc-history-title", root).textContent = windowTitle(ctx.historyId);
+  const entries = ctx.timeline || [];
+  const list = $(".tl-list", root);
+  list.replaceChildren(...entries.map((e, i) => timelineEntry(e, now, i === 0)));
+  $(".tl-empty", root).hidden = entries.length > 0;
+
+  // Whether this is really them: the safety number, compared or not.
+  const verify = $(".fc-verify", root);
+  verify.hidden = !ctx.onVerify;
+  verify.onclick = ctx.onVerify || null;
+  const warn = !!ctx.keysChanged || !ctx.verified;
+  verify.classList.toggle("fc-verify-warn", warn);
+  const vIcon = $(".fc-verify-icon", verify);
+  vIcon.replaceChildren(icon(warn ? "shieldWarn" : "shieldOk", 24));
+  $(".fc-verify-title", verify).textContent = ctx.keysChanged
+    ? t("Keys changed")
+    : ctx.verified
+      ? t("Identity verified")
+      : t("Identity not verified");
+  $(".fc-verify-sub", verify).textContent = ctx.keysChanged
+    ? t("Check before you trust it.")
+    : ctx.verified
+      ? t("Safety number compared")
+      : t("Compare the safety number");
   root.hidden = false;
+}
+
+// ------------------------------------------------------------- tab pages
+
+// One row of a settings-style list: icon, label, value, and where it leads.
+function listRow({ ico, label, value, valueCls, testid, onClick, chevron = false }) {
+  const row = btn("list-row", null);
+  if (testid) row.dataset.testid = testid;
+  row.append(icon(ico, 22, "ico list-row-ico"));
+  row.append(el("span", "list-row-label", label));
+  const v = el("span", `list-row-value${valueCls ? " " + valueCls : ""}`);
+  if (value) v.textContent = value;
+  row.append(v);
+  if (chevron) row.append(icon("chevron", 18, "ico list-row-go"));
+  row.addEventListener("click", () => onClick?.());
+  return { row, value: v };
+}
+
+// The Circle tab: sharing and precision, the people with how far each one has
+// been checked, the privacy settings that matter most, and the way out. Every
+// row leads to a piece of the app that already exists, most of them to their
+// group in Settings, which stays one row away at the bottom.
+export function openCirclePage(api) {
+  const ov = openOverlay({ title: "Circle", testid: "circle-page", className: "ov-circle", onClose: api.onClose, page: true });
+  const b = ov.body;
+
+  // Sharing card.
+  const shareCard = el("section", "card share-card");
+  const shareHead = el("div", "share-card-head");
+  const shareTitle = el("h2", "card-title", "Sharing my location");
+  shareTitle.id = "circle-share-title";
+  const sw = btn("switch", null);
+  sw.setAttribute("role", "switch");
+  sw.setAttribute("aria-labelledby", "circle-share-title");
+  sw.dataset.testid = "circle-share-switch";
+  sw.append(el("span", "switch-knob"));
+  sw.addEventListener("click", () => api.onShare());
+  shareHead.append(shareTitle, sw);
+  const shareNote = el("p", "card-note");
+  const seg = el("div", "seg seg-wide");
+  seg.setAttribute("role", "radiogroup");
+  seg.setAttribute("aria-label", t("Precision"));
+  const precise = btn("seg-cell", "Precise");
+  const coarse = btn("seg-cell", "Neighborhood, about 1 km");
+  for (const [cell, v] of [[precise, "precise"], [coarse, "coarse"]]) {
+    cell.setAttribute("role", "radio");
+    cell.dataset.precision = v;
+    cell.addEventListener("click", () => api.onPrecision(v));
+    seg.append(cell);
+  }
+  shareCard.append(shareHead, shareNote, seg);
+
+  // People.
+  const peopleHead = el("div", "section-head");
+  const inviteBtn = btn("btn-text", null);
+  inviteBtn.dataset.testid = "circle-invite";
+  inviteBtn.append(icon("plus", 20), el("span", "btn-label", "Invite a person"));
+  inviteBtn.addEventListener("click", () => api.onInvite());
+  peopleHead.append(el("h2", "section-title", "People"), inviteBtn);
+  const peopleList = el("div", "card list-card people-list");
+
+  // Privacy.
+  const privHead = el("div", "section-head");
+  privHead.append(el("h2", "section-title", "Privacy"));
+  const priv = el("div", "card list-card");
+  const lockRow = listRow({ ico: "lock", label: "App lock", testid: "circle-lock", onClick: api.onLock });
+  const histRow = listRow({ ico: "clock", label: "History on this phone", testid: "circle-history", onClick: api.onHistory });
+  const serverRow = listRow({ ico: "server", label: "Server", testid: "circle-server", onClick: api.onServer });
+  const rekeyRow = listRow({ ico: "refresh", label: "Make new keys", testid: "circle-rekey", onClick: api.onRekey, chevron: true });
+  const allRow = listRow({ ico: "settings", label: "All settings", testid: "settings-open", onClick: api.onSettings, chevron: true });
+  priv.append(lockRow.row, histRow.row, serverRow.row, rekeyRow.row, allRow.row);
+
+  const wipe = btn("btn-pill btn-pill-danger circle-wipe", null);
+  wipe.dataset.testid = "circle-wipe";
+  wipe.append(icon("trash", 20), el("span", "btn-label", "Clear data from this phone"));
+  wipe.addEventListener("click", () => api.onWipe());
+
+  b.append(shareCard, peopleHead, peopleList, privHead, priv, wipe);
+
+  function personRow(p) {
+    const row = btn("list-row person-row-item", null);
+    row.dataset.member = p.id;
+    row.style.setProperty("--m-hue", String(p.hue ?? 0));
+    const ava = el("span", "ava ava-sm");
+    ava.setAttribute("aria-hidden", "true");
+    ava.append(el("span", "ava-emoji", initialOf(p.name)));
+    const text = el("span", "list-row-label");
+    text.append(el("span", "list-row-name", p.name), el("span", "list-row-sub", p.line));
+    const state = el("span", `verify-state${p.verified && !p.keysChanged ? " verify-ok" : " verify-warn"}`);
+    state.append(
+      icon(p.verified && !p.keysChanged ? "shieldOk" : "shieldWarn", 18),
+      el("span", "btn-label", p.keysChanged ? t("Keys changed") : p.verified ? t("Verified") : t("Compare number")),
+    );
+    row.append(ava, text, state);
+    row.addEventListener("click", () => api.onPerson(p.id));
+    return row;
+  }
+
+  function paint() {
+    const s = api.read();
+    sw.setAttribute("aria-checked", String(s.sharing));
+    sw.classList.toggle("on", s.sharing);
+    sw.disabled = !s.hasCircle && !s.demo;
+    shareNote.textContent = s.sharing
+      ? t("Your circle sees you every {n} seconds.", { n: s.cadence })
+      : t("Your circle does not see where you are. Turn this on to share.");
+    for (const [cell, v] of [[precise, "precise"], [coarse, "coarse"]]) {
+      const on = s.precision === v;
+      cell.classList.toggle("sel", on);
+      cell.setAttribute("aria-checked", String(on));
+      cell.disabled = s.demo;
+    }
+    inviteBtn.hidden = s.demo || !s.hasCircle;
+    const rows = s.people.map(personRow);
+    if (!rows.length) rows.push(el("p", "list-empty", "Nobody else in this circle yet"));
+    peopleList.replaceChildren(...rows);
+    lockRow.value.textContent = s.lock === "bio" ? t("Passcode and biometrics") : s.lock === "passcode" ? t("Passcode") : t("Off");
+    histRow.value.textContent = t(s.history);
+    const connected = s.net === "ok" && !s.offline;
+    serverRow.value.textContent = `${s.server || t("Default")}, ${connected ? t("connected") : t("not connected")}`;
+    serverRow.value.classList.toggle("list-row-value-ok", connected);
+    for (const r of [lockRow.row, histRow.row, serverRow.row, rekeyRow.row, wipe]) r.hidden = s.demo || !s.hasCircle;
+  }
+  paint();
+  return { close: ov.close, refresh: paint };
 }

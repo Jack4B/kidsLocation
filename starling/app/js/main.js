@@ -141,6 +141,7 @@ import {
 } from "./circles.js";
 import * as ui from "./ui.js";
 import { createMapView } from "./map.js";
+import { buildTimeline } from "./timeline.js";
 import { createPoller, createRoster, createSender, statusOf, displayStatus, sortMembers, staleAfter } from "./net.js";
 import { createOutbox } from "./outbox.js";
 import { createChatController, chatNotice } from "./chat.js";
@@ -212,8 +213,10 @@ const state = {
   settings: {
     precision: "precise",
     trail: true,
-    basemap: "dark",
-    theme: "dark",
+    // "auto" is the street map in the app's own light or dark look.
+    basemap: "auto",
+    // "auto" follows the phone's light or dark mode.
+    theme: "auto",
     wakeLock: false,
     history: "default", // an id from ratchet.js HISTORY_CHOICES
     steady: false, // post on a fixed cadence whether or not you have moved
@@ -444,6 +447,17 @@ let demoMembers = [];
 // persisted - the next demo starts off-grid again.
 let demoMapOn = false;
 let demoMapAsk = false;
+// The map opens on you once, at your first fix; after that, or once the
+// person moved the map themselves, it stays where they put it.
+let mapCentered = false;
+let mapHandled = false;
+// When this phone's own SOS went out, for the banner over the map.
+let sosSince = 0;
+// The bottom navigation: "map", or the tab whose page is open over it.
+let activeTab = "map";
+// Whether the place pick in progress started from the Places tab.
+let placesAsPage = false;
+let tabPage = null;
 let focusedId = null;
 let focusSaid = "";
 let focusByKeyboard = false;
@@ -548,17 +562,26 @@ function resolvedTheme() {
   const t = state.settings.theme;
   return t === "auto" ? (systemLight() ? "light" : "dark") : t;
 }
+// The saved basemap as Leaflet draws it: "auto" is the street map in the
+// look the app has right now.
+function basemapFor(pick = state.settings.basemap) {
+  return pick === "auto" ? resolvedTheme() : pick;
+}
 function applyTheme() {
   const t = resolvedTheme();
   document.documentElement.dataset.theme = t;
   // Match the browser chrome (status bar, address bar) to the active theme.
   const bar = document.querySelector('meta[name="theme-color"]');
-  if (bar) bar.setAttribute("content", t === "light" ? "#f4f6fb" : "#0a0d14");
+  if (bar) bar.setAttribute("content", t === "light" ? "#f1f4f2" : "#12141c");
   // The wrapper has no theme-color; its bar icons have to be told.
   try {
     native()?.setBarsLight?.(t === "light");
   } catch {
     // an older wrapper without the method
+  }
+  // A street map that follows the theme has to follow it now, not at the next launch.
+  if (mapView && state.settings.basemap === "auto" && !state.demo && !basemapHeld() && state.screen === "map") {
+    mapView.setBasemap(basemapFor());
   }
 }
 const onSchemeChange = () => {
@@ -641,6 +664,7 @@ if (debugHooks()) window.__starlingState = () => {
 // Frames everyone with a position, you included: the same set renderMarkers draws.
 function fitEveryone({ animate = true } = {}) {
   if (!mapView) return false;
+  mapHandled = true;
   const pts = members().filter((r) => Number.isFinite(r.lat) && Number.isFinite(r.lon));
   if (state.me && Number.isFinite(state.me.lat)) pts.push({ lat: state.me.lat, lon: state.me.lon });
   if (!pts.length) return false;
@@ -736,10 +760,11 @@ function ensureMapUI() {
   // path) must not touch the street basemap even for a frame: a saved
   // "dark" here would warm the tile host before startDemo forces "none".
   // Nor does a page that came back by itself with nobody looking.
-  mapView.setBasemap(state.demo || basemapHeld() ? "none" : state.settings.basemap);
+  mapView.setBasemap(state.demo || basemapHeld() ? "none" : basemapFor());
   // Places load before the map exists on a fresh launch (enterCircle runs
   // loadPlaces first); the freshly built map has to catch up on them.
   mapView.setPlaces(state.places);
+  openingView();
   sheet = ui.createSheet($("#sheet"), $("#sheet-drag"), $("#sheet-body"));
 
   byTestid("share-toggle").addEventListener("click", onShareToggle);
@@ -764,10 +789,18 @@ function ensureMapUI() {
     onShortTap: (atArmed) =>
       ui.toast(atArmed ? "Tap once more to send SOS" : "Press and hold to send SOS"),
   });
-  byTestid("settings-open").addEventListener("click", openSettings);
   byTestid("circle-open").addEventListener("click", openCircles);
   $("#fab-locate").addEventListener("click", locateMe);
   $("#fab-fit").addEventListener("click", () => fitEveryone());
+  $("#fab-style").addEventListener("click", openMapStyle);
+  $("#sos-cancel").addEventListener("click", () => doCheckin());
+  for (const tab of ["map", "chat", "places", "circle"]) {
+    byTestid(`tab-${tab}`).addEventListener("click", () => openTab(tab));
+  }
+  // A person who moves the map before the first fix has chosen where to look.
+  mapView.map.on?.("dragstart", () => {
+    mapHandled = true;
+  });
   $("#banner-demo-exit").addEventListener("click", exitDemo);
   $("#banner-demo-map").addEventListener("click", toggleDemoMap);
   $("#banner-demo-consent-go").addEventListener("click", loadDemoMap);
@@ -775,8 +808,7 @@ function ensureMapUI() {
   $("#nudge-invite").addEventListener("click", openInvite);
   $("#sos-help").addEventListener("click", openHelpLink);
   byTestid("members-open").addEventListener("click", openMembers);
-  byTestid("places-open").addEventListener("click", openPlaces);
-  installChatEntry();
+  byTestid("places-open").addEventListener("click", () => openTab("places"));
   byTestid("status-open").addEventListener("click", openStatus);
   $("#banner-keys-open").addEventListener("click", openMembers);
   $("#banner-pick-center").addEventListener("click", () => mapView.pickCenter());
@@ -807,7 +839,6 @@ function render() {
     placeOf: (id) => placeTracker.placeFor(id)?.name || null,
     sinceOf: (id) => placeTracker.arrivedAtFor(id),
   });
-  ui.updateAvaStrip($("#ava-strip"), list, { statusOf: displayStatus, now });
   renderMarkers(list, now);
   const quiet = quietMembers(list);
   ui.updateQuietList($("#quiet-list"), quiet, { onTap: () => openMembers() });
@@ -828,7 +859,13 @@ function quietMembers(list) {
 }
 
 function renderChrome() {
-  $("#pill-name").textContent = state.demo ? t("Demo circle") : ui.circleLabel(state.circleName);
+  const circleName = state.demo ? t("Demo circle") : ui.circleLabel(state.circleName);
+  $("#pill-name").textContent = circleName;
+  $("#sheet-title").textContent = circleName;
+  // You plus everyone this phone knows of, live or quiet.
+  const people = 1 + (state.demo ? demoMembers.length : new Set([...members().map((r) => r.id), ...quietMembers(members()).map((r) => r.id)]).size);
+  $("#pill-count").textContent = t(people === 1 ? "{n} person" : "{n} people", { n: people });
+  byTestid("circle-open")?.setAttribute?.("aria-label", t("Switch circle: {name}, {n} people", { name: circleName, n: people }));
   const dotState = state.demo ? "ok" : state.netStatus;
   const dot = $("#status-dot");
   dot.className = `status-dot dot-${dotState}`;
@@ -847,16 +884,19 @@ function renderChrome() {
       changed === 1 ? t("{who}'s keys changed", { who: displayName(first) }) : t("{n} members' keys changed", { n: changed });
   }
   $("#banner-insecure").hidden = !insecureContext;
+  // Your own SOS rides on top of the map, where nothing can cover it.
+  $("#banner-sos").hidden = !state.sosActive;
+  if (state.sosActive) {
+    $("#banner-sos-title").textContent = sosSince ? t("SOS active since {time}", { time: fmtClock(sosSince) }) : t("SOS is active");
+  }
+  $("#screen-map").classList?.toggle?.("sos-on", !!state.sosActive);
+  renderTabs();
   $("#banner-demo").hidden = !state.demo;
   $("#banner-demo-consent").hidden = !(state.demo && demoMapAsk);
   if (state.demo) $("#banner-demo-map").textContent = demoMapOn ? t("Off-grid") : t("Real map");
 }
 
 function renderYou() {
-  const p = state.profile || {};
-  $("#you-emoji").textContent = p.emoji || "\u{1F9ED}";
-  $("#you-name").textContent = p.name || t("You");
-  $("#you-ava").style.setProperty("--m-hue", String(myHue()));
   const hasFix = !!(state.me && Number.isFinite(state.me.lat));
   let sub;
   // Once the circle's screens show this phone as quiet, this one stops saying live.
@@ -916,9 +956,14 @@ function renderYou() {
     ? t("Sharing (pretend)")
     : state.sharing
       ? hasFix
-        ? t("Sharing live")
+        ? t("Sharing")
         : t("Locating...")
       : t("Start sharing");
+  // The chip is short; its spoken name says what a tap will do.
+  toggle.setAttribute(
+    "aria-label",
+    state.sharing ? t("You are sharing your location. Tap to stop.") : t("You are not sharing your location. Tap to start."),
+  );
   const win = $("#share-window");
   if (win) {
     win.hidden = !state.sharing || state.demo;
@@ -960,6 +1005,8 @@ function renderYou() {
   }
   $("#sos-notice").hidden = !state.sosActive;
   $("#sos-help").hidden = !(state.sosActive && beacon);
+  $("#sos-help-note").hidden = !(state.sosActive && beacon);
+  $("#sos-label").textContent = state.sosActive ? t("SOS sent") : t("Hold for SOS");
   const checkBtn = byTestid("checkin-button");
   checkBtn.setAttribute(
     "aria-label",
@@ -1164,7 +1211,7 @@ function alertItems() {
           ? t("Starling updated while you were sharing, and turned sharing back on without being opened, because Also after an update is on in Settings. If you did not turn that on, check who has access to this phone.")
           : t("Your phone restarted while you were sharing, and Starling turned sharing back on without being opened, because Also after a restart is on in Settings. If you did not turn that on, check who has access to this phone."),
       actions: [
-        { label: "Settings", testid: "alert-auto-resumed-settings", onClick: openSettings },
+        { label: "Settings", testid: "alert-auto-resumed-settings", onClick: () => openSettings() },
         {
           label: "Got it",
           testid: "alert-auto-resumed-ok",
@@ -1529,7 +1576,7 @@ function renderTools() {
   }
   const timerBtn = byTestid("timer-open");
   if (timerBtn) timerBtn.onclick = openCheckinTimer;
-  renderChatEntry();
+  renderChatBadge();
   const placesSub = $("#places-tool-sub");
   if (placesSub) {
     const n = state.places.length;
@@ -1637,6 +1684,7 @@ function renderMarkers(list, now) {
       lat: rec.lat,
       lon: rec.lon,
       name: rec.name || t("Member"),
+      caption: ui.markerCaption(rec, now, displayStatus(rec, now), placeTracker.placeFor(rec.id)?.name || null),
       emoji: rec.emoji || "",
       hue: rec.hue ?? hueFromMemberId(rec.id),
       // map.js draws sos, live and stale; a missed check-in keeps its wire look there.
@@ -1652,6 +1700,7 @@ function renderMarkers(list, now) {
       lat: state.me.lat,
       lon: state.me.lon,
       name: t("You"),
+      caption: state.sosActive ? t("You, SOS") : t("You"),
       emoji: state.profile?.emoji || "\u{1F9ED}",
       hue: myHue(),
       status: state.sosActive ? "sos" : "live",
@@ -1665,6 +1714,12 @@ function renderMarkers(list, now) {
     if (!wanted.has(id)) mapView.removeMarker(id);
   }
   $("#fab-fit").hidden = wanted.size < 2;
+  // The map opens on you at street level as soon as there is a you to show,
+  // unless the person already moved it somewhere on purpose.
+  if (!mapCentered && !mapHandled && wanted.has("me")) {
+    mapCentered = true;
+    mapView.showAt(state.me.lat, state.me.lon);
+  }
   if (focusedId && focusTrailOn && state.settings.trail) {
     const rec = list.find((r) => r.id === focusedId);
     if (rec?.trail?.length > 1) {
@@ -1684,6 +1739,7 @@ function renderMarkers(list, now) {
 
 function renderFocus(list, now) {
   const card = $("#focus-card");
+  $("#screen-map").classList?.toggle?.("focusing", !!focusedId);
   if (!focusedId) {
     card.hidden = true;
     if (focusSaid) {
@@ -1719,6 +1775,171 @@ function renderFocus(list, now) {
     ask: askState(rec.id),
     askWho: liveAsk() ? memberName(liveAsk().id) : "",
     onAsk: () => askToCheckIn(rec.id),
+    trailAllowed: !!state.settings.trail,
+    // The recent history this phone holds for them, inside the window.
+    historyId: state.settings.history,
+    timeline: buildTimeline(rec.trail, {
+      now,
+      windowMs: historyEpochs() * EPOCH_MS,
+      places: state.demo ? demoPlaces() : state.places,
+    }),
+    // Napisz leads to the Chat tab, where the family chat will live.
+    onWrite: () => openTab("chat"),
+    verified: state.demo ? true : !!state.pinned.get(rec.id)?.verified,
+    keysChanged: state.keyChanges.has(rec.id),
+    onVerify: state.demo ? null : openMembers,
+  });
+}
+
+// ------------------------------------------------------------ opening view
+
+// Before this phone has a fix the map shows the saved places, where the
+// family lives, or else the whole country; it never shows the world. Your own
+// position is not stored anywhere, so there is no older one to start from.
+// The first fix replaces this with the street view on you (renderMarkers).
+function openingView() {
+  if (!mapView || state.demo) return;
+  if (state.me && Number.isFinite(state.me.lat)) {
+    mapCentered = true;
+    mapView.showAt(state.me.lat, state.me.lon);
+    return;
+  }
+  if (state.places.length) mapView.fitAll(state.places, { animate: false, maxZoom: 15 });
+}
+
+// ------------------------------------------------------------------- tabs
+
+// Map, Chat, Places, Circle. Every tab but Map is a page laid over the map
+// and under the navigation bar, so the map keeps running beneath it and
+// coming back to it is instant.
+function openTab(name) {
+  if (name === activeTab && tabPage) return;
+  if (name !== "map" && focusedId) unfocus();
+  closeTabPage();
+  ui.closeAllOverlays();
+  if (name === "map") {
+    activeTab = "map";
+    renderTabs();
+    return;
+  }
+  const done = () => {
+    if (tabPage === page) {
+      tabPage = null;
+      activeTab = "map";
+      renderTabs();
+    }
+  };
+  let page = null;
+  if (name === "chat") page = showChatLayer();
+  else if (name === "places") page = openPlaces({ page: true, onClosed: done });
+  else if (name === "circle") page = keepLive((closed) => ui.openCirclePage(circlePageApi((...a) => {
+    closed(...a);
+    done();
+  })));
+  if (!page) return;
+  tabPage = page;
+  activeTab = name;
+  renderTabs();
+}
+
+function closeTabPage() {
+  const page = tabPage;
+  tabPage = null;
+  activeTab = "map";
+  page?.close?.();
+}
+
+function renderTabs() {
+  for (const tab of ["map", "chat", "places", "circle"]) {
+    const b = byTestid(`tab-${tab}`);
+    if (!b) continue;
+    if (tab === activeTab) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+    b.classList?.toggle?.("on", tab === activeTab);
+  }
+  // A key change or a person nobody has checked shows on the Circle tab too:
+  // a mark and a word in its name, never the color alone.
+  const badge = $("#tab-circle-badge");
+  const changed = state.demo ? 0 : state.keyChanges.size;
+  badge.hidden = !changed;
+  badge.textContent = changed ? "!" : "";
+  byTestid("tab-circle")?.setAttribute?.("aria-label", changed ? t("Circle, keys changed") : t("Circle"));
+}
+
+// What the Circle page reads and what its rows do. Everything here is an
+// existing piece of the app; the page is a front for it, not a new feature.
+function circlePageApi(onClose) {
+  const historyLabel = () => {
+    const c = HISTORY_CHOICES.find((x) => x.id === state.settings.history) || HISTORY_CHOICES[1];
+    return c.label;
+  };
+  const people = () => {
+    const now = Date.now();
+    const live = sortMembers(members(), now).map((r) => ({
+      id: r.id,
+      name: r.name || t("Member"),
+      hue: r.hue ?? hueFromMemberId(r.id),
+      line: ui.personLine(r, now, displayStatus(r, now), placeTracker.placeFor(r.id)?.name || null),
+      verified: state.demo ? true : !!state.pinned.get(r.id)?.verified,
+      keysChanged: state.keyChanges.has(r.id),
+    }));
+    const quiet = quietMembers(members()).map((r) => ({
+      id: r.id,
+      name: r.name || t("Member"),
+      hue: r.hue,
+      line: t("No recent update"),
+      verified: !!state.pinned.get(r.id)?.verified,
+      keysChanged: false,
+    }));
+    return [...live, ...quiet];
+  };
+  return {
+    onClose,
+    read: () => ({
+      demo: !!state.demo,
+      hasCircle: !!state.gen,
+      sharing: !!state.sharing,
+      cadence: circleCadenceS(),
+      precision: activePrecision(),
+      people: people(),
+      lock: state.lock?.enabled ? (state.lock?.bio ? "bio" : "passcode") : "off",
+      history: historyLabel(),
+      server: isBundled() && state.relay ? hostOf(state.relay) : "",
+      net: state.demo ? "ok" : state.netStatus,
+      offline: !!state.offline,
+    }),
+    onShare: onShareToggle,
+    onPrecision: (v) => onSettingChange("precision", v),
+    onInvite: openInvite,
+    onPerson: (id) => {
+      if (state.demo) {
+        closeTabPage();
+        focusMember(id);
+        return;
+      }
+      openMembers();
+    },
+    onLock: () => openSettings("lock"),
+    onHistory: () => openSettings("keys"),
+    onServer: () => openSettings("advanced"),
+    onRekey: () => openSettings("rekey"),
+    onWipe: () => openSettings("panic"),
+    onSettings: () => openSettings(),
+  };
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).host;
+  } catch {
+    return String(url);
+  }
+}
+
+function openMapStyle() {
+  ui.openMapStyleSheet({
+    value: state.settings.basemap,
+    onChange: (v) => onSettingChange("basemap", v),
   });
 }
 
@@ -1737,7 +1958,9 @@ function focusMember(id, { keyboard = false } = {}) {
   focusedId = id;
   focusByKeyboard = keyboard;
   focusTrailOn = state.settings.trail;
-  if (Number.isFinite(rec.lat)) mapView?.focusOn(rec.lat, rec.lon);
+  mapHandled = true;
+  // The person sheet covers the lower half; the person sits in the half above it.
+  if (Number.isFinite(rec.lat)) mapView?.focusOn(rec.lat, rec.lon, 16, Math.round(window.innerHeight * 0.3));
   render();
   if (keyboard) $("#focus-card").focus();
 }
@@ -1758,6 +1981,7 @@ function unfocus() {
 }
 
 function locateMe() {
+  mapHandled = true;
   if (state.me && Number.isFinite(state.me.lat)) {
     mapView.focusOn(state.me.lat, state.me.lon, 16, 0);
   } else {
@@ -3074,8 +3298,14 @@ function chatDeps() {
   };
 }
 
+// The Chat tab. Opened through openTab so the navigation bar shows it; a
+// chat notification lands here too.
 function openChat() {
-  if (state.locked || !state.identity) return;
+  openTab("chat");
+}
+
+function showChatLayer() {
+  if (state.locked) return null;
   if (!chatLayer) {
     chatLayer = document.createElement("section");
     chatLayer.className = "cht-screen";
@@ -3090,18 +3320,25 @@ function openChat() {
   chatView.scrollToEnd();
   chatView.update();
   chat.markRead();
+  renderChatBadge();
+  return { close: closeChat };
 }
 
 function closeChat() {
   if (!chatLayer || chatLayer.hidden) return;
   chatLayer.hidden = true;
-  renderChatEntry();
-  byTestid("chat-open")?.focus?.();
+  renderChatBadge();
+  if (activeTab === "chat") {
+    tabPage = null;
+    activeTab = "map";
+    renderTabs();
+    byTestid("tab-chat")?.focus?.();
+  }
 }
 
 function chatChanged() {
   if (chatView && chatLayer && !chatLayer.hidden) chatView.update();
-  renderChatEntry();
+  renderChatBadge();
   const n = chat.unread();
   for (const fn of chatUnreadListeners) {
     try {
@@ -3112,45 +3349,19 @@ function chatChanged() {
   }
 }
 
-// The way in from today's map sheet: a tool row like Places, with the unread
-// count as its badge. Built here rather than in index.html so the coming
-// navigation can replace it without touching the page.
-function installChatEntry() {
-  const tools = $(".sheet-tools");
-  if (!tools || typeof tools.prepend !== "function" || byTestid("chat-open")) return;
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "tool-btn";
-  b.id = "chat-open";
-  b.dataset.testid = "chat-open";
-  const label = document.createElement("span");
-  label.className = "tool-label";
-  label.textContent = t("Chat");
-  const sub = document.createElement("span");
-  sub.className = "tool-sub";
-  sub.id = "chat-tool-sub";
-  const badge = document.createElement("span");
-  badge.className = "tool-badge cht-badge";
-  badge.id = "chat-badge";
-  badge.dataset.testid = "chat-badge";
-  badge.hidden = true;
-  b.append(label, sub, badge);
-  b.addEventListener("click", openChat);
-  tools.prepend(b);
-  renderChatEntry();
-}
-
-function renderChatEntry() {
-  const sub = $("#chat-tool-sub");
-  const badge = $("#chat-badge");
-  if (!sub || !badge) return;
-  const n = chat.unread();
-  sub.textContent = n
-    ? t(n === 1 ? "{n} new message" : "{n} new messages", { n })
-    : t("Short messages to your circle, end-to-end encrypted");
+// The unread count on the Chat tab: a number in the accent color (it is
+// news, not an alarm), and the same count in the tab's spoken name.
+function renderChatBadge() {
+  const badge = $("#tab-chat-badge");
+  const tab = byTestid("tab-chat");
+  if (!badge || !tab) return;
+  const n = state.demo ? 0 : chat.unread();
   badge.hidden = !n;
-  badge.textContent = String(n);
-  badge.setAttribute("aria-label", t(n === 1 ? "{n} new message" : "{n} new messages", { n }));
+  badge.textContent = n > 99 ? "99+" : String(n);
+  tab.setAttribute?.(
+    "aria-label",
+    n ? `${t("Chat")}, ${t(n === 1 ? "{n} new message" : "{n} new messages", { n })}` : t("Chat"),
+  );
 }
 
 // The members this generation opened with, as written down with it, read out
@@ -5332,8 +5543,8 @@ const inviteLink = () => (state.invite ? inviteLinkFor(state.invite) : "");
 
 function qrColors() {
   return resolvedTheme() === "light"
-    ? { dark: "#101522", light: "#ffffff" }
-    : { dark: "#0a0d14", light: "#ffffff" };
+    ? { dark: "#14201c", light: "#ffffff" }
+    : { dark: "#14201c", light: "#ffffff" };
 }
 
 // The screen that turns trust on first use into a checked identity. It is
@@ -5378,7 +5589,9 @@ async function openInvite() {
 
 // -------------------------------------------------------------- settings
 
-async function openSettings() {
+// `focus` opens Settings at one group: "lock", "keys", "rekey", "advanced" or "panic".
+async function openSettings(focus = null) {
+  if (typeof focus !== "string") focus = null;
   const bioOk = await bioAvailable();
   const n = native();
   let tor = null;
@@ -5497,9 +5710,10 @@ async function openSettings() {
         setDuress,
         clearDuress,
       },
+      focus,
       onChange: onSettingChange,
       onInvite: openInvite,
-      onPlaces: openPlaces,
+      onPlaces: () => openTab("places"),
       onPanic: panic,
       onLeave: leaveCircle,
       onExport: () => {
@@ -5608,7 +5822,7 @@ async function onSettingChange(key, value) {
       // The demo runs its own basemap through the banner's consent flow;
       // the choice made here is saved and applied when the demo exits.
       if (state.demo) ui.toast(t("The demo has its own Real map button. Your choice here applies when you exit."));
-      else mapView.setBasemap(value);
+      else mapView.setBasemap(basemapFor(value));
     }
     if (key === "history") {
       state.gen?.ratchet.setHistoryEpochs(historyEpochs(value));
@@ -5999,7 +6213,7 @@ function basemapHeld() {
 function releaseHeldBasemap() {
   if (!basemapHeld() || !pageShown()) return;
   shownSinceBoot = true;
-  if (mapView && !state.demo && state.gen) mapView.setBasemap(state.settings.basemap);
+  if (mapView && !state.demo && state.gen) mapView.setBasemap(basemapFor());
   render();
 }
 document.addEventListener("visibilitychange", releaseHeldBasemap);
@@ -6945,6 +7159,7 @@ async function checkInFromNotification() {
 
 async function fireSos() {
   navigator.vibrate?.([120, 60, 120]);
+  if (!state.sosActive) sosSince = Date.now();
   state.sosActive = true;
   // A queued check-in retry is from before this moment; the SOS overrides it.
   outbox.drop("checkin");
@@ -7262,18 +7477,51 @@ function openStatus() {
 
 // ---------------------------------------------------------------- places UI
 
-function openPlaces() {
+// `page` opens Places as the Places tab rather than a sheet over the map.
+function openPlaces({ page = false, onClosed = null } = {}) {
+  if (typeof page !== "boolean") page = false;
   if (state.demo) {
     // Editing the real list mid-demo would push it into the tracker that is
     // currently holding the demo's invented spots. One gate closes the race.
-    ui.toast("Exit the demo to edit your places.");
-    return;
+    // The tab still shows the demo's spots, read only.
+    if (!page) {
+      ui.toast("Exit the demo to edit your places.");
+      return null;
+    }
+    const nope = () => {
+      ui.toast("Exit the demo to edit your places.");
+      return false;
+    };
+    return keepLive((done) =>
+      ui.openPlacesSheet({
+        page: true,
+        readOnly: true,
+        api: { places: demoPlaces, here: whoIsAt },
+        onClose: () => {
+          done();
+          onClosed?.();
+        },
+        onAdd: nope,
+        onPick: nope,
+        onRename: nope,
+        onRadius: nope,
+        onFence: nope,
+        onAlerts: nope,
+        onRemove: nope,
+      }),
+    );
   }
   cancelPlacePick();
-  keepLive((done) =>
+  // A pick that ends reopens Places; inside the tab it reopens the tab.
+  placesAsPage = page;
+  return keepLive((done) =>
     ui.openPlacesSheet({
+      page,
       api: { places: () => state.places, here: whoIsAt },
-      onClose: done,
+      onClose: () => {
+        done();
+        onClosed?.();
+      },
       onAdd: async (name) => {
         if (!state.me || !Number.isFinite(state.me.lat)) {
           ui.toast("No position yet. Start sharing first, or pick the spot on the map.", "warn");
@@ -7334,8 +7582,14 @@ function startPlacePick(name) {
     if (state.locked || state.demo) return;
     await addPlace(name, lat, lon);
     ui.toast(t("{name} saved. Only this phone knows it exists.", { name }));
-    openPlaces();
+    reopenPlaces();
   });
+}
+
+// Back to Places the way the person left it: the tab, or the sheet.
+function reopenPlaces() {
+  if (placesAsPage) openTab("places");
+  else openPlaces();
 }
 
 function cancelPlacePick() {
@@ -7347,7 +7601,7 @@ function cancelPlacePick() {
 }
 
 function backOutOfPick() {
-  if (cancelPlacePick()) openPlaces();
+  if (cancelPlacePick()) reopenPlaces();
 }
 
 // Makes each detailed place notification its own id, even two in one tick.
@@ -7508,7 +7762,8 @@ function startDemo() {
   mapView.setBasemap("none");
   mapView.setPlaces(demoPlaces());
   demo.start();
-  mapView.fitAll([DEMO_CENTER, ...demoMembers]);
+  mapCentered = true;
+  mapView.fitAll([DEMO_CENTER, ...demoMembers, ...demoPlaces()]);
   render();
 }
 
@@ -7542,6 +7797,9 @@ function cancelDemoMap() {
 function exitDemo() {
   demo?.stop();
   demo = null;
+  mapCentered = false;
+  mapHandled = false;
+  closeTabPage();
   state.demo = false;
   demoMapOn = false;
   demoMapAsk = false;
@@ -7556,7 +7814,7 @@ function exitDemo() {
   // The saved basemap comes back only when there is a circle to show. A
   // hosted-site visitor who never consented to tiles exits to onboarding,
   // and restoring the default street basemap here would fetch them anyway.
-  mapView.setBasemap(state.gen ? state.settings.basemap : "none");
+  mapView.setBasemap(state.gen ? basemapFor() : "none");
   // The real places come back exactly as stored; the demo's spots die here.
   placeTracker.setPlaces(state.places);
   mapView.setPlaces(state.places);
@@ -7786,6 +8044,10 @@ if (debugHooks()) window.__starlingInternals = {
   },
   leaveCircle,
   enableLock,
+  openSettings,
+  openTab,
+  activeTab: () => activeTab,
+  openingView,
   disableLock,
   chat,
   loadChat,
