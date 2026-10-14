@@ -22,6 +22,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HTTP_PORT = 8933;
 const CDP_PORT = 9334;
 const BASE = `http://127.0.0.1:${HTTP_PORT}`;
+// The relay the served page has built in (serve_local writes build-config.js from it).
+const E2E_RELAY = "https://relay.e2e.test";
 const SHOTS = path.join(ROOT, "test", "screenshots");
 
 const fails = [];
@@ -151,7 +153,7 @@ const CHECKIN_BRIDGE = `${BRIDGE_STUB.replace(/};$/, "")}
   const real = window.fetch.bind(window);
   window.__posts = 0;
   window.fetch = (input, init) => {
-    const url = String(input?.url || input).replace("https://starlingmap.app", location.origin);
+    const url = String(input?.url || input).replace("${E2E_RELAY}", location.origin);
     if ((init?.method || "GET") === "POST" && url.includes("/api/v2/f/")) window.__posts++;
     return real(url, init);
   };
@@ -229,7 +231,7 @@ async function main() {
   const profile = mkdtempSync(path.join(tmpdir(), "starling-wrapper-e2e-"));
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
     cwd: ROOT,
-    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000" },
+    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000", RELAY_URL: E2E_RELAY },
     stdio: "ignore",
   });
   const chromium = spawn(
@@ -263,7 +265,7 @@ async function main() {
     check("wrapper: no APK download card inside the app", !w.landingApp);
     check("wrapper: no install-yourself nudge inside the app", !w.installCard);
     check("wrapper: no FAQ, no site footer", !w.faq && !w.footer);
-    check("wrapper: about link shown and points at the bare site", w.aboutShown && w.aboutHref === "https://starlingmap.app/", w.aboutHref);
+    check("wrapper: relay button shown, no link out to the upstream site", w.aboutShown && w.aboutHref === null, w.aboutHref);
     check("wrapper: create and demo buttons present", w.createShown && w.demoShown);
     check("wrapper: console clean", w.errs.length === 0, JSON.stringify(w.errs));
     const shot = await wrap.send("Page.captureScreenshot", { format: "png" });

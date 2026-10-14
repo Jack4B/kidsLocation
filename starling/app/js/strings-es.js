@@ -382,7 +382,6 @@ export const es = {
   "The circle keeps the name its creator gave it. You can rename it for yourself in settings.": "El círculo conserva el nombre que le dio su creador. Puedes renombrarlo solo para ti en los ajustes.",
   "Was": "Antes",
   "Watch the demo": "Ver la demostración",
-  "What Starling is and how it works &#8599;": "Qué es Starling y cómo funciona &#8599;",
   "When you are safe": "Cuando estés a salvo",
   "Wrong passcode. Try again.": "Código de acceso incorrecto. Inténtalo de nuevo.",
   "You already asked to join. They still have to let you in.": "Ya pediste unirte. Todavía tienen que dejarte entrar.",
@@ -813,4 +812,7 @@ export const es = {
   "Cycling": "En bici",
   "Driving": "En coche",
   "Save battery when still is on. After 2 minutes without moving, Starling sends every 5 minutes. The relay cannot read where you are, but it can tell from the slower timing that you are sitting still. You can turn it off under Sharing in settings.": "Ahorrar batería en reposo está activado. Tras 2 minutos sin moverte, Starling envía cada 5 minutos. El relay no puede leer dónde estás, pero por el ritmo más lento sabe que estás quieto. Puedes desactivarlo en los ajustes, en Compartir.",
+  "Connect to your family relay": "Conéctate al relay de tu familia",
+  "Enter your family relay's address.": "Escribe la dirección del relay de tu familia.",
+  "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.": "Esta app no trae ninguna dirección de relay. Escribe la dirección del relay de tu familia, como https://relay.example.org. Toda la familia usa el mismo, y no se envía nada a ninguna parte hasta que esté puesto.",
 };
