@@ -219,7 +219,7 @@ const state = {
     stillDefault: 1, // 1 once the on-by-default change has been applied to this device's saved settings
     stillNoted: false, // the one-time note about what the slower timing shows the relay
     showActivity: false, // put still, walking, cycling or driving on your own posts
-    lang: "auto", // UI language; "auto" follows the system, English is the source
+    lang: "pl", // UI language; Polish whatever the phone is set to (i18n.js DEFAULT_LOCALE)
     placeAlerts: true, // say when a member arrives at or leaves a saved place
     batAlerts: true, // say when a member's battery runs low
     detailAlerts: false, // Android: one notification per place event, with name, place and time

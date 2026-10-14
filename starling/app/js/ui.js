@@ -7,7 +7,7 @@
 
 import { bearingDeg, compassWord, fmtClock, fmtDistance, fmtRelTime, getUnits, haversineMeters } from "./fmt.js";
 import { HISTORY_CHOICES } from "./ratchet.js";
-import { t, currentLocale, LOCALE_CHOICES } from "./i18n.js";
+import { t, currentLocale, LOCALE_CHOICES, BRAND } from "./i18n.js";
 import { isBundled, native, pageShown } from "./env.js";
 import { PLACE_RADII, MAX_PLACES, MAX_NAME_LEN } from "./places.js";
 import { DEFAULT_TIMER_MIN, TIMER_CHOICES_MIN } from "./checkin.js";
@@ -3028,8 +3028,12 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
     " \u00b7 ",
     outLink(t("Source code"), "https://github.com/munzzyy/starling"),
   );
+  // The upstream name goes in as a value and skips el(), so the rebranding in t() leaves it alone.
+  const upstream = el("p", "about-credit");
+  upstream.textContent = t("Built on {upstream}, free software under the GPL-3.0 license.", { upstream: "Starling" });
   gAbout.append(
-    el("p", "about-version", `Starling ${VERSION}`),
+    el("p", "about-version", `${BRAND} ${VERSION}`),
+    upstream,
     credit,
     el("p", "ov-note", "Your positions are encrypted on this device with a key only your circle holds. There are no accounts, no phone numbers, and no server that can read where you are. Sharing is off until you turn it on, and stopping is one tap."),
     el("p", "ov-note", "The relay that passes your updates along stores only encrypted data it cannot read, and deletes it after 24 hours. The protocol is open, so anyone can check these claims against the code."),

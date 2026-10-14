@@ -1,13 +1,13 @@
 {
   "id": "/",
-  "name": "Starling",
-  "short_name": "Starling",
-  "description": "Starling's landing page and live demo. Location sharing itself lives in the Starling Android app.",
+  "name": "Blisko",
+  "short_name": "Blisko",
+  "description": "Blisko: prywatne udostępnianie lokalizacji w rodzinie. Działa w aplikacji na Androida.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0d14",
+  "background_color": "#EAF5F1",
   "theme_color": "#0a0d14",
   "icons": [
     {
