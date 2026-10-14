@@ -196,7 +196,7 @@ async function main() {
     check("c: a short press sends no SOS", !(await sos()));
     check(
       "c: a short press says to hold",
-      (await c.evalJs("window.__toasts")).some((t) => /hold/i.test(t)),
+      (await c.evalJs("window.__toasts")).some((t) => /przytrzymaj/i.test(t)),
       JSON.stringify(await c.evalJs("window.__toasts")),
     );
     check("c: and the panel stays put", (await snapOf()) === "peek");

@@ -724,7 +724,7 @@ export const pl = {
   "Miles": "Mile",
   "Show everyone": "Pokaż wszystkich",
   "Use the map center": "Użyj środka mapy",
-  "At {place} since {time}": "W miejscu {place} od {time}",
+  "At {place} since {time}": "W miejscu: {place} od {time}",
   "Here now: {names}": "Teraz tutaj: {names}",
   "Neighborhood rounds your position to about half a mile on your device before it is encrypted": "Tryb Okolica zaokrągla twoją pozycję do około pół mili na urządzeniu, zanim zostanie zaszyfrowana",
   "{who} asked you to check in": "{who} prosi cię o check-in",
