@@ -29,7 +29,7 @@ Zależy od F0-1 i D1.
 
 | ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
 |---|---|---|---|---|
-| F1-1 | Policzyć zapisy na jeden post w `relay/src/index.js` i oszacować dzienne obciążenie dla 6 do 7 osób (kadencja 15 s w ruchu, 60 do 300 s w bezruchu) | C | X | Liczby w D1; wiadomo, czy darmowy limit zapisów Cloudflare wystarcza |
+| F1-1 | Policzyć zapisy na jeden post w `relay/src/index.js` i oszacować dzienne obciążenie dla 6 do 7 osób (kadencja 15 s w ruchu, 60 do 300 s w bezruchu) | C | X | Liczby w D1; wiadomo, czy darmowy limit zapisów Cloudflare wystarcza. Stan: szkic w `docs/OBCIAZENIE-RELAYA.md`, czeka na recenzję X |
 | F1-2 | Uruchomić relay wg D1: Node na CT8, albo Cloudflare Worker, albo port PHP + SQLite | C | G | `GET /api/v2/health` odpowiada przez HTTPS; relay działa po restarcie |
 | F1-3 | Konfiguracja produkcyjna: `PUBLIC_ORIGIN`, `TRUST_PROXY`, `ALLOWED_ORIGINS`, limity `RATE_POST_MIN` i `RATE_GET_MIN` | C | X | Opisane w `docs/` bez żadnych sekretów |
 | F1-4 | Test na dwóch telefonach z Androidem: utworzenie kręgu, zaproszenie, widoczność wzajemna, SOS, check-in, praca z wygaszonym ekranem | W | C | Lista wyników; pomiar zużycia baterii i opóźnień |

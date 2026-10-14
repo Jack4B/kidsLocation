@@ -69,6 +69,21 @@ na tym PR). Budowy Androida lokalnie nie uruchamiano.
 Następny krok: F1-7 (własny applicationId, klucz podpisu, wersje, domyślny relay i linki
 zaproszeń poza starlingmap.app), równolegle F1-4 (test dwóch Androidów na relayu CT8).
 Otwarte PR-y z dokumentami (#1 do #6, #8) mają wpisy w HANDOFF i będą wymagały rebase.
+## 2026-10-14, Claude, F1-1 (obciążenie relaya)
+
+Zrobiono: policzono zapisy na jeden post w `relay/src/index.js` (około 8 wierszy D1) i
+oszacowano dobę dla 7 osób w trzech scenariuszach. Wynik w `docs/OBCIAZENIE-RELAYA.md` i
+skrót w D1: darmowy plan Cloudflare wystarcza tylko na spokojny dzień.
+
+Sprawdzono przez czytanie kodu: zapytania relaya, kadencje w `main.js`, `net.js` i
+`LocationPlanTest.kt`. Limity D1 sprawdzono na stronie cennika Cloudflare. Niczego nie mierzono
+pod prawdziwym ruchem.
+
+Następny krok: recenzja Groka (sprawdzić rachunek wierszy na post i założenia scenariuszy),
+potem decyzja D1 po sprawdzeniach na CT8.
+
+---
+
 ## 2026-10-14, Claude, F0-1 (wynik CT8, część pierwsza)
 
 Zrobiono:
