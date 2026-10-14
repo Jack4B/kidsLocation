@@ -15,6 +15,12 @@ class EventsChannelTest {
         assertEquals(3, setOf(Events.channelFor("arrive"), Events.channelFor("leave"), Events.channelFor("checkin")).size)
     }
 
+    @Test fun chatMessagesGetTheirOwnChannel() {
+        assertEquals(MainActivity.CHAT_CHANNEL, Events.channelFor("chat"))
+        assertNotEquals(MainActivity.EVENTS_CHANNEL, MainActivity.CHAT_CHANNEL)
+        assertTrue(Events.startsAsEvents(MainActivity.CHAT_CHANNEL, exists = false))
+    }
+
     @Test fun everythingElseStaysOnTheGeneralChannel() {
         for (kind in listOf("battery", "other", "", "ARRIVE", "arrive ", "share")) {
             assertEquals(kind, MainActivity.EVENTS_CHANNEL, Events.channelFor(kind))

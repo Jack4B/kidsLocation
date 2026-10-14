@@ -6,6 +6,8 @@
     <string name="notif_arrive_channel">Chegadas</string>
     <string name="notif_leave_channel">Saídas</string>
     <string name="notif_checkin_channel">Avisos</string>
+    <string name="notif_chat_channel">Mensagens</string>
+    <string name="notif_chat_text">Nova mensagem</string>
     <string name="notif_sos_channel">Alertas de emergência</string>
     <string name="notif_sos_text">Abra o Starling agora.</string>
     <string name="notif_title">Compartilhando com seu círculo</string>

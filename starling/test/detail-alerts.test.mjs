@@ -145,7 +145,11 @@ test("the lock screen choice rides along, and an older wrapper falls back to the
 test("Android: no detail keeps the generic words, detail keeps the lock screen generic unless chosen", () => {
   const events = kt("Events.kt");
   const show = events.slice(events.indexOf("private fun show"), events.indexOf("private fun buildChannel"));
-  assert.match(show, /val publicText = if \(detail == null\) text else if \(detail\.onLock\) detail\.body else ctx\.getString\(R\.string\.notif_place_text\)/);
+  // The locked-screen line comes from a resource the detail names: the place line for
+  // place events, the chat line for chat (kidsLocation F3), never the caller's words.
+  assert.match(show, /val publicText = if \(detail == null\) text else if \(detail\.onLock\) detail\.body else ctx\.getString\(detail\.lockedRes\)/);
+  assert.match(events, /@StringRes val lockedRes: Int = R\.string\.notif_place_text\)/);
+  assert.match(events, /if \(kind == "chat"\) R\.string\.notif_chat_text else R\.string\.notif_place_text/);
   assert.match(show, /val publicHeading = if \(detail\?\.onLock == true\) heading else ctx\.getString\(titleRes\)/);
   assert.match(show, /\.setVisibility\(NotificationCompat\.VISIBILITY_PRIVATE\)\s*\.setPublicVersion\(publicVersion\)/);
   const post = events.slice(events.indexOf("fun post("), events.indexOf("fun postDetail"));
@@ -154,6 +158,8 @@ test("Android: no detail keeps the generic words, detail keeps the lock screen g
   assert.match(events, /putExtra\(MainActivity\.EXTRA_MEMBER, detail\.member\)/);
   for (const dir of ["values", "values-de", "values-fr", "values-es", "values-pt"]) {
     assert.match(src(`android/app/src/main/res/${dir}/strings.xml`), /name="notif_place_text"/, dir);
+    assert.match(src(`android/app/src/main/res/${dir}/strings.xml`), /name="notif_chat_text"/, dir);
+    assert.match(src(`android/app/src/main/res/${dir}/strings.xml`), /name="notif_chat_channel"/, dir);
   }
   assert.match(src("android/app/src/main/res/values/strings.xml"), /name="notif_place_text">A place update</);
 });
