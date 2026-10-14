@@ -8,11 +8,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { t, loadLocale, setLocale, resolveLocale, currentLocale, norm, LOCALE_CHOICES } from "../app/js/i18n.js";
+import { t, loadLocale, setLocale, resolveLocale, currentLocale, norm, LOCALE_CHOICES, DEFAULT_LOCALE, BRAND } from "../app/js/i18n.js";
 
 // Read as data for the coverage checks; the app itself only gets them through loadLocale.
 const CATALOGS = {};
-for (const code of ["es", "de", "fr", "pt"]) CATALOGS[code] = (await import(`../app/js/strings-${code}.js`))[code];
+for (const code of ["pl", "es", "de", "fr", "pt"]) CATALOGS[code] = (await import(`../app/js/strings-${code}.js`))[code];
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -24,14 +24,80 @@ test("t passes unknown strings through and interpolates placeholders", () => {
   assert.equal(t("{who} arrived at {place}", { who: "Juno", place: "Home" }), "Juno arrived at Home");
 });
 
-test("resolveLocale honors explicit choices and falls back to English", () => {
+test("resolveLocale honors explicit choices and falls back to Polish", () => {
+  // This build is Polish first: anything that is not an explicit choice of a
+  // shipped language, the phone's own language included, resolves to Polish.
   for (const code of Object.keys(CATALOGS)) {
     assert.equal(resolveLocale(code), code);
     assert.ok(LOCALE_CHOICES.some((c) => c.id === code), `${code} is offered in settings`);
   }
+  assert.equal(DEFAULT_LOCALE, "pl");
+  assert.equal(LOCALE_CHOICES[0].id, "pl", "Polish is listed first");
   assert.equal(resolveLocale("en"), "en");
-  assert.equal(resolveLocale("xx"), "en");
-  assert.ok(["en", ...Object.keys(CATALOGS)].includes(resolveLocale("auto")));
+  assert.equal(resolveLocale("xx"), "pl");
+  assert.equal(resolveLocale("auto"), "pl");
+  assert.equal(resolveLocale(undefined), "pl");
+});
+
+test("a fresh install starts in Polish whatever the phone's language", () => {
+  const src = readFileSync(path.join(ROOT, "app/js/main.js"), "utf8");
+  assert.match(src, /\blang: "pl",/, "the default settings name Polish");
+  const before = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { value: { languages: ["de-DE", "en-US"], language: "de-DE" }, configurable: true });
+  try {
+    assert.equal(resolveLocale("pl"), "pl");
+    assert.equal(resolveLocale("auto"), "pl", "a German phone still opens in Polish");
+  } finally {
+    if (before) Object.defineProperty(globalThis, "navigator", before);
+    else delete globalThis.navigator;
+  }
+});
+
+test("Polish picks the plural form by count: 1, 2-4, 5 and up", async () => {
+  await loadLocale("pl");
+  setLocale("pl");
+  const places = (n) => t(n === 1 ? "{n} place saved on this phone" : "{n} places saved on this phone", { n });
+  assert.equal(places(1), "1 miejsce zapisane w tym telefonie");
+  assert.equal(places(2), "2 miejsca zapisane w tym telefonie");
+  assert.equal(places(4), "4 miejsca zapisane w tym telefonie");
+  assert.equal(places(5), "5 miejsc zapisanych w tym telefonie");
+  assert.equal(places(12), "12 miejsc zapisanych w tym telefonie");
+  assert.equal(places(22), "22 miejsca zapisane w tym telefonie");
+  assert.equal(places(25), "25 miejsc zapisanych w tym telefonie");
+  // With no n, the first numeric variable is the count.
+  assert.equal(t("Use at least {n} characters.", { n: 4 }), "Użyj co najmniej 4 znaków.");
+  assert.equal(t("{who} removed {n} people", { who: "Ola", n: 3 }), "Ola usuwa 3 osoby");
+  // A leading-space glue string keeps its space around a plural form.
+  assert.equal(t(" It is about {n} minutes {dir}.", { n: 1, dir: t("ahead") }), " Różnica to około 1 minuty do przodu.");
+  assert.equal(t(" It is about {n} minutes {dir}.", { n: 7, dir: t("behind") }), " Różnica to około 7 minut do tyłu.");
+  // English keeps choosing between its own two keys.
+  setLocale("en");
+  assert.equal(t("{n} places saved on this phone", { n: 5 }), "5 places saved on this phone");
+});
+
+test("the brand is Blisko on screen, and a member's own words are never rebranded", async () => {
+  assert.equal(BRAND, "Blisko");
+  setLocale("en");
+  assert.equal(t("Update Starling"), "Update Blisko");
+  assert.equal(t("{who} wants to join", { who: "Starling" }), "Starling wants to join", "a value is not a template");
+  await loadLocale("de");
+  setLocale("de");
+  assert.equal(t("Update Starling"), "Blisko aktualisieren");
+  await loadLocale("pl");
+  setLocale("pl");
+  assert.equal(t("Update Starling"), "Zaktualizuj Blisko");
+  assert.equal(t("starling"), "blisko", "the wordmark");
+  assert.equal(
+    t("Built on {upstream}, free software under the GPL-3.0 license.", { upstream: "Starling" }),
+    "Na bazie Starling, wolnego oprogramowania na licencji GPL-3.0.",
+    "the upstream credit keeps its name",
+  );
+  for (const [k, v] of Object.entries(CATALOGS.pl)) {
+    for (const form of typeof v === "string" ? [v] : Object.values(v)) {
+      assert.ok(!/\bStarling\b/.test(form) || /projektu Starling/.test(form), `pl names Starling in: ${k}`);
+    }
+  }
+  setLocale("en");
 });
 
 test("every catalog translates the core vocabulary and leaves user text alone", async () => {
@@ -101,11 +167,21 @@ test("every translation keeps its placeholders and carries no em dashes", () => 
   // Spelled as escapes so this file passes the very gate it enforces.
   const dash = new RegExp("[\\u2013\\u2014]");
   for (const [code, cat] of Object.entries(CATALOGS)) {
-    for (const [k, v] of Object.entries(cat)) {
-      assert.ok(v && typeof v === "string", `${code}: empty translation for: ${k}`);
-      assert.ok(!dash.test(v), `${code}: dash in translation of: ${k}`);
-      for (const m of k.matchAll(/\{(\w+)\}/g)) {
-        assert.ok(v.includes(`{${m[1]}}`), `${code}: placeholder {${m[1]}} lost in: ${k} -> ${v}`);
+    for (const [k, entry] of Object.entries(cat)) {
+      // A plural entry is an object of Intl.PluralRules forms; every form is held to the same rules.
+      const forms = typeof entry === "string" ? [entry] : Object.values(entry || {});
+      if (typeof entry !== "string") {
+        assert.ok(entry && typeof entry === "object" && forms.length, `${code}: empty translation for: ${k}`);
+        for (const c of new Intl.PluralRules(code).resolvedOptions().pluralCategories) {
+          assert.ok(c in entry, `${code}: plural form ${c} missing for: ${k}`);
+        }
+      }
+      for (const v of forms) {
+        assert.ok(v && typeof v === "string", `${code}: empty translation for: ${k}`);
+        assert.ok(!dash.test(v), `${code}: dash in translation of: ${k}`);
+        for (const m of k.matchAll(/\{(\w+)\}/g)) {
+          assert.ok(v.includes(`{${m[1]}}`), `${code}: placeholder {${m[1]}} lost in: ${k} -> ${v}`);
+        }
       }
     }
   }
@@ -153,7 +229,7 @@ test("no user-visible literal bypasses the translator", () => {
   const files = ["app/js/main.js", "app/js/ui.js", "app/js/helpview.js", "app/js/chatview.js"];
   const allow = new Set([
     // product name + version, language-invariant
-    "Starling ${VERSION}",
+    "${BRAND} ${VERSION}",
   ]);
   const hits = [];
   for (const f of files) {

@@ -15,7 +15,7 @@ import { createMapView } from "./map.js";
 import { t, loadLocale, setLocale, resolveLocale, translateDom } from "./i18n.js";
 import { fmtClock, fmtDistance, fmtRelTime, resolveUnits, setUnits } from "./fmt.js";
 
-// A helper opening this in an emergency gets their browser's language, and
+// A helper opening this in an emergency gets the default language (Polish), and
 // the page's static copy translates before anything else runs.
 const helperLocale = resolveLocale("auto");
 await loadLocale(helperLocale).catch(() => {});

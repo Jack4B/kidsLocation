@@ -48,7 +48,7 @@ z nich zmienić; tam, gdzie to tanie, wdrożenie ma przełącznik albo stałą w
 - **Zdarzenia kręgu w osi:** przyjście i wyjście z miejsca, które zauważył ten telefon.
   Tylko lokalnie, nic nie idzie przez sieć.
 - **Powiadomienia.** Android: osobny kanał „Wiadomości” (`events_chat`). Domyślna treść
-  „Nowa wiadomość od {imię}”; treść wiadomości tylko po włączeniu „Pokaż treść
+  „{imię}: nowa wiadomość”; treść wiadomości tylko po włączeniu „Pokaż treść
   w powiadomieniu” (`chatPreview`), a na ekranie blokady tylko po osobnym włączeniu
   (`chatOnLock`); bez tego ekran blokady pokazuje ogólne „Nowa wiadomość”.
   `tools/check-notification-privacy.sh` przechodzi. iOS i przeglądarka: powiadomienie

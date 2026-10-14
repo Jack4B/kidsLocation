@@ -114,9 +114,9 @@ def main():
         invite_url = text(a, '[data-testid="invite-link"]')
         check("invite QR drawn", q(a, "return !!document.querySelector('[data-testid=\"invite-qr\"] svg')"))
         exp = text(a, '[data-testid="invite-expiry"]')
-        check("invite says one use and an expiry", exp and "One use only" in exp and "expires in" in exp, repr(exp))
+        check("invite says one use and an expiry", exp and "Jednorazowy" in exp and "wygasa za" in exp, repr(exp))
         wait_txt = text(a, '[data-testid="invite-waiting"]')
-        check("invite shows the waiting state", wait_txt and "Nobody has used this link yet" in wait_txt, repr(wait_txt))
+        check("invite shows the waiting state", wait_txt and "Nikt jeszcze nie użył tego linku" in wait_txt, repr(wait_txt))
         a.shot("01-invite.png")
 
         # members screen, own safety number
@@ -145,7 +145,7 @@ def main():
         wait_for(lambda: not q(bb, "return document.querySelector('[data-testid=\"join-confirm\"]').disabled"),
                  timeout=10, desc="B join enabled")
         b_cta = text(bb, '[data-testid="join-confirm"]')
-        check("joiner CTA says it is a request", b_cta == "Ask to join", repr(b_cta))
+        check("joiner CTA says it is a request", b_cta == "Poproś o dołączenie", repr(b_cta))
         bb.click('[data-testid="join-confirm"]')
 
         wait_for(lambda: visible(bb, '[data-testid="join-waiting"]'), timeout=20, desc="B waiting card")
@@ -155,7 +155,7 @@ def main():
         own_b = text(bb, '[data-testid="join-waiting-safety"]')
         check("joiner sees its own safety number while waiting", len(own_b.split()) == 6, repr(own_b))
         check("joiner waiting copy explains the accept",
-              "has to check your number and accept" in text(bb, "#join-waiting-text"))
+              "musi sprawdzić twój numer i ją zaakceptować" in text(bb, "#join-waiting-text"))
         bb.shot("03-join-waiting.png")
 
         # ------------------------------------------------- A reviews and accepts
@@ -170,7 +170,7 @@ def main():
         seen = text(a, '[data-testid="join-safety"]')
         check("A is shown exactly the number B is reading out", seen == own_b, f"{seen!r} vs {own_b!r}")
         check("review names the joiner",
-              "Blair wants to join" in text(a, ".review-title"), repr(text(a, ".review-title")))
+              "Blair chce dołączyć" in text(a, ".review-title"), repr(text(a, ".review-title")))
         a.shot("05-review.png")
         a.click('[data-testid="join-accept"]')
         wait_for(lambda: q(a, "return window.__starlingState().pinned === 1"), timeout=40,
@@ -199,8 +199,8 @@ def main():
               q(a, "return !!document.querySelector('[data-alert=\"foreground\"]')"))
         fg = text(a, '[data-alert="foreground"] .notice-title')
         check("the foreground card carries a running timer and the reason",
-              fg and "screen has to stay on" in fg
-              and "no way to send a position in the background"
+              fg and "ten ekran musi pozostać włączony" in fg
+              and "możliwości wysyłania pozycji w tle"
               in text(a, '[data-alert="foreground"] .notice-text'), repr(fg))
         a.shot("15-foreground.png")
 
@@ -213,19 +213,19 @@ def main():
         check("A sees B's number and it matches B's own", peer == q(bb, """
             var e = document.querySelector('[data-testid="own-safety"]');
             return e ? e.textContent.trim() : null;""") or peer.split() == own_b.split(), repr(peer))
-        check("row starts Not verified", text(a, ".verify-pill") == "Not verified")
+        check("row starts Not verified", text(a, ".verify-pill") == "Niesprawdzone")
         a.shot("06-members-unverified.png")
         a.click('[data-testid="member-verify"]')
-        wait_for(lambda: text(a, ".verify-pill") == "Verified", timeout=10, desc="A verified B")
+        wait_for(lambda: text(a, ".verify-pill") == "Sprawdzone", timeout=10, desc="A verified B")
         check("verify action flips the pill and the button",
-              text(a, '[data-testid="member-verify"]') == "Mark not verified")
+              text(a, '[data-testid="member-verify"]') == "Oznacz jako niesprawdzone")
         a.shot("07-members-verified.png")
         check("remove is one tap away with its cost spelled out",
               q(a, "return document.querySelector('[data-testid=\"member-remove\"]') !== null"))
         a.click('[data-testid="member-remove"]')
         rem = text(a, '[data-testid="member-row"] .confirm-box .ov-note')
         check("removal copy names the person and what they lose",
-              rem and "Blair" in rem and "new keys" in rem, repr(rem))
+              rem and "Blair" in rem and "nowe klucze" in rem, repr(rem))
         a.shot("08-remove-confirm.png")
         a.escape()
 
@@ -234,14 +234,14 @@ def main():
         wait_for(lambda: q(a, "return !!document.querySelector('[data-testid=\"rekey-open\"]')"),
                  timeout=15, desc="A settings keys group")
         titles = q(a, "return [...document.querySelectorAll('.set-title')].map(function(n){return n.textContent});")
-        check("settings has a Keys and history group", "Keys and history" in titles, repr(titles))
+        check("settings has a Keys and history group", "Klucze i historia" in titles, repr(titles))
         pkg = json.load(open(os.path.join(ROOT, "package.json")))["version"]
         about = q(a, "var n = document.querySelector('.about-version'); return n && n.textContent;")
-        check("About shows the version that is installed", about == "Starling " + pkg, repr(about))
+        check("About shows the version that is installed", about == "Blisko " + pkg, repr(about))
         hist = q(a, """
             var f = [...document.querySelectorAll('.field')].find(function (n) {
               var l = n.querySelector('.field-label');
-              return l && l.textContent === 'How far back you can see';
+              return l && l.textContent === 'Jak daleko wstecz widzisz';
             });
             if (!f) return null;
             return {
@@ -249,31 +249,31 @@ def main():
               note: f.querySelector('.field-note').textContent,
             };""")
         check("history window offers the protocol's four choices",
-              hist and hist["cells"] == ["10 minutes", "1 hour", "6 hours", "24 hours"], repr(hist))
+              hist and hist["cells"] == ["10 minut", "1 godzina", "6 godzin", "24 godziny"], repr(hist))
         check("history note states the trade both ways",
-              hist and "You can see the last" in hist["note"] and "taken from you" in hist["note"],
+              hist and "Widzisz historię kręgu z okresu" in hist["note"] and "ktoś ci zabierze" in hist["note"],
               repr(hist and hist["note"]))
         check("steady sending sits with it",
               q(a, "return [...document.querySelectorAll('.switch-label')]"
-                   ".some(function(n){return n.textContent === 'Steady sending'});"))
+                   ".some(function(n){return n.textContent === 'Równe wysyłanie'});"))
         # pick the high-risk window, which the app pairs with steady sending
         q(a, """
             var f = [...document.querySelectorAll('.field')].find(function (n) {
               var l = n.querySelector('.field-label');
-              return l && l.textContent === 'How far back you can see';
+              return l && l.textContent === 'Jak daleko wstecz widzisz';
             });
             f.querySelectorAll('.seg-cell')[0].click();""")
         time.sleep(0.5)
         note2 = q(a, """
             var f = [...document.querySelectorAll('.field')].find(function (n) {
               var l = n.querySelector('.field-label');
-              return l && l.textContent === 'How far back you can see';
+              return l && l.textContent === 'Jak daleko wstecz widzisz';
             });
             return f.querySelector('.field-note').textContent;""")
-        check("the note follows the choice", "almost nothing" in note2, repr(note2))
+        check("the note follows the choice", "prawie nic" in note2, repr(note2))
         steady = q(a, """
             var r = [...document.querySelectorAll('.switch-row')].find(function (n) {
-              return n.querySelector('.switch-label').textContent === 'Steady sending';
+              return n.querySelector('.switch-label').textContent === 'Równe wysyłanie';
             });
             return r.querySelector('.switch').getAttribute('aria-checked');""")
         check("the high-risk window turns steady sending on in front of you", steady == "true", repr(steady))
@@ -282,7 +282,7 @@ def main():
         gen_before = q(a, "return window.__starlingState().g")
         a.click('[data-testid="rekey-open"]')
         rk = text(a, '[data-testid="rekey-confirm"]')
-        check("new keys now explains itself before it fires", rk == "Make new keys", repr(rk))
+        check("new keys now explains itself before it fires", rk == "Utwórz nowe klucze", repr(rk))
         a.click('[data-testid="rekey-confirm"]')
         wait_for(lambda: q(a, "return window.__starlingState().g") > gen_before, timeout=40,
                  desc="A re-keyed")
@@ -292,7 +292,7 @@ def main():
         wait_for(lambda: q(bb, "return !!document.querySelector('[data-alert=\"rekey\"]')"),
                  timeout=60, desc="B sees the attributed re-key", nudge=bb.nudge_poll)
         rekey_title = text(bb, '[data-alert="rekey"] .notice-title')
-        check("re-key notice names who did it", rekey_title == "Ana changed the keys", repr(rekey_title))
+        check("re-key notice names who did it", rekey_title == "Ana zmienia klucze", repr(rekey_title))
         bb.shot("10-rekey-notice.png")
 
         # ------------------------------------------------ key change warning
@@ -312,7 +312,7 @@ def main():
             window.dispatchEvent(new Event("online"));""")
         wait_for(lambda: visible(bb, "#banner-keys"), timeout=10, desc="B key banner")
         check("key change reaches the chrome banner",
-              text(bb, "#banner-keys-text") == "Ana's keys changed", repr(text(bb, "#banner-keys-text")))
+              text(bb, "#banner-keys-text") == "Zmieniły się klucze: Ana", repr(text(bb, "#banner-keys-text")))
         check("key change also raises a top alert",
               q(bb, "return !!document.querySelector('[data-alert^=\"key:\"]')"))
         bb.shot("11-key-change-banner.png")
@@ -340,8 +340,8 @@ def main():
                                "return e && e.textContent.indexOf('#b=') > 0;"),
                  timeout=20, desc="B first help link")
         check("the first link is listed with who it is for and when it dies",
-              text(bb, ".viewer-label") == "Help link"
-              and "Expires in" in text(bb, ".viewer-when"), text(bb, ".viewer-when"))
+              text(bb, ".viewer-label") == "Link pomocy"
+              and "Wygasa za" in text(bb, ".viewer-when"), text(bb, ".viewer-when"))
         type_in(bb, '[data-testid="viewer-label"]', "Neighbour Sam")
         bb.click('[data-testid="viewer-add"]')
         wait_for(lambda: q(bb, "return document.querySelectorAll('[data-testid=\"viewer-row\"]').length") == 2,
@@ -350,11 +350,11 @@ def main():
                       ".map(function(n){return n.textContent});")
         check("each viewer gets its own link", len(links) == 2 and links[0] != links[1])
         labels = q(bb, "return [...document.querySelectorAll('.viewer-label')].map(function(n){return n.textContent});")
-        check("labels say who each link was for", labels == ["Help link", "Neighbour Sam"], repr(labels))
+        check("labels say who each link was for", labels == ["Link pomocy", "Neighbour Sam"], repr(labels))
         bb.shot("13-help-viewers.png")
         bb.exec("document.querySelectorAll('[data-testid=\"viewer-revoke\"]')[0].click()")
         wait_for(lambda: q(bb, "return [...document.querySelectorAll('.viewer-when')]"
-                               ".map(function(n){return n.textContent})[0] === 'Revoked';"),
+                               ".map(function(n){return n.textContent})[0] === 'Wyłączony';"),
                  timeout=20, desc="B revoked the first link")
         after = q(bb, "return [...document.querySelectorAll('[data-testid=\"viewer-link\"]')]"
                       ".filter(function(n){return n.offsetParent !== null}).length;")
@@ -373,9 +373,9 @@ def main():
                  timeout=10, desc="A clock alert")
         clock = text(a, '[data-alert="clock"] .notice-text')
         check("the clock error says you are invisible and by how much",
-              clock and "cannot see you" in clock and "25 minutes behind" in clock, repr(clock))
+              clock and "krąg cię nie widzi" in clock and "25 minut do tyłu" in clock, repr(clock))
         check("the you line stops claiming you are live",
-              text(a, "#you-sub") == "Not visible: this phone's clock is wrong",
+              text(a, "#you-sub") == "Niewidoczny: zegar w tym telefonie jest źle ustawiony",
               repr(text(a, "#you-sub")))
         a.exec("""
             window.__starlingApi.state.clockError = null;
@@ -384,7 +384,7 @@ def main():
         wait_for(lambda: q(a, "return !!document.querySelector('[data-alert=\"install\"]')"),
                  timeout=10, desc="A install nudge")
         check("the home-screen nudge explains what a tab costs",
-              "throw your circle's keys away" in text(a, '[data-alert="install"] .notice-text'))
+              "może wyrzucić klucze kręgu" in text(a, '[data-alert="install"] .notice-text'))
         a.shot("17-install-nudge.png")
         a.click('[data-testid="alert-install-no"]')
         wait_for(lambda: q(a, "return document.querySelector('[data-alert=\"install\"]') === null"),

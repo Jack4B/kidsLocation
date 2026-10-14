@@ -161,7 +161,7 @@ test("Android: no detail keeps the generic words, detail keeps the lock screen g
     assert.match(src(`android/app/src/main/res/${dir}/strings.xml`), /name="notif_chat_text"/, dir);
     assert.match(src(`android/app/src/main/res/${dir}/strings.xml`), /name="notif_chat_channel"/, dir);
   }
-  assert.match(src("android/app/src/main/res/values/strings.xml"), /name="notif_place_text">A place update</);
+  assert.match(src("android/app/src/main/res/values/strings.xml"), /name="notif_place_text">Zmiana w miejscach</);
 });
 
 test("a tapped notification selects that member, but never around the lock", async () => {

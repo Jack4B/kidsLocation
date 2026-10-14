@@ -147,7 +147,7 @@ try {
   await a.page.fill('[data-testid="chat-input"]', "Jestem już w domu, obiad za 20 minut.");
   await a.page.press('[data-testid="chat-input"]', "Enter");
   await waitFor(
-    () => a.page.evaluate(() => [...document.querySelectorAll('[data-testid="chat-mine"] [data-testid="chat-meta"]')].some((m) => /^Sent /.test(m.textContent))),
+    () => a.page.evaluate(() => [...document.querySelectorAll('[data-testid="chat-mine"] [data-testid="chat-meta"]')].some((m) => /^(Sent|Wysłano) /.test(m.textContent))),
     "A: Sent once the relay accepted it",
   );
   check("A: the input cleared after sending", (await a.page.inputValue('[data-testid="chat-input"]')) === "");
@@ -199,7 +199,7 @@ try {
     send: document.querySelector('[data-testid="chat-send"]').disabled,
     count: document.querySelector('[data-testid="chat-count"]').textContent,
   }));
-  check("B: an over-long text is blocked with a message", refused.send && /too long to send/.test(refused.problem || ""), JSON.stringify(refused));
+  check("B: an over-long text is blocked with a message", refused.send && /too long to send|za długa/.test(refused.problem || ""), JSON.stringify(refused));
   const [used, ceiling] = refused.count.split(" / ").map(Number);
   check("B: the counter shows the text over its real ceiling, under 280", used < 280 && ceiling < used, refused.count);
 

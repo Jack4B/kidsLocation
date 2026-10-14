@@ -19,7 +19,7 @@ test("Android 13 and up get a themed icon layer", () => {
   assert.match(res("mipmap-anydpi-v26/ic_launcher.xml"), /<monochrome android:drawable="@drawable\/ic_launcher_mono" \/>/);
 });
 
-test("the themed layer is the mark in starling.svg, one solid color with the bird cut out", () => {
+test("the themed layer is the mark in starling.svg, one solid color with the heart cut out", () => {
   const mono = res("drawable/ic_launcher_mono.xml");
   assert.deepEqual(tokens(attr(mono, "pathData")), mark, "same path, number for number");
   assert.match(svg, /fill-rule="evenodd"/);
