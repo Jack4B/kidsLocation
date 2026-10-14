@@ -86,3 +86,23 @@ jedzie), czat. Poza zakresem: wykrywanie wypadków, raporty jazdy, rankingi, rek
 
 Status: **proponowana**. Aplikacja w całości po polsku (F2-6). Dokumenty projektu po polsku,
 kod i commity po angielsku.
+
+## D7. Wspólne miejsca w kręgu
+
+Status: **otwarta**, rozstrzyga F6-0. Właściciel zlecił rozpisanie 2026-10-14.
+
+Fakty: miejsca żyją dziś tylko na telefonie (`starling/app/js/places.js`), najwyżej 10, promień
+100, 250 lub 500 m. Relay nie wie, że istnieją. Czat pokazał, że nowy typ wiadomości w strumieniu
+członka działa bez zmian w kryptografii i relayu, ale wiadomość znika z relaya po 24 godzinach
+albo wcześniej, gdy nadawca w ruchu wypełni 240 wpisów.
+
+Pytania do właściciela (w nawiasie rekomendacja):
+
+1. Kto może zmienić lub usunąć miejsce dodane przez kogoś innego? (każdy w kręgu)
+2. Czy zostawić też miejsca prywatne, widoczne tylko na jednym telefonie? (tak, przełącznik
+   „Tylko u mnie”, domyślnie miejsce jest wspólne)
+3. Co z miejscami dodanymi przed aktualizacją? (zostają prywatne, można je udostępnić jednym
+   dotknięciem)
+4. Czy alert „Kuba dotarł do Szkoły” ma przychodzić każdemu w kręgu? (tak, z tymi samymi
+   zasadami prywatności powiadomień co dziś)
+

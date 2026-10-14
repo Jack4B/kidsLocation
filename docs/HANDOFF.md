@@ -6,6 +6,23 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F6 (plan) i README
+
+Zrobiono: rozpisano fazę 6 „Wspólne miejsca w kręgu” (F6-0 do F6-7) w `docs/PLAN.md` i
+dodano otwartą decyzję D7 z czterema pytaniami do właściciela. Zaktualizowano `README.md`
+do stanu po wydaniu `apk-0.21.0-16` (nazwa Blisko, kod w `starling/`, status).
+Zrobiono też zrzuty ekranu aplikacji (Playwright, 390x844, oba motywy) dla właściciela.
+Nie trafiły do repozytorium.
+
+Nie zrobiono: kodu dla F6 (czeka na ADR-002 i D7).
+
+Sprawdzono: tylko dokumenty; kodu nie zmieniano. Przez czytanie kodu: miejsca są dziś tylko
+lokalne (`starling/app/js/places.js`, linia 1), czat jest jeden dla całego kręgu.
+
+Następny krok: właściciel odpowiada na pytania z D7, potem F6-0 (ADR-002).
+
+---
+
 ## 2026-10-14, Claude, wydanie 1.0: integracja na gałęzi `wydanie/1.0`
 
 Zrobiono:
