@@ -60,6 +60,10 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      FAMILY_BUILD: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,10 +100,40 @@ jobs:
             | grep -v "DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"; then
             echo "unexpected permission crept into the manifest"; exit 1
           fi
+      - name: Sign with the family key (skipped until the secrets exist)
+        id: sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KSPW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        if: env.KEYSTORE_B64 != '' && env.KSPW != ''
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/family.jks"
+          VERSION=$(grep -oE 'versionName = "[^"]+"' android/app/build.gradle.kts | cut -d'"' -f2)
+          OUT="kidslocation-$VERSION-$FAMILY_BUILD.apk"
+          "$APKSIGNER" sign --ks "$RUNNER_TEMP/family.jks" --ks-key-alias rodzina --ks-pass env:KSPW \
+            --out "$OUT" android/app/build/outputs/apk/release/app-release-unsigned.apk
+          rm -f "$RUNNER_TEMP/family.jks"
+          "$APKSIGNER" verify --print-certs "$OUT" | head -3
+          echo "apk=starling/$OUT" >> "$GITHUB_OUTPUT"
+          echo "tag=apk-$VERSION-$FAMILY_BUILD" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: starling-release-unsigned
           path: starling/android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        if: steps.sign.outputs.apk != ''
+        with:
+          name: kidslocation-signed
+          path: ${{ steps.sign.outputs.apk }}
+      - name: Publish the signed APK as a release (main only, for Obtainium)
+        if: steps.sign.outputs.apk != '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.sign.outputs.tag }}" "$GITHUB_WORKSPACE/${{ steps.sign.outputs.apk }}" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "${{ steps.sign.outputs.tag }}" --notes "Signed family build from $GITHUB_SHA."
 
   ios:
     if: github.event_name == 'workflow_dispatch' && inputs.ios
