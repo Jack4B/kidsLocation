@@ -6,6 +6,22 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F1-2 (instrukcja wdrożenia na Cloudflare)
+
+Właściciel napisał w wątku projektu: „możemy użyć cloudflare worker". Dopisano instrukcję
+`docs/WDROZENIE-CLOUDFLARE.md` na podstawie `relay/deploy.sh` i `relay/wrangler.toml` z forka:
+lokalne zmiany w `wrangler.toml` (usunąć trasę `starlingmap.app`), `wrangler login`,
+`bash relay/deploy.sh`, sprawdzenie `/api/v2/health`, podłączenie telefonów.
+
+Nie zrobiono: wdrożenia (robi je właściciel na swoim koncie). Formalnego zamknięcia D1 w
+`DECYZJE.md` nie dopisano tutaj, żeby nie kolidować z otwartymi PR-ami F0-1 i F1-1; do zrobienia
+po ich scaleniu.
+
+Następny krok: właściciel wdraża i podaje wynik `/api/v2/health` (bez adresu w repozytorium),
+potem F1-4 (test na dwóch telefonach).
+
+---
+
 ## 2026-10-14, Claude, przekazanie do nowej sesji
 
 Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła
