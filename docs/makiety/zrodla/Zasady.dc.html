@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Zasady wyglądu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;font-family:'Figtree',system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+.h{font-family:'Bricolage Grotesque','Figtree',system-ui,sans-serif}
+.ph[data-theme="light"]{--bg:#F1F4F2;--surface:#FFFFFF;--surface2:#E8EDEA;--ink:#14201C;--ink2:#4B5A54;--line:#D3DBD7;--accent:#0B7A64;--accentInk:#FFFFFF;--accentSoft:#D6EFE8;--sos:#C62B22;--sosInk:#FFFFFF;--warn:#A85A00}
+.ph[data-theme="dark"]{--bg:#12141C;--surface:#1C2030;--surface2:#272C41;--ink:#EEF1F6;--ink2:#A9B1C4;--line:#30364C;--accent:#45D9B5;--accentInk:#06251D;--accentSoft:#17372F;--sos:#FF7A6E;--sosInk:#2A0705;--warn:#F0B35A}
+</style>
+</helmet>
+<div style="width:900px;height:924px;box-sizing:border-box;padding:40px;display:flex;gap:40px;background:#B9C1BD">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="ph" data-theme="{{t.name}}" role="group" aria-label="{{t.label}}" style="width:390px;height:844px;box-sizing:border-box;padding:24px;position:relative;overflow:hidden;border-radius:32px;background:var(--bg);color:var(--ink);box-shadow:0 0 0 1px var(--line);flex:none;display:flex;flex-direction:column;gap:20px">
+
+<div style="display:flex;align-items:baseline;justify-content:space-between">
+<div class="h" style="font-size:26px;font-weight:700;line-height:30px">Zasady wyglądu</div>
+<div style="font-size:14px;font-weight:600;color:var(--ink2)">{{t.title}}</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+<div><div style="height:52px;border-radius:14px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)"></div><div style="font-size:13px;font-weight:600;margin-top:5px">Tło</div><div style="font-size:12.5px;color:var(--ink2)">{{t.bg}}</div></div>
+<div><div style="height:52px;border-radius:14px;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)"></div><div style="font-size:13px;font-weight:600;margin-top:5px">Powierzchnia</div><div style="font-size:12.5px;color:var(--ink2)">{{t.surface}}</div></div>
+<div><div style="height:52px;border-radius:14px;background:var(--ink)"></div><div style="font-size:13px;font-weight:600;margin-top:5px">Tekst</div><div style="font-size:12.5px;color:var(--ink2)">{{t.ink}}</div></div>
+<div><div style="height:52px;border-radius:14px;background:var(--ink2)"></div><div style="font-size:13px;font-weight:600;margin-top:5px">Tekst pomocniczy</div><div style="font-size:12.5px;color:var(--ink2)">{{t.ink2}}</div></div>
+<div><div style="height:52px;border-radius:14px;background:var(--accent)"></div><div style="font-size:13px;font-weight:600;margin-top:5px">Akcent</div><div style="font-size:12.5px;color:var(--ink2)">{{t.accent}}</div></div>
+<div><div style="height:52px;border-radius:14px;background:var(--sos)"></div><div style="font-size:13px;font-weight:600;margin-top:5px">SOS</div><div style="font-size:12.5px;color:var(--ink2)">{{t.sos}}</div></div>
+</div>
+
+<div style="padding:16px;border-radius:20px;background:var(--surface);box-shadow:0 0 0 1px var(--line)">
+<div class="h" style="font-size:26px;font-weight:700;line-height:30px">Rodzina, 4 osoby</div>
+<div style="font-size:13px;color:var(--ink2);margin-top:2px">Bricolage Grotesque, nagłówki i imiona</div>
+<div style="font-size:15.5px;line-height:21px;margin-top:12px">Marta dotarła do miejsca Dom.</div>
+<div style="font-size:13px;color:var(--ink2);margin-top:2px">Figtree, tekst 15,5 i opisy 13, nigdy mniej niż 12,5</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+<button style="height:48px;padding:0 22px;border-radius:24px;background:var(--accent);color:var(--accentInk);font-size:15px;font-weight:700">Napisz</button>
+<button style="height:48px;padding:0 22px;border-radius:24px;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font-size:15px;font-weight:600">Poproś o check-in</button>
+<button style="height:48px;padding:0 22px;border-radius:24px;background:var(--sos);color:var(--sosInk);font-size:15px;font-weight:700">Przytrzymaj SOS</button>
+<div style="height:32px;padding:0 14px;border-radius:16px;background:var(--accentSoft);display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></span>Udostępniasz</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:9px;font-size:14.5px;line-height:20px">
+<div style="display:flex;gap:10px"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px"></span><span>Mapa zaczyna na Twojej pozycji, z widokiem ulic.</span></div>
+<div style="display:flex;gap:10px"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px"></span><span>Każdy znacznik ma imię i czas ostatniego sygnału.</span></div>
+<div style="display:flex;gap:10px"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px"></span><span>Przyciski mają co najmniej 48 dp, tekst kontrast 4,5 do 1.</span></div>
+<div style="display:flex;gap:10px"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px"></span><span>Kolor nigdy nie niesie znaczenia sam: zawsze idzie z ikoną lub słowem.</span></div>
+<div style="display:flex;gap:10px"><span style="flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px"></span><span>Aplikacja mówi, czego nie robi: historia ma limit, serwer trzyma dane 24 h.</span></div>
+</div>
+
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":900,"height":924}}'>
+class Component extends DCLogic {
+renderVals() {
+return { themes: [
+{ name: 'light', label: 'Motyw jasny', title: 'Jasny', bg: '#F1F4F2', surface: '#FFFFFF', ink: '#14201C', ink2: '#4B5A54', accent: '#0B7A64', sos: '#C62B22' },
+{ name: 'dark', label: 'Motyw ciemny', title: 'Ciemny', bg: '#12141C', surface: '#1C2030', ink: '#EEF1F6', ink2: '#A9B1C4', accent: '#45D9B5', sos: '#FF7A6E' }
+] };
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Czat.dc.html": {
+      "h": 924,
+      "title": "3 Czat szyfrowany",
+      "w": 900,
+      "x": 1960,
+      "y": 0
+    },
+    "Krag.dc.html": {
+      "h": 924,
+      "title": "4 Krąg i prywatność",
+      "w": 900,
+      "x": 2940,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 924,
+      "title": "1 Mapa (start na mojej pozycji)",
+      "w": 900,
+      "x": 0,
+      "y": 0
+    },
+    "Osoba.dc.html": {
+      "h": 924,
+      "title": "2 Osoba (arkusz rozwinięty)",
+      "w": 900,
+      "x": 980,
+      "y": 0
+    },
+    "Zasady.dc.html": {
+      "h": 924,
+      "title": "5 Zasady wyglądu (tokeny)",
+      "w": 900,
+      "x": 3920,
+      "y": 0
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-14T11:20:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "t1": {
+      "kind": "title1",
+      "maxW": 4820,
+      "text": "Starling: makiety jasne i ciemne",
+      "w": 240,
+      "x": 0,
+      "y": -230
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Osoba.dc.html",
+    "Czat.dc.html",
+    "Krag.dc.html",
+    "Zasady.dc.html"
+  ],
+  "pages": [],
+  "title": "Starling makiety"
+}

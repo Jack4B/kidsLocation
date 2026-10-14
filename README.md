@@ -37,6 +37,8 @@ docs/ARCHITEKTURA.md           ustalenia z analizy kodu forka (fakty, nie plany)
 docs/DESIGN.md                 tokeny, typografia, zasady interfejsu, mapa ekranów
 docs/HANDOFF.md                dziennik przekazań między modelami
 docs/PODLACZENIE-AGENTOW.md    jak podpiąć Gemini i Groka (dla właściciela)
+docs/KONTEKST-ROZMOWY.md       streszczenie rozmowy początkowej, start nowej sesji
+docs/makiety/zrodla/           źródła makiet (.dc.html, canvas.json)
 .github/pull_request_template.md
 ```
 

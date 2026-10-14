@@ -6,6 +6,14 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, przekazanie do nowej sesji
+
+Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła
+makiet w `docs/makiety/zrodla/`. Kodu nie zmieniano. Nowa sesja zaczyna od
+`docs/KONTEKST-ROZMOWY.md`.
+
+---
+
 ## 2026-10-14, Claude, faza 0 (przygotowanie)
 
 Zrobiono:

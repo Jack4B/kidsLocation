@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Mapa</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0;font-family:'Figtree',system-ui,sans-serif}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+.h{font-family:'Bricolage Grotesque','Figtree',system-ui,sans-serif}
+.ph[data-theme="light"]{--bg:#F1F4F2;--surface:#FFFFFF;--surface2:#E8EDEA;--ink:#14201C;--ink2:#4B5A54;--line:#D3DBD7;--accent:#0B7A64;--accentInk:#FFFFFF;--accentSoft:#D6EFE8;--sos:#C62B22;--sosInk:#FFFFFF;--warn:#A85A00;--m-land:#E9EEEA;--m-water:#BDD8E6;--m-park:#CDE5D2;--m-road:#FFFFFF;--m-casing:#D0D8D4;--m-bld:#DCE3DF;--m-label:#5B6B65}
+.ph[data-theme="dark"]{--bg:#12141C;--surface:#1C2030;--surface2:#272C41;--ink:#EEF1F6;--ink2:#A9B1C4;--line:#30364C;--accent:#45D9B5;--accentInk:#06251D;--accentSoft:#17372F;--sos:#FF7A6E;--sosInk:#2A0705;--warn:#F0B35A;--m-land:#1A1E2B;--m-water:#17283A;--m-park:#1B3027;--m-road:#2D3450;--m-casing:#12141C;--m-bld:#232839;--m-label:#8C95AD}
+</style>
+</helmet>
+<div style="width:900px;height:924px;box-sizing:border-box;padding:40px;display:flex;gap:40px;background:#B9C1BD">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="ph" data-theme="{{t.name}}" role="group" aria-label="{{t.label}}" style="width:390px;height:844px;position:relative;overflow:hidden;border-radius:32px;background:var(--bg);color:var(--ink);box-shadow:0 0 0 1px var(--line);flex:none">
+
+<svg width="390" height="844" viewBox="0 0 390 844" style="position:absolute;left:0;top:0" aria-hidden="true">
+<rect width="390" height="844" style="fill:var(--m-land)"/>
+<ellipse cx="350" cy="56" rx="84" ry="46" style="fill:var(--m-water)"/>
+<path d="M-20 410 C70 450 120 490 160 650" style="fill:none;stroke:var(--m-water);stroke-width:34;stroke-linecap:round"/>
+<rect x="232" y="392" width="116" height="96" rx="18" style="fill:var(--m-park)"/>
+<rect x="14" y="62" width="120" height="82" rx="18" style="fill:var(--m-park)"/>
+<g style="fill:none;stroke:var(--m-casing);stroke-linecap:round">
+<path d="M-10 318 L400 286" stroke-width="18"/>
+<path d="M196 -10 L212 640" stroke-width="16"/>
+<path d="M-10 170 L400 440" stroke-width="13"/>
+<path d="M-10 520 L400 480" stroke-width="12"/>
+<path d="M60 -10 L90 560" stroke-width="10"/>
+<path d="M300 -10 L330 600" stroke-width="10"/>
+<path d="M-10 92 L400 62" stroke-width="10"/>
+</g>
+<g style="fill:none;stroke:var(--m-road);stroke-linecap:round">
+<path d="M-10 318 L400 286" stroke-width="14"/>
+<path d="M196 -10 L212 640" stroke-width="12"/>
+<path d="M-10 170 L400 440" stroke-width="9"/>
+<path d="M-10 520 L400 480" stroke-width="8"/>
+<path d="M60 -10 L90 560" stroke-width="6"/>
+<path d="M300 -10 L330 600" stroke-width="6"/>
+<path d="M-10 92 L400 62" stroke-width="6"/>
+</g>
+<g style="fill:var(--m-bld)">
+<rect x="108" y="212" width="34" height="26" rx="3"/>
+<rect x="150" y="224" width="30" height="22" rx="3"/>
+<rect x="104" y="332" width="40" height="30" rx="3"/>
+<rect x="152" y="356" width="30" height="24" rx="3"/>
+<rect x="228" y="222" width="38" height="28" rx="3"/>
+<rect x="272" y="246" width="26" height="22" rx="3"/>
+<rect x="236" y="330" width="34" height="26" rx="3"/>
+<rect x="104" y="402" width="44" height="30" rx="3"/>
+<rect x="340" y="330" width="40" height="34" rx="3"/>
+<rect x="20" y="236" width="30" height="40" rx="3"/>
+</g>
+<text x="104" y="311" transform="rotate(-4 104 311)" style="fill:var(--m-label);font:600 10px Figtree,sans-serif">ul. Polna</text>
+<text x="205" y="470" transform="rotate(86 205 470)" style="fill:var(--m-label);font:600 10px Figtree,sans-serif">ul. Leśna</text>
+</svg>
+
+<div style="position:absolute;left:46px;top:210px;width:104px;height:104px;border-radius:50%;border:2px dashed var(--accent);background:var(--accentSoft);opacity:.6"></div>
+<div style="position:absolute;left:204px;top:124px;width:92px;height:92px;border-radius:50%;border:2px dashed var(--accent);background:var(--accentSoft);opacity:.6"></div>
+
+<div style="position:absolute;left:98px;top:196px;transform:translateX(-50%);display:flex;align-items:center;gap:5px;background:var(--surface);color:var(--ink);font:600 12px/1 Figtree,sans-serif;padding:5px 9px 5px 7px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.28)">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/></svg>Dom</div>
+<div style="position:absolute;left:250px;top:110px;transform:translateX(-50%);display:flex;align-items:center;gap:5px;background:var(--surface);color:var(--ink);font:600 12px/1 Figtree,sans-serif;padding:5px 9px 5px 7px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.28)">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg>Szkoła</div>
+
+<div style="position:absolute;left:76px;top:240px;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:3px solid var(--surface);background:#F29BB8;color:#14201C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,.35)" class="h">M</div>
+<div style="position:absolute;left:98px;top:292px;transform:translateX(-50%);background:var(--surface);color:var(--ink);font:600 12px/1 Figtree,sans-serif;padding:5px 9px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.28);white-space:nowrap">Marta, w domu</div>
+
+<div style="position:absolute;left:228px;top:148px;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:3px solid var(--surface);background:#F5C04A;color:#14201C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,.35)" class="h">K</div>
+<div style="position:absolute;left:250px;top:200px;transform:translateX(-50%);background:var(--surface);color:var(--ink);font:600 12px/1 Figtree,sans-serif;padding:5px 9px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.28);white-space:nowrap">Kuba, w szkole</div>
+
+<div style="position:absolute;left:270px;top:430px;width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:2px dashed var(--ink2);background:var(--surface2);color:var(--ink2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px" class="h">H</div>
+<div style="position:absolute;left:292px;top:482px;transform:translateX(-50%);background:var(--surface);color:var(--ink2);font:600 12px/1 Figtree,sans-serif;padding:5px 9px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.28);white-space:nowrap">Hela, 3 h temu</div>
+
+<div style="position:absolute;left:147px;top:302px;width:96px;height:96px;border-radius:50%;border:1.5px solid var(--accent);background:var(--accentSoft);opacity:.85"></div>
+<div style="position:absolute;left:184px;top:339px;width:22px;height:22px;box-sizing:border-box;border-radius:50%;background:var(--accent);border:4px solid var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>
+<div style="position:absolute;left:195px;top:370px;transform:translateX(-50%);background:var(--accent);color:var(--accentInk);font:700 12px/1 Figtree,sans-serif;padding:5px 10px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.28)">Ty</div>
+
+<button aria-label="Zmień krąg: Rodzina, 4 osoby" style="position:absolute;left:16px;top:16px;height:48px;padding:0 14px 0 16px;border-radius:24px;background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+<span class="h" style="font-size:17px;font-weight:700">Rodzina</span>
+<span style="font-size:13px;color:var(--ink2);font-weight:500">4 osoby</span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+
+<button aria-label="Styl mapy" style="position:absolute;left:330px;top:16px;width:44px;height:44px;border-radius:50%;background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
+<button aria-label="Pokaż wszystkich" style="position:absolute;left:330px;top:68px;width:44px;height:44px;border-radius:50%;background:var(--surface);color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="9.5" cy="10.5" r="1.6"/><circle cx="14.5" cy="13.5" r="1.6"/></svg></button>
+<button aria-label="Moja pozycja (włączone)" style="position:absolute;left:330px;top:120px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--accentInk);box-shadow:0 2px 8px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+
+<button aria-label="Przytrzymaj, aby wysłać SOS" style="position:absolute;left:226px;top:496px;width:148px;height:52px;border-radius:26px;background:var(--sos);color:var(--sosInk);box-shadow:0 3px 10px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;gap:8px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/></svg>
+<span class="h" style="font-size:16px;font-weight:700">Przytrzymaj SOS</span></button>
+
+<div style="position:absolute;left:0;top:568px;width:390px;height:196px;background:var(--surface);border-radius:28px 28px 0 0;box-shadow:0 -2px 12px rgba(0,0,0,.2)">
+<div style="position:absolute;left:177px;top:10px;width:36px;height:4px;border-radius:2px;background:var(--line)"></div>
+<div class="h" style="position:absolute;left:20px;top:26px;font-size:20px;font-weight:700">Rodzina</div>
+<button aria-label="Udostępniasz lokalizację. Dotknij, aby wstrzymać" style="position:absolute;right:16px;top:22px;height:36px;padding:0 14px 0 12px;border-radius:18px;background:var(--accentSoft);color:var(--ink);display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600">
+<span style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></span>Udostępniasz</button>
+
+<div style="position:absolute;left:16px;top:76px;width:150px;height:96px;box-sizing:border-box;padding:12px;border-radius:20px;background:var(--surface2)">
+<div style="display:flex;align-items:center;gap:10px"><div class="h" style="width:36px;height:36px;border-radius:50%;background:#F29BB8;color:#14201C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">M</div>
+<div><div style="font-size:15px;font-weight:600">Marta</div><div style="font-size:13px;color:var(--ink2)">W domu</div></div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:var(--ink2)"><span>6 min temu</span><span style="display:flex;align-items:center;gap:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21 11v2"/></svg>64%</span></div></div>
+
+<div style="position:absolute;left:176px;top:76px;width:150px;height:96px;box-sizing:border-box;padding:12px;border-radius:20px;background:var(--surface2)">
+<div style="display:flex;align-items:center;gap:10px"><div class="h" style="width:36px;height:36px;border-radius:50%;background:#F5C04A;color:#14201C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">K</div>
+<div><div style="font-size:15px;font-weight:600">Kuba</div><div style="font-size:13px;color:var(--ink2)">W szkole</div></div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:var(--ink2)"><span>teraz</span><span style="display:flex;align-items:center;gap:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21 11v2"/></svg>41%</span></div></div>
+
+<div style="position:absolute;left:336px;top:76px;width:150px;height:96px;box-sizing:border-box;padding:12px;border-radius:20px;background:var(--surface2)">
+<div style="display:flex;align-items:center;gap:10px"><div class="h" style="width:36px;height:36px;border-radius:50%;background:var(--surface);color:var(--ink2);border:2px dashed var(--ink2);box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">H</div>
+<div><div style="font-size:15px;font-weight:600">Hela</div><div style="font-size:13px;color:var(--ink2)">Brak sygnału</div></div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:var(--ink2)"><span>3 h temu</span><span style="display:flex;align-items:center;gap:4px;color:var(--warn);font-weight:600"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21 11v2"/></svg>12%</span></div></div>
+</div>
+
+<div style="position:absolute;left:0;top:764px;width:390px;height:80px;background:var(--surface);border-top:1px solid var(--line);display:flex">
+<button aria-current="page" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;font-size:12.5px;font-weight:700;color:var(--ink)">
+<span style="width:64px;height:32px;border-radius:16px;background:var(--accentSoft);color:var(--accent);display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg></span>Mapa</button>
+<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;font-size:12.5px;font-weight:500;color:var(--ink2)">
+<span style="position:relative;width:64px;height:32px;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
+<span style="position:absolute;left:34px;top:-2px;min-width:18px;height:18px;box-sizing:border-box;padding:0 5px;border-radius:9px;background:var(--sos);color:var(--sosInk);font-size:11.5px;font-weight:700;line-height:18px;text-align:center">2</span></span>Czat</button>
+<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;font-size:12.5px;font-weight:500;color:var(--ink2)">
+<span style="width:64px;height:32px;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></svg></span>Miejsca</button>
+<button style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:12px;font-size:12.5px;font-weight:500;color:var(--ink2)">
+<span style="width:64px;height:32px;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.8 0 4.5 2.2 4.5 5"/></svg></span>Krąg</button>
+</div>
+
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":900,"height":924}}'>
+class Component extends DCLogic {
+renderVals() {
+return { themes: [{ name: 'light', label: 'Motyw jasny' }, { name: 'dark', label: 'Motyw ciemny' }] };
+}
+}
+</script>
+</body>
+</html>
