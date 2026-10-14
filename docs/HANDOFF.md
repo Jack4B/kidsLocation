@@ -6,6 +6,48 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F2-6: aplikacja po polsku i marka Blisko
+
+Zrobiono:
+
+- Polski katalog `starling/app/js/strings-pl.js` pokrywa każdy tekst z
+  `tools/extract-strings.mjs`. Polski jest domyślny niezależnie od języka telefonu
+  (`DEFAULT_LOCALE` w `i18n.js`, `lang: "pl"` w ustawieniach), pierwszy na liście; inne
+  języki zostają do wyboru, opcja „Auto” zniknęła. `i18n.js` obsługuje formy liczby mnogiej
+  (`{ one, few, many, other }` przez `Intl.PluralRules`): 1 miejsce, 2 miejsca, 5 miejsc.
+  „relay” w polskich tekstach to „serwer” (także w nowych tekstach F1-7).
+- Marka: „Blisko” w manifeście, tytule, logotypie, O aplikacji, nazwie aplikacji na
+  Androidzie, powiadomieniach i nazwie na iOS. `t()` podmienia „Starling” na „Blisko” w
+  szablonach innych języków (nigdy w wartościach wpisanych przez ludzi). O aplikacji:
+  „Na bazie Starling, wolnego oprogramowania na licencji GPL-3.0.” Nazwy w kodzie, pakiety
+  i protokół bez zmian.
+- Ikona: zielona pinezka #0B7A64 z sercem na jasnym tle; źródło nadal
+  `app/icons/starling.svg`, wszystkie rastry (web, Android adaptacyjna i monochromatyczna,
+  iOS, og.png) wygenerowane Chromium. Ikona na pasku stanu celowo zostaje ogólną pinezką.
+- Android: domyślne `values/strings.xml` po polsku (kanały powiadomień też), values-de/es/fr/pt
+  zostały, z „Blisko” zamiast „Starling”. iOS: nazwa, region `pl`, polskie prośby o
+  uprawnienia. `help.html` i `privacy.html` po polsku.
+- Testy: polski w tych samych sprawdzeniach kompletności co inne katalogi, nowe testy
+  liczby mnogiej, marki i języka domyślnego (`test/polish-default.test.mjs`).
+  `test/dom-harness.mjs` przełącza stare testy DOM na angielski po starcie. Teksty
+  oczekiwane w skryptach e2e (Node i Python) zmienione na polskie.
+
+Sprawdzono: `node --test test/*.test.mjs` po scaleniu z F1-7: 1146 testów, 1112 przeszło,
+34 pominięto, 0 błędów; `tools/check-clean.sh` czysto. W Chromium przeszły
+`e2e_wrapper`, `e2e_sheet_drag`, `e2e_share_resume`, `e2e_qrscan` (z `chromium` w PATH
+wskazującym Chromium z Playwrighta). Zrzuty ekranu w `wydanie-1.0/polski/`.
+
+Sprawdzono tylko przez czytanie: skrypty Python/Marionette (`e2e_marionette`, `e2e_v2_ui`,
+`e2e_places`, `e2e_lock`), bo tu nie ma Firefoksa; budowanie Androida i iOS (zrobi CI).
+
+Nie zrobiono: sekcje marketingowe strony WWW (tylko web, usuwane w aplikacji) zostały po
+angielsku; nowy wygląd należy do zadania UI.
+
+Pytania do właściciela: czy wymuszać polski także na telefonie w innym języku (teraz tak);
+czy usunąć values-de/es/fr/pt na Androidzie, żeby powiadomienia zawsze były po polsku.
+
+---
+
 ## 2026-10-14, Claude, F1-7: relay rodziny i linki zaproszeń bez starlingmap.app
 
 Zrobiono:
