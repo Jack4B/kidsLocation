@@ -6,6 +6,16 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F1-8b: wydanie także z ręcznego uruchomienia
+
+Klucz rodziny dodany przez właściciela. Ręczny przebieg „Aplikacja CI” na `main`
+(run 38579655710) podpisał APK (krok podpisu: success, artefakt `kidslocation-signed`), ale
+wydania nie utworzył, bo warunek wymagał zdarzenia `push`. Poprawka: wydanie powstaje na
+`main` przy każdym zdarzeniu poza `pull_request`. Po scaleniu tego PR pierwsze wydanie
+powstanie samo (zmiana dotyka pliku workflow, więc uruchamia CI na `main`).
+
+---
+
 ## 2026-10-14, Claude, F1-8: własne APK z aktualizacjami
 
 Zrobiono:
