@@ -126,8 +126,8 @@ jobs:
         with:
           name: kidslocation-signed
           path: ${{ steps.sign.outputs.apk }}
-      - name: Publish the signed APK as a release (main only, for Obtainium)
-        if: steps.sign.outputs.apk != '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Publish the signed APK as a release (main, on push or manual run; for Obtainium)
+        if: steps.sign.outputs.apk != '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
