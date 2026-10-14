@@ -1,0 +1,50 @@
+name: AI code review (Grok via xAI)
+
+# Grok reviews every pull request as the second model required by AGENTS.md.
+# Privacy exception (see docs/PODLACZENIE-AGENTOW.md, section 4): the diff of
+# each PR is sent to the xAI API. Never put secrets, the relay address or
+# family data in a PR, which AGENTS.md already forbids.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review
+    # Pull requests from forks get no secrets; skip them instead of failing.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Code review
+        # tarmojussila/xai-code-review v0.1.1, pinned to the commit the tag points at.
+        # Read before pinning: it sends only the PR file patches to api.x.ai and
+        # posts one comment on the PR; dist/index.js matches src/index.js.
+        uses: tarmojussila/xai-code-review@d86fe10ac75980e564824bbe76648b7d6e0f44c5
+        with:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          XAI_MODEL: ${{ vars.XAI_MODEL || 'grok-3' }}
+          XAI_REVIEWER_NAME: Grok (recenzja)
+          EXCLUDE_PATTERNS: "*.lock,package-lock.json,*.png,*.jpg,*.svg,docs/makiety/makiety-*.html"
+          MAX_DIFF_CHARS: "120000"
+          XAI_SYSTEM_PROMPT: >-
+            Jesteś recenzentem w projekcie kidsLocation: prywatnej rodzinnej aplikacji do
+            udostępniania lokalizacji na bazie forka Starling. Odpowiadaj po polsku.
+            Sprawdzaj zmianę według listy kontrolnej recenzenta z AGENTS.md: czy robi
+            dokładnie to, co mówi zadanie; czy rusza pliki zamrożone (app/js/crypto.js,
+            app/js/wire.js, podpisy i przypinanie kluczy w relayu, docs/PROTOCOL.md);
+            czy są testy i czy wynik w opisie się zgadza; czy pojawiły się nowe żądania
+            do stron trzecich, zależności, logowanie pozycji lub kluczy; czy odszyfrowane
+            dane trafiają do DOM tylko przez textContent; czy wiadomość mieści się w 512 B
+            po UTF-8; czy dokumentacja zgadza się z kodem i nie obiecuje więcej, niż kod robi.
+            Wskazuj plik i linię. Pomijaj drobiazgi stylu. Na końcu napisz jednym zdaniem,
+            czy zmiana jest gotowa do scalenia.

@@ -39,6 +39,26 @@ dostawcy, zanim cokolwiek zapłacisz lub zainstalujesz.
   że jest wliczony.
 - Zasady dla Groka: `GROK.md`.
 
+### Automatyczna recenzja Groka przez API xAI
+
+- Workflow `.github/workflows/code-review.yml` uruchamia się przy każdym PR (otwarcie,
+  nowy commit, wznowienie, przejście ze szkicu) i dodaje jeden komentarz „Grok (recenzja)",
+  aktualizowany przy kolejnych commitach.
+- Klucz: sekret repozytorium `XAI_API_KEY` (ustawiony przez właściciela). Model domyślnie
+  `grok-3`; inny ustawisz zmienną repozytorium `XAI_MODEL` (Settings, Secrets and variables,
+  Actions, Variables).
+- Akcja `tarmojussila/xai-code-review` jest przypięta do pełnego SHA commitu (wersja 0.1.1),
+  a nie do tagu, żeby nikt nie podmienił jej kodu pod tym samym numerem. Kod przeczytano:
+  pobiera listę zmienionych plików PR, wysyła ich łatki do `api.x.ai` i dodaje komentarz.
+  Aktualizacja wersji to świadoma zmiana SHA w osobnym PR.
+- **Wyjątek od zasady prywatności z `AGENTS.md`:** diff każdego PR trafia do xAI. W
+  repozytorium nie ma kodu aplikacji ani danych rodziny, a `AGENTS.md` i tak zabrania
+  wpisywania sekretów, adresu relaya i danych osobowych. Pliki PNG, SVG i wygenerowane
+  makiety HTML są pomijane, diff jest ucięty do 120 000 znaków. Wyjątek obowiązuje po
+  scaleniu tego PR przez właściciela.
+- PR z forków nie dostają sekretów, więc workflow je pomija. Recenzja Groka nie zastępuje
+  recenzji z tabeli w `docs/PLAN.md`, jeśli recenzentem ma być Gemini.
+
 ## 5. Zasady bezpieczeństwa współpracy
 
 - Każdy model pracuje na własnej gałęzi i otwiera PR. Scalasz Ty.

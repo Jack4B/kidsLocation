@@ -6,6 +6,20 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F0-3 (automatyczna recenzja Groka)
+
+Zrobiono: workflow `.github/workflows/code-review.yml` z akcją `tarmojussila/xai-code-review`
+0.1.1 przypiętą do SHA `d86fe10`, minimalne uprawnienia (`contents: read`,
+`pull-requests: write`), pomijanie PR z forków, prompt recenzenta po polsku według listy
+kontrolnej z `AGENTS.md`, opis i wyjątek prywatności w `docs/PODLACZENIE-AGENTOW.md`.
+
+Sprawdzono: kod akcji (`src/index.js`, 211 linii) i to, że `dist/index.js` odpowiada źródłu;
+akcja łączy się tylko z API GitHuba i `api.x.ai`. Sam workflow uruchomi się dopiero na tym PR.
+
+Nie zrobiono: recenzji przez Gemini (osobna konfiguracja właściciela).
+
+---
+
 ## 2026-10-14, Claude, przekazanie do nowej sesji
 
 Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła
