@@ -34,3 +34,13 @@ test("a press that starts on the label arms like one on the border", () => {
   btn.dispatchEvent({ type: "pointerdown", button: 0, target: harness.makeEl("span") });
   assert.equal(btn.classList.contains("arming"), true);
 });
+
+test("a finger that slides off the start point disarms the hold", () => {
+  const btn = harness.makeEl("button");
+  ui.holdToFire(btn, { onFire() {} });
+  btn.dispatchEvent({ type: "pointerdown", button: 0, clientX: 100, clientY: 100 });
+  btn.dispatchEvent({ type: "pointermove", clientX: 104, clientY: 106 });
+  assert.equal(btn.classList.contains("arming"), true, "small jitter keeps the hold");
+  btn.dispatchEvent({ type: "pointermove", clientX: 100, clientY: 140 });
+  assert.equal(btn.classList.contains("arming"), false, "a drag cancels it");
+});

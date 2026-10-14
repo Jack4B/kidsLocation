@@ -232,10 +232,21 @@ export function holdToFire(button, { ms = 1200, onFire, onShortTap }) {
     raf = requestAnimationFrame(step);
   }
 
+  // A touch pointer stays captured by the button, so pointerleave never
+  // arrives while a finger slides; a hold that moves is a drag, not an SOS.
+  const SLOP_PX = 12;
+  let x0 = 0;
+  let y0 = 0;
   let sawPointer = false;
   button.addEventListener("pointerdown", (e) => {
     sawPointer = true;
+    x0 = e.clientX;
+    y0 = e.clientY;
     start(e);
+  });
+  button.addEventListener("pointermove", (e) => {
+    if (!armed || keyHeld) return;
+    if (Math.hypot(e.clientX - x0, e.clientY - y0) > SLOP_PX) cancel();
   });
   button.addEventListener("pointerup", () => {
     // A released short press is a plain tap; tell the user this button
