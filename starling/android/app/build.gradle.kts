@@ -3,15 +3,22 @@ plugins {
     id("com.android.application") version "9.3.0"
 }
 
+// Family build counter (the CI run number). Every CI build gets a higher
+// versionCode than the one before, so a new APK installs over the old one.
+// Upstream's versionCode stays the high part, so upstream bumps keep it rising.
+val familyBuild = (System.getenv("FAMILY_BUILD") ?: "0").toInt()
+
 android {
     namespace = "app.starlingmap"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "app.starlingmap"
+        // Own id: the family build installs next to upstream Starling, never over it,
+        // and only APKs signed with the family key can update it.
+        applicationId = "app.kidslocation"
         minSdk = 28
         targetSdk = 36
-        versionCode = 2100
+        versionCode = 2100 * 1000 + familyBuild
         versionName = "0.21.0"
     }
 
