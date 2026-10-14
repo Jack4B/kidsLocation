@@ -38,6 +38,7 @@
   left: 0;
   right: 0;
   bottom: calc(var(--nav-h, 80px) + var(--safe-bottom, 0px));
+  height: auto;
   z-index: 50;
 }
 .cht-screen[hidden] {
