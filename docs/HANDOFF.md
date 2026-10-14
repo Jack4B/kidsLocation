@@ -294,3 +294,43 @@ Nie zrobiono lub nie sprawdzono:
 - Przegląd na prawdziwym telefonie (F2-8), build Androida.
 
 Następny krok: recenzja i scalenie przez prowadzącego.
+
+## 2026-10-14, Claude, F3-9 prywatność powiadomień czatu (gałąź `zadanie/F3-9-prywatnosc-powiadomien`)
+
+Wynik bazowy przed zmianą: 1225 testów, 1191 przeszło, 34 pominięto, 0 nie przeszło.
+
+Zrobiono:
+
+- M1 z przeglądu bezpieczeństwa: powiadomienie o wiadomości w tle bez `chatOnLock` mówi
+  tylko „Nowa wiadomość” (bez imienia i treści) w wersji prywatnej i publicznej. Android
+  pokazuje wersję prywatną na zabezpieczonym ekranie blokady, gdy w systemie jest włączone
+  „pokazuj całą treść” (domyślnie), więc wcześniej imię, a przy `chatPreview` także treść,
+  wyciekały na ekran blokady. Teraz imię tylko przy `chatOnLock`, treść tylko przy
+  `chatOnLock` i `chatPreview`. Warunek jest w `chatNotice` (`app/js/chat.js`) i drugi raz
+  w `Events.postDetail` (Kotlin), który dla czatu bez `onLock` w ogóle nie używa słów
+  ze strony. Toast w aplikacji bez zmian.
+- Przełączniki w panelu informacji czatu: najpierw „Pokazuj w powiadomieniach, kto
+  napisał” (`chatOnLock`), potem „Pokazuj też treść wiadomości” (`chatPreview`). Klucze
+  ustawień bez zmian.
+- `tools/check-notification-privacy.sh` sprawdza teraz pola `setContentTitle/Text`
+  (tylko `heading`, `text`, `publicHeading`, `publicText`), sposób, w jaki `show()`
+  je wylicza, gałąź czatu w `postDetail` oraz, przez `node`, że `chatNotice` bez
+  `chatOnLock` nie zawiera imienia ani treści. Sprawdzone mutacjami: każda z sześciu
+  wprowadzonych regresji kończy skrypt błędem.
+- L1: notatka o luce w czacie nie pokazuje absurdalnej liczby. Powyżej 999 (`GAP_SHOWN_MAX`)
+  mówi „nie udało się odczytać części wiadomości”.
+
+Testy: `node --test test/*.test.mjs`: 1230, 1196 przeszło, 34 pominięto, 0 nie przeszło.
+`e2e_chat.mjs` w Chromium przechodzi. `check-clean.sh` i `check-notification-privacy.sh`
+przechodzą.
+
+Nie zrobiono lub nie sprawdzono:
+
+- Build Androida i test na telefonie (brak SDK).
+- Ścieżka `detailAlerts` (miejsca) ma ten sam wzorzec: przy `detailAlerts` włączonym
+  i `detailOnLock` wyłączonym imię i miejsce są w wersji prywatnej, więc przy domyślnym
+  ustawieniu systemu widać je na ekranie blokady. To funkcja włączana świadomie, ale
+  opis przełącznika obiecuje ogólny ekran blokady. Do decyzji właściciela.
+- Kto miał `chatPreview` bez `chatOnLock`, po aktualizacji dostaje tylko „Nowa wiadomość”.
+
+Następny krok: recenzja i scalenie przez prowadzącego.

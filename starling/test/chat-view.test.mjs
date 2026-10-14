@@ -112,6 +112,20 @@ test("the timeline draws messages, a gap and a place line, all as text", () => {
   assert.equal(find(host, "chat-note").textContent, "The server keeps messages for at most 24 hours. This phone keeps them for 30 days.");
 });
 
+test("an absurd gap never prints its number", () => {
+  const { host, items, view } = mount();
+  const ts = Date.UTC(2026, 9, 14, 7, 42);
+  items.push(
+    { kind: "gap", id: "g1", from: A, lo: 2, hi: Number.MAX_SAFE_INTEGER - 1, ts, at: ts },
+    { kind: "gap", id: "g2", from: A, lo: 5, hi: 5, ts: ts + 1, at: ts },
+  );
+  view.update();
+  const [huge, one] = findAll(host, "chat-gap").map(text);
+  assert.equal(huge, "Marta <b>: some messages could not be read. This phone was probably offline for too long.");
+  assert.doesNotMatch(huge, /\d/, "no number at all");
+  assert.equal(one, "Marta <b>: 1 message could not be read. This phone was probably offline for too long.");
+});
+
 test("the info panel is honest about the platform and offers the notification switches on Android", () => {
   const ios = mount({ platform: () => "ios", canNotify: () => false, lockOn: () => false });
   find(ios.host, "chat-info").dispatchEvent({ type: "click" });
@@ -127,7 +141,14 @@ test("the info panel is honest about the platform and offers the notification sw
   assert.equal(toggle.checked, false, "off by default");
   toggle.checked = true;
   toggle.dispatchEvent({ type: "change" });
-  assert.deepEqual(changes, [["chatPreview", true]]);
+  const onLock = find(android.host, "chat-onlock-toggle");
+  assert.equal(onLock.checked, false, "the name stays off the lock screen by default");
+  onLock.checked = true;
+  onLock.dispatchEvent({ type: "change" });
+  assert.deepEqual(changes, [["chatPreview", true], ["chatOnLock", true]]);
+  const panel = text(find(android.host, "chat-info-panel"));
+  assert.ok(panel.indexOf("Show who wrote in notifications") < panel.indexOf("Also show the message text"), "the name switch comes first");
+  assert.match(panel, /says only that a message came/);
 });
 
 test("a demo or a missing circle disables the composer and says why", () => {

@@ -8,7 +8,7 @@
 
 import { t, currentLocale } from "./i18n.js";
 import { fmtClock } from "./fmt.js";
-import { chatMeasure, CHAT_SOFT_CHARS, QUICK_REPLIES } from "./chat.js";
+import { chatMeasure, gapCount, CHAT_SOFT_CHARS, QUICK_REPLIES } from "./chat.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const PAGE = 200;
@@ -141,19 +141,21 @@ export function mountChat(container, deps) {
     if (deps.canNotify && deps.canNotify()) {
       const s = deps.settings ? deps.settings() : {};
       info.append(
+        // Android shows a notification's content on a secure lock screen by
+        // default, so the name is a lock-screen choice, and the text rides on it.
         toggleRow({
-          label: t("Show message text in notifications"),
-          note: t("Off, a notification says only who wrote."),
-          value: s.chatPreview === true,
-          testid: "chat-preview-toggle",
-          onChange: (v) => deps.onSetting?.("chatPreview", v),
-        }),
-        toggleRow({
-          label: t("Also on the lock screen"),
-          note: t("Anyone holding the phone can read them without unlocking. Only matters when the switch above is on."),
+          label: t("Show who wrote in notifications"),
+          note: t("Off, a notification says only that a message came. On, the name also shows on the lock screen, where anyone holding the phone can read it without unlocking."),
           value: s.chatOnLock === true,
           testid: "chat-onlock-toggle",
           onChange: (v) => deps.onSetting?.("chatOnLock", v),
+        }),
+        toggleRow({
+          label: t("Also show the message text"),
+          note: t("Only matters when the switch above is on. The text then shows on the lock screen too."),
+          value: s.chatPreview === true,
+          testid: "chat-preview-toggle",
+          onChange: (v) => deps.onSetting?.("chatPreview", v),
         }),
       );
     }
@@ -337,17 +339,13 @@ export function mountChat(container, deps) {
     n.dataset.testid = "chat-gap";
     n.setAttribute("role", "note");
     n.append(icon(ICON_WARN, 16, 2));
-    const count = it.hi - it.lo + 1;
-    n.append(
-      el(
-        "span",
-        null,
-        t(count === 1 ? "{name}: 1 message could not be read. This phone was probably offline for too long." : "{name}: {n} messages could not be read. This phone was probably offline for too long.", {
-          name: deps.nameOf(it.from),
-          n: count,
-        }),
-      ),
-    );
+    const count = gapCount(it);
+    const name = deps.nameOf(it.from);
+    let said;
+    if (count === null) said = t("{name}: some messages could not be read. This phone was probably offline for too long.", { name });
+    else if (count === 1) said = t("{name}: 1 message could not be read. This phone was probably offline for too long.", { name });
+    else said = t("{name}: {n} messages could not be read. This phone was probably offline for too long.", { name, n: count });
+    n.append(el("span", null, said));
     return n;
   }
 

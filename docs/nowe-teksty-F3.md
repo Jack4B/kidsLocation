@@ -44,11 +44,13 @@ z wartością angielską. `{name}`, `{n}`, `{time}`, `{who}`, `{place}` to zmien
 | Without the app lock, messages on this phone are stored unencrypted. | Bez blokady aplikacji wiadomości są zapisane na tym telefonie bez szyfrowania. |
 | On iPhone you hear about new messages only while the app is open. | Na iPhonie o nowych wiadomościach dowiesz się tylko przy otwartej aplikacji. |
 | Here you hear about new messages only while this page is open. | Tutaj o nowych wiadomościach dowiesz się tylko przy otwartej stronie. |
-| Show message text in notifications | Pokaż treść wiadomości w powiadomieniu |
-| Off, a notification says only who wrote. | Wyłączone: powiadomienie mówi tylko, kto napisał. |
-| Also on the lock screen | Także na ekranie blokady |
-| Anyone holding the phone can read them without unlocking. Only matters when the switch above is on. | Każdy, kto trzyma telefon, przeczyta je bez odblokowania. Ma znaczenie tylko przy włączonym przełączniku wyżej. |
+| Show who wrote in notifications | Pokazuj w powiadomieniach, kto napisał |
+| Off, a notification says only that a message came. On, the name also shows on the lock screen, where anyone holding the phone can read it without unlocking. | Wyłączone: powiadomienie mówi tylko, że przyszła wiadomość. Włączone: imię widać też na ekranie blokady, gdzie każdy, kto trzyma telefon, przeczyta je bez odblokowania. |
+| Also show the message text | Pokazuj też treść wiadomości |
+| Only matters when the switch above is on. The text then shows on the lock screen too. | Ma znaczenie tylko wtedy, gdy przełącznik wyżej jest włączony. Treść widać wtedy także na ekranie blokady. |
+| New message | Nowa wiadomość |
 | New message from {name} | {name}: nowa wiadomość |
+| {name}: some messages could not be read. This phone was probably offline for too long. | {name}: nie udało się odczytać części wiadomości. Ten telefon był prawdopodobnie zbyt długo offline. |
 | Open the app to read it. | Otwórz aplikację, aby ją przeczytać. |
 | Chat is off in the demo. | Czat jest wyłączony w trybie demo. |
 | Chat starts once you are in a circle. | Czat działa po dołączeniu do kręgu. |

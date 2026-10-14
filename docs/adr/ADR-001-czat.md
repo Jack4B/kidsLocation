@@ -47,11 +47,16 @@ z nich zmienić; tam, gdzie to tanie, wdrożenie ma przełącznik albo stałą w
 - **Szybkie odpowiedzi:** Jestem / Wracam za 10 min / Odbierz mnie / OK. Wysyłane od razu.
 - **Zdarzenia kręgu w osi:** przyjście i wyjście z miejsca, które zauważył ten telefon.
   Tylko lokalnie, nic nie idzie przez sieć.
-- **Powiadomienia.** Android: osobny kanał „Wiadomości” (`events_chat`). Domyślna treść
-  „{imię}: nowa wiadomość”; treść wiadomości tylko po włączeniu „Pokaż treść
-  w powiadomieniu” (`chatPreview`), a na ekranie blokady tylko po osobnym włączeniu
-  (`chatOnLock`); bez tego ekran blokady pokazuje ogólne „Nowa wiadomość”.
-  `tools/check-notification-privacy.sh` przechodzi. iOS i przeglądarka: powiadomienie
+- **Powiadomienia.** Android: osobny kanał „Wiadomości” (`events_chat`). Domyślnie
+  powiadomienie mówi tylko „Nowa wiadomość”, bez imienia i bez treści, w obu wersjach
+  (prywatnej i publicznej). Powód (przegląd bezpieczeństwa, M1): Android pokazuje wersję
+  prywatną na zabezpieczonym ekranie blokady, gdy w systemie włączone jest „pokazuj całą
+  treść powiadomień”, a to jest ustawienie domyślne. Imię nadawcy pojawia się dopiero po
+  włączeniu „Pokazuj w powiadomieniach, kto napisał” (`chatOnLock`), a treść dopiero, gdy
+  włączone jest też „Pokazuj też treść wiadomości” (`chatPreview`); wtedy widać je także
+  na ekranie blokady i przełącznik mówi to wprost. Ten sam warunek sprawdza strona
+  (`chatNotice`) i wrapper (`Events.postDetail`).
+  `tools/check-notification-privacy.sh` sprawdza oba miejsca. iOS i przeglądarka: powiadomienie
   tylko przy otwartej aplikacji, co ekran informacji mówi wprost. Licznik nieprzeczytanych
   na przycisku czatu.
 - **Wysyłanie** przez `sender.send` z własną kolejką FIFO (ponowienia po 4 s, 15 s, 60 s,

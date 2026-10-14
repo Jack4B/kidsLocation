@@ -50,8 +50,16 @@ object Events {
     // Opt-in only (see StarlingBridge.notifyDetail), and chat. The one path where a caller's words reach a
     // notification field. A chat notice names the sender and carries the text only when the page was told it may;
     // the lock screen gets a generic line from resources unless onLock.
+    // Chat without onLock never uses the caller's words at all, not even in the private version: Android shows
+    // that version on a secure lock screen whenever "show all notification content" is on, which is its default.
+    // The page already sends only generic words then; this keeps a page bug from leaking a name or a message.
     fun postDetail(ctx: Context, title: String, body: String, tag: String, kind: String, member: String, onLock: Boolean) {
         if (title.isEmpty()) return
+        if (kind == "chat" && !onLock) {
+            show(ctx, R.string.app_name, R.string.notif_chat_text, tag, false, channelFor(kind),
+                Detail(ctx.getString(R.string.app_name), ctx.getString(R.string.notif_chat_text), member, false, R.string.notif_chat_text))
+            return
+        }
         show(ctx, R.string.app_name, R.string.notif_locked_text, tag, false, channelFor(kind),
             Detail(title, body, member, onLock, if (kind == "chat") R.string.notif_chat_text else R.string.notif_place_text))
     }

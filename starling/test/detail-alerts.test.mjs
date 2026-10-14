@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 
 import { installDom, loadApp } from "./dom-harness.mjs";
 
@@ -162,6 +163,28 @@ test("Android: no detail keeps the generic words, detail keeps the lock screen g
     assert.match(src(`android/app/src/main/res/${dir}/strings.xml`), /name="notif_chat_channel"/, dir);
   }
   assert.match(src("android/app/src/main/res/values/strings.xml"), /name="notif_place_text">Zmiana w miejscach</);
+});
+
+test("Android: a chat notice without onLock never carries the caller's words, not even privately", () => {
+  // Security review M1: the private version shows on a secure lock screen by default.
+  const events = kt("Events.kt");
+  const postDetail = events.slice(events.indexOf("fun postDetail("), events.indexOf("class Detail("));
+  const guard = postDetail.indexOf('if (kind == "chat" && !onLock) {');
+  const caller = postDetail.indexOf("Detail(title, body");
+  assert.ok(guard > 0 && caller > guard, "the chat branch comes before any Detail built from the caller's words");
+  const branch = postDetail.slice(guard, caller);
+  assert.match(branch, /Detail\(ctx\.getString\(R\.string\.app_name\), ctx\.getString\(R\.string\.notif_chat_text\), member, false, R\.string\.notif_chat_text\)/);
+  assert.match(branch, /return\s*\}/, "and it returns before the caller's words are used");
+  assert.doesNotMatch(branch.replace(/\/\/.*$/gm, ""), /\b(title|body)\b/, "no caller title or body in the branch");
+  assert.equal(events.split("Detail(title, body").length, 2, "one place only builds a Detail from caller words");
+});
+
+test("the notification privacy check covers chat and passes", () => {
+  const script = src("tools/check-notification-privacy.sh");
+  assert.ok(script.includes("(heading|text|publicHeading|publicText)"), "fields are checked against the vetted locals");
+  assert.match(script, /chatNotice leaks without chatOnLock/);
+  const out = execFileSync("bash", ["tools/check-notification-privacy.sh"], { cwd: new URL("..", import.meta.url), encoding: "utf8" });
+  assert.match(out, /clean: notification privacy invariants hold/);
 });
 
 test("a tapped notification selects that member, but never around the lock", async () => {

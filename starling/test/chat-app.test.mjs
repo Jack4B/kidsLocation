@@ -225,7 +225,7 @@ function bridge() {
   return calls;
 }
 
-test("in the background a notification says who wrote and nothing of what", async () => {
+test("in the background a notification says neither who wrote nor what, unless the lock screen was allowed", async () => {
   await circle();
   const calls = bridge();
   harness.node("#toasts").children = [];
@@ -237,12 +237,13 @@ test("in the background a notification says who wrote and nothing of what", asyn
     document.visibilityState = "visible";
   }
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0], { title: "New message from Ana", body: "Open the app to read it.", tag: "chat", kind: "chat", member: "chat", onLock: false });
+  assert.deepEqual(calls[0], { title: "New message", body: "Open the app to read it.", tag: "chat", kind: "chat", member: "chat", onLock: false });
   assert.ok(!JSON.stringify(calls).includes("4711"));
+  assert.ok(!JSON.stringify(calls).includes("Ana"), "no name on a notification the lock screen may show");
   assert.ok(!JSON.stringify(harness.node("#toasts").children.map((c) => c.textContent)).includes("4711"));
 });
 
-test("the text goes in only when switched on, and the lock screen only when that is switched on too", async () => {
+test("the name needs the lock-screen choice, and the text needs both switches", async () => {
   await circle();
   const calls = bridge();
   document.visibilityState = "hidden";
@@ -257,11 +258,12 @@ test("the text goes in only when switched on, and the lock screen only when that
     document.visibilityState = "visible";
     state.settings = { ...state.settings, chatPreview: false, chatOnLock: false };
   }
-  assert.deepEqual(calls.map((c) => [c.body, c.onLock]), [
-    ["Open the app to read it.", false],
-    ["druga", false],
-    ["trzecia", true],
+  assert.deepEqual(calls.map((c) => [c.title, c.body, c.onLock]), [
+    ["New message from Ana", "Open the app to read it.", true],
+    ["New message", "Open the app to read it.", false],
+    ["New message from Ana", "trzecia", true],
   ]);
+  assert.ok(!JSON.stringify(calls[1]).includes("druga"), "the text switch alone shows nothing");
 });
 
 test("with the app open elsewhere a toast names the sender; with the chat open nothing interrupts", async () => {
