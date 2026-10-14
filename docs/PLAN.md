@@ -100,6 +100,29 @@ Nie rozpisujemy zadań szczegółowych, dopóki D3 jest otwarta. Opcje:
 | F5-4 | Instrukcja dla rodziny: instalacja, zaproszenie, co zrobić po zgubieniu telefonu (usunięcie członka, nowe klucze) | X | C | Jedna strona prostym językiem |
 | F5-5 | Polityka aktualizacji z upstreamu `munzzyy/starling`: jak często, jak scalać, co robić przy konflikcie z naszymi zmianami | C | G | Opis i pierwsze scalenie na próbę |
 
+## Faza 6: wspólne miejsca w kręgu
+
+Dziś miejsce (Dom, Szkoła) istnieje tylko na telefonie, na którym je dodano
+(`starling/app/js/places.js`, linia 1), i każdy musi dodać je u siebie. Cel: miejsce dodane
+przez jedną osobę pojawia się u wszystkich w kręgu, razem z alertami wejścia i wyjścia.
+Zależy od D7. Najpierw ADR, dopiero potem kod. Wzór: czat (ADR-001, `starling/docs/CHAT.md`),
+czyli nowy typ wiadomości w istniejącym strumieniu członka, bez zmian w kryptografii i w relayu.
+
+| ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
+|---|---|---|---|---|
+| F6-0 | ADR-002: format wiadomości `t:"place"` (dodanie, zmiana, usunięcie), rozstrzyganie konfliktów, ponowne rozsyłanie dla osób, które były offline lub dołączyły później, wpływ na limit 240 wpisów; odpowiedzi na pytania z D7 | C | G | ADR w `docs/adr/`; właściciel zatwierdza |
+| F6-1 | Format i budżet: koperta `{v, ts, t:"place", k, op, id, n, la, lo, r}` mieści się w 512 B z rezerwą 24 B przy nazwie 24 znaków z polskimi literami; parser odrzuca złe pola (współrzędne, promień spoza `PLACE_RADII`) | C | G | Test najdłuższej wiadomości w stylu `PAD_RESERVE`; testy odrzucania |
+| F6-2 | Odbiór i scalanie: lista miejsc kręgu to wynik ostatniego zapisu na miejsce, wygrywa wyższe `(ts, członek)`; usunięcie zostawia znacznik, żeby starsza wiadomość nie przywróciła miejsca; limit `MAX_PLACES` liczony dla kręgu | C | G | Testy: kolejność wiadomości nie zmienia wyniku; usunięte miejsce nie wraca; powtórzona wiadomość nic nie zmienia |
+| F6-3 | Rozsyłanie: wysłanie przy każdej zmianie i ponowne rozesłanie całej listy po dołączeniu nowej osoby oraz rzadko w tle (kadencja według ADR, z kosztem w zapisach relaya z F1-1) | C | G | Test: osoba dołączająca po dodaniu miejsca dostaje je bez działania innych; pomiar liczby postów na dobę |
+| F6-4 | Interfejs: ekran Miejsca pokazuje, kto dodał miejsce; edycja i usuwanie zgodnie z D7; nowy tekst zamiast „Miejsca są zapisane tylko na tym telefonie”; polskie teksty w katalogu | C | G | Zgodne z `docs/DESIGN.md` w obu motywach; test pokrycia tłumaczeń przechodzi |
+| F6-5 | Migracja: istniejące lokalne miejsca po aktualizacji zostają tylko na telefonie, dopóki właściciel ich nie udostępni (bez cichego wysyłania) | C | G | Test aktualizacji: nic nie wychodzi bez decyzji użytkownika |
+| F6-6 | Testy e2e (`test/e2e_places.py` lub nowy test w Playwright): A dodaje miejsce, B je widzi i dostaje alert wejścia; zrzut bazy relaya nie zawiera nazwy ani współrzędnych | C | G | Test przechodzi w CI lub lokalnie z wklejonym wynikiem |
+| F6-7 | Dokumentacja: `starling/docs/PLACES.md` (format, jak `CHAT.md`), `THREAT-MODEL.md` (miejsca opuszczają telefon, choć zaszyfrowane), dodatek do `PROTOCOL.md` tylko za zgodą właściciela | C | G | Dokumentacja zgodna z kodem |
+
+Uwagi: relay nadal nie odróżni miejsca od pozycji (ten sam rozmiar i szyfrowanie), ale
+miejsca przestają być tylko lokalne: zobaczy je każdy członek kręgu, także ten dodany
+później. Starsze klienty (do 0.17.1) mogą potraktować nieznany typ jak pozycję (F3-7).
+
 ## Co celowo jest poza zakresem
 
 - Wykrywanie wypadków i raporty jazdy w stylu płatnych funkcji Life360 (D5).
