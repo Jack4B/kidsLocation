@@ -45,7 +45,7 @@ kodu forka, dopóki tego wyraźnie nie zmieni.
 - Protokół v2: rachet epok co 10 min, AES-256-GCM, tekst dopełniany do 512 B, podpisy
   Ed25519 (zapas P-256), ECDH P-256. TRAIL_CAP 240 wpisów na członka, TTL 24 h.
 - Relay: `relay/src/index.js`, tabela `points_v3`, czas `ts` ściśle rosnący na członka (409
-  inaczej). `relay/server.mjs` wymaga Node 24+. Aplikacja przyjmuje tylko `https://`.
+  inaczej). `relay/server.mjs` działa na Node 22.22 (CT8 ma v22.22.2), formalnie deklaruje 24+. Aplikacja przyjmuje tylko `https://`.
 - Pliki zamrożone: `app/js/crypto.js`, `app/js/wire.js`, podpisy i pinning w relayu,
   `docs/PROTOCOL.md`. `tools/check-clean.sh` w forku odrzuca myślniki długie i atrybucję AI.
 - Ryzyko czatu: limit 240 jest wspólny dla pozycji i wiadomości; starsze klienty (do 0.17.1)
@@ -54,7 +54,7 @@ kodu forka, dopóki tego wyraźnie nie zmieni.
 
 ## Pytania do właściciela, wciąż bez odpowiedzi
 
-1. Wynik `node -v` na CT8 oraz czy działa `node:sqlite` i długo działający proces (F0-1, D1).
+1. `node -v` na CT8 to v22.22.2 (odpowiedziane). Zostaje: czy działa `node:sqlite` na samym serwerze i czy można trzymać stały proces za HTTPS (F0-1, D1).
 2. Czy jest Mac z Xcode i płatne konto Apple, czy syn może dostać Androida (F0-2, D3).
 3. Gdzie ma leżeć kod (D4; rekomendacja A: w forku).
 4. Zadania właściciela: ochrona gałęzi `main`, potwierdzenie, że repo jest prywatne,
