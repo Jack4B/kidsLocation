@@ -71,9 +71,12 @@ dziecka. Wybór B wymaga Maca i konta Apple.
 
 ## D4. Gdzie leży kod
 
-Status: **otwarta**, rozstrzyga F0-4.
+Status: **zamknięta 2026-10-14: B.** Właściciel wybrał kod w tym (prywatnym) repozytorium.
+Kod forka zaimportowano z pełną historią do katalogu `starling/` (`git subtree add`),
+upstream dociągamy `git subtree pull`. Fork `Jack4B/starling` zostaje jako archiwum,
+nowe zmiany kodu idą tylko tutaj.
 
-Opcje: A) kod zostaje w forku `Jack4B/starling`, a to repozytorium trzyma tylko plan i
+Opcje rozważane: A) kod zostaje w forku `Jack4B/starling`, a to repozytorium trzyma tylko plan i
 zasady, B) kod trafia do tego repozytorium (łatwiejsze CODEOWNERS i ochrona gałęzi w
 jednym miejscu, trudniejsze scalanie z upstreamem), C) fork z gałęzią `main` jako
 lustrem upstreamu i osobną gałęzią rodzinną. Rekomendacja: A na start, bo scalanie z
