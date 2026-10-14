@@ -29,9 +29,9 @@ Pracujemy małymi krokami: jedno zadanie, jedna gałąź, jeden pull request.
   (patrz tabela w `docs/PLAN.md`). Scala właściciel.
 - **Pliki zamrożone.** Bez zgody właściciela nie zmieniaj: `app/js/crypto.js`,
   `app/js/wire.js`, logiki podpisów i przypinania kluczy w relayu, `docs/PROTOCOL.md`
-  (ścieżki dotyczą kodu forka). Zmiana protokołu wymaga: opisu w ADR, podbicia wersji,
+  (ścieżki względem katalogu `starling/`, w którym leży kod aplikacji). Zmiana protokołu wymaga: opisu w ADR, podbicia wersji,
   regeneracji wektorów testowych (`node tools/gen-vectors.mjs`) i recenzji drugiego modelu.
-- **Testy.** Node 24 lub nowszy, najpierw `bash tools/sync-vendor.sh`, potem
+- **Testy.** W katalogu `starling/`: Node 22.22 lub nowszy (na tej wersji działa relay na CT8), najpierw `npm ci` i `bash tools/sync-vendor.sh`, potem
   `node --test test/*.test.mjs`. Nowe zachowanie dostaje test. Nie pisz, że testy
   przeszły, jeśli ich nie uruchomiłeś; wklej komendę i wynik do PR.
 - **Zero nowych zależności uruchomieniowych.** Aplikacja i relay używają tylko bibliotek
@@ -49,9 +49,12 @@ Pracujemy małymi krokami: jedno zadanie, jedna gałąź, jeden pull request.
   Teksty w interfejsie po polsku, zwykłe czasowniki, zdania z wielką literą na początku.
 - **Języki.** Dokumenty i rozmowa z właścicielem po polsku. Kod, nazwy i komunikaty
   commitów po angielsku, jak w upstreamie. (Domyślne ustawienie; właściciel może zmienić.)
-- **Upstream.** Fork ma skrypt `tools/check-clean.sh`, który odrzuca półpauzy i dywizy
-  długie oraz ślady AI w drzewie plików. Jeśli kod trafia do forka, stosuj się do niego
-  albo zaproponuj jego zmianę (decyzja D4).
+- **Kod i upstream (D4 = B).** Kod aplikacji leży w `starling/` z pełną historią forka.
+  `starling/tools/check-clean.sh` odrzuca półpauzy, dywizy długie i ślady AI w plikach pod
+  `starling/` (stopka `Co-Authored-By` w komunikacie commita jest dozwolona, w plikach nie).
+  CI kodu: `.github/workflows/aplikacja.yml`. Pliki w `starling/.github/` są nieaktywne.
+  Aktualizacje z upstreamu: `git subtree pull --prefix=starling
+  https://github.com/munzzyy/starling main` na osobnej gałęzi zadania, przez PR.
 
 ## Po zakończeniu zadania
 
