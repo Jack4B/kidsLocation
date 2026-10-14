@@ -46,5 +46,76 @@ if ! grep -qE 'Events\.post|postShareEnded\(' <<<"$stop_branch"; then
   fail=1
 fi
 
+# Chat notifications (security review M1). show() fills the private version
+# from `heading`/`text`, which come from detail.title/detail.body, and Android
+# shows that private version on a secure lock screen whenever "show all
+# notification content" is on (the default). So a chat notice without
+# chatOnLock must never put the caller's words into a Detail. The grep above
+# only looks for `title`/`body`; these look at what show() actually uses.
+
+# Every content field is set from one of the four vetted locals in show().
+fields=$(grep -nE 'setContent(Title|Text)\(' "$events")
+bad_fields=$(grep -vE 'setContent(Title|Text)\((heading|text|publicHeading|publicText)\)' <<<"$fields")
+if [ -n "$bad_fields" ]; then
+  echo "Events.kt sets a notification field from something other than heading/text/publicHeading/publicText:"
+  echo "$bad_fields"
+  fail=1
+fi
+
+# Those locals take caller words only from a Detail, and the public ones only when onLock.
+show_fn=$(awk '/private fun show\(/,/nm\.notify\(/' "$events")
+for line in \
+  'val heading = detail?.title ?: ctx.getString(titleRes)' \
+  'val text = detail?.body ?: ctx.getString(textRes)' \
+  'val publicHeading = if (detail?.onLock == true) heading else ctx.getString(titleRes)' \
+  'val publicText = if (detail == null) text else if (detail.onLock) detail.body else ctx.getString(detail.lockedRes)'; do
+  if ! grep -qF "$line" <<<"$show_fn"; then
+    echo "Events.kt show() no longer derives its fields as reviewed: $line"
+    fail=1
+  fi
+done
+
+# A Detail carrying the caller's title/body is built only in postDetail, and
+# only after the chat branch that, without onLock, uses resources alone.
+post_detail=$(awk '/fun postDetail\(/,/^    }$/' "$events")
+guard=$(grep -n 'if (kind == "chat" && !onLock) {' <<<"$post_detail" | head -1 | cut -d: -f1)
+caller=$(grep -n 'Detail(title, body' <<<"$post_detail" | head -1 | cut -d: -f1)
+if [ -z "$guard" ] || [ -z "$caller" ] || [ "$guard" -ge "$caller" ]; then
+  echo "Events.kt postDetail lets a chat notice without onLock carry the caller's words"
+  fail=1
+else
+  branch=$(sed -n "${guard},$((caller - 1))p" <<<"$post_detail")
+  if grep -qE '\btitle\b|\bbody\b|detail\.' <<<"$(grep -v '^ *if (title' <<<"$branch")" \
+    || ! grep -q 'Detail(ctx.getString(R.string.app_name), ctx.getString(R.string.notif_chat_text), member, false' <<<"$branch"; then
+    echo "Events.kt postDetail's chat branch without onLock is not built from resources only:"
+    echo "$branch"
+    fail=1
+  fi
+fi
+if [ "$(grep -c 'Detail(title, body' "$events")" -ne 1 ]; then
+  echo "Events.kt builds a Detail from caller words in more than one place"
+  fail=1
+fi
+
+# The page side: what main.js hands notifyDetail for chat comes from
+# chatNotice, and chatNotice says nothing of who or what without onLock.
+if ! grep -qE 'n\.notifyDetail\(note\.title, note\.body, "chat", "chat", "chat", note\.onLock\)' app/js/main.js; then
+  echo "main.js no longer posts chat notifications only through chatNotice"
+  fail=1
+fi
+if ! node --input-type=module -e '
+  const { chatNotice } = await import(process.argv[1]);
+  const name = "Mama", text = "Kod 4711";
+  for (const preview of [false, true]) {
+    const off = JSON.stringify(chatNotice({ name, text, preview, onLock: false }));
+    if (off.includes(name) || off.includes("4711") || !off.includes("\"onLock\":false")) {
+      console.log("chatNotice leaks without chatOnLock (preview " + preview + "): " + off);
+      process.exit(1);
+    }
+  }
+' "$PWD/app/js/chat.js"; then
+  fail=1
+fi
+
 if [ "$fail" -eq 0 ]; then echo "clean: notification privacy invariants hold"; fi
 exit $fail

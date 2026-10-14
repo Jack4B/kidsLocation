@@ -103,10 +103,14 @@ all. Both losses show up as gaps. The chat screen states the 24 hours in one lin
 
 ## Notifications
 
-Android posts chat on its own channel, `events_chat` ("Messages"). By default the text is
-"New message from {name}" and the message itself is not shown; the person can turn on the
-text (`chatPreview`) and, separately, the text on the lock screen (`chatOnLock`). Without
-that the lock screen shows a generic "New message". On iOS and on the web a notice
+Android posts chat on its own channel, `events_chat` ("Messages"). By default a notice
+says only "New message": no name, no text, in both the private and the public version,
+because Android shows the private version on a secure lock screen whenever "show all
+notification content" is on, which is its default. The sender's name goes in only after the
+person turns on `chatOnLock` ("Show who wrote in notifications"), and the text only when
+`chatPreview` is on as well; both then show on the lock screen too. The page (`chatNotice`)
+and the wrapper (`Events.postDetail`) each enforce this, and
+`tools/check-notification-privacy.sh` checks both. On iOS and on the web a notice
 appears only while the app is open, and the chat screen says so.
 
 ## Compatibility

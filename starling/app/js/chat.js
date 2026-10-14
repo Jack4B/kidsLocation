@@ -407,16 +407,36 @@ export function createChatQueue({ send, onSent, onFailed, onRetry, backoff = BAC
 
 // ------------------------------------------------------- notifications
 
-// What a notification about a message may say. By default the sender's name
-// and no text; the text only when the person switched it on. The lock-screen
-// copy is the wrapper's generic line unless they allowed more there too.
+// What a notification about a message may say. Android shows the full
+// notification on a secure lock screen whenever the system's "show all
+// content" switch is on (its default), so whatever goes in here can be read
+// without unlocking. By default it says only that a message came: no name,
+// no text. The sender's name only once the person allowed the lock screen
+// (chatOnLock), and the text only when they also switched that on.
 export function chatNotice({ name, text, preview = false, onLock = false, t = (s, v) => s.replace(/\{(\w+)\}/g, (_, k) => v?.[k] ?? "") }) {
+  if (onLock !== true) {
+    return { title: t("New message"), body: t("Open the app to read it."), onLock: false };
+  }
   const who = cleanText(String(name || ""), 24) || t("Someone");
   return {
     title: t("New message from {name}", { name: who }),
-    body: preview ? cleanText(String(text || ""), 160) : t("Open the app to read it."),
-    onLock: preview && onLock,
+    body: preview === true ? cleanText(String(text || ""), 160) : t("Open the app to read it."),
+    onLock: true,
   };
+}
+
+// A gap note never prints a number no phone could have missed: a sender's
+// counter that jumped (a bug, a restored backup, a hostile client) would
+// otherwise read as "4503599627370495 messages could not be read". Past
+// GAP_SHOWN_MAX the note says only that some messages were lost.
+export const GAP_SHOWN_MAX = 999;
+
+export function gapCount(it) {
+  const lo = Number(it?.lo);
+  const hi = Number(it?.hi);
+  if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi) || hi < lo) return null;
+  const n = hi - lo + 1;
+  return Number.isSafeInteger(n) && n <= GAP_SHOWN_MAX ? n : null;
 }
 
 // --------------------------------------------------------- the controller

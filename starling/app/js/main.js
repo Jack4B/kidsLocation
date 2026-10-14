@@ -229,8 +229,8 @@ const state = {
     batAlerts: true, // say when a member's battery runs low
     detailAlerts: false, // Android: one notification per place event, with name, place and time
     detailOnLock: false, // Android: let those words show on a locked screen too
-    chatPreview: false, // Android: put a message's text in its notification, not only who wrote
-    chatOnLock: false, // Android: let that show on a locked screen too
+    chatPreview: false, // Android: also put a message's text in its notification (needs chatOnLock)
+    chatOnLock: false, // Android: name the sender in a notification, which a locked screen shows too
     shareReminder: 0, // ms after a stop you chose before the phone says sharing is off; 0 is never
     units: "auto", // "metric", "imperial", or the region in the phone's language
   },
@@ -3232,8 +3232,9 @@ const chatVisible = () => !!chatLayer && !chatLayer.hidden && pageShown();
 
 // A message from someone else just landed. On screen in the chat it is
 // simply read; elsewhere in the app a toast names who wrote; with the app in
-// the background (Android) a notification does, and carries the text only
-// when the person switched that on.
+// the background (Android) a notification says only that a message came,
+// and names the sender (and carries the text) only when the person allowed
+// that on the lock screen; see chatNotice.
 function onChatIncoming(item) {
   if (state.demo) return;
   if (chatVisible()) return;

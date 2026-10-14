@@ -21,6 +21,8 @@ import {
   chatFields,
   chatMeasure,
   chatNotice,
+  gapCount,
+  GAP_SHOWN_MAX,
   chatTextBytes,
   createChatController,
   createChatQueue,
@@ -365,23 +367,40 @@ test("clearing the queue drops everything, and a post in flight speaks for nobod
 
 // ------------------------------------------------------- notifications
 
-test("a notification names the sender and keeps the text out unless it was switched on", () => {
-  const off = chatNotice({ name: "Marta", text: "Kod do furtki to 4711" });
-  assert.equal(off.title, "New message from Marta");
-  assert.equal(off.body, "Open the app to read it.");
-  assert.ok(!JSON.stringify(off).includes("4711"), "no word of the message");
-  assert.equal(off.onLock, false);
+test("without the lock-screen choice a notification says neither who wrote nor what", () => {
+  // Android shows the private version on a secure lock screen by default, so
+  // without chatOnLock nothing of the sender or the message may go in at all.
+  for (const preview of [false, true]) {
+    const off = chatNotice({ name: "Marta", text: "Kod do furtki to 4711", preview });
+    assert.deepEqual(off, { title: "New message", body: "Open the app to read it.", onLock: false }, `preview ${preview}`);
+    assert.ok(!JSON.stringify(off).includes("Marta"), "no name");
+    assert.ok(!JSON.stringify(off).includes("4711"), "no word of the message");
+  }
+  // Only true counts: a stray truthy value from a damaged settings record does not open it.
+  assert.equal(chatNotice({ name: "Marta", text: "x", preview: true, onLock: "yes" }).title, "New message");
+});
 
-  const lockOnly = chatNotice({ name: "Marta", text: "Kod 4711", onLock: true });
-  assert.ok(!JSON.stringify(lockOnly).includes("4711"));
-  assert.equal(lockOnly.onLock, false, "the lock screen choice alone shows nothing more");
+test("with the lock-screen choice the name goes in, and the text only when that is switched on too", () => {
+  const named = chatNotice({ name: "Marta", text: "Kod 4711", onLock: true });
+  assert.deepEqual(named, { title: "New message from Marta", body: "Open the app to read it.", onLock: true });
+  assert.ok(!JSON.stringify(named).includes("4711"));
 
-  const on = chatNotice({ name: "Marta", text: "Kod 4711", preview: true });
-  assert.equal(on.body, "Kod 4711");
-  assert.equal(on.onLock, false, "text in the notification, the lock screen still generic");
-  assert.equal(chatNotice({ name: "Marta", text: "x", preview: true, onLock: true }).onLock, true);
-  assert.equal(chatNotice({ name: "", text: "x" }).title, "New message from Someone");
-  assert.equal(chatNotice({ name: "M", text: "y".repeat(500), preview: true }).body.length, 160);
+  const full = chatNotice({ name: "Marta", text: "Kod 4711", preview: true, onLock: true });
+  assert.deepEqual(full, { title: "New message from Marta", body: "Kod 4711", onLock: true });
+  assert.equal(chatNotice({ name: "", text: "x", onLock: true }).title, "New message from Someone");
+  assert.equal(chatNotice({ name: "M", text: "y".repeat(500), preview: true, onLock: true }).body.length, 160);
+});
+
+test("a gap note counts only what a phone could plausibly have missed", () => {
+  assert.equal(gapCount({ lo: 3, hi: 3 }), 1);
+  assert.equal(gapCount({ lo: 3, hi: 7 }), 5);
+  assert.equal(gapCount({ lo: 1, hi: GAP_SHOWN_MAX }), GAP_SHOWN_MAX);
+  assert.equal(gapCount({ lo: 1, hi: GAP_SHOWN_MAX + 1 }), null, "past the bound: no number");
+  assert.equal(gapCount({ lo: 2, hi: Number.MAX_SAFE_INTEGER }), null);
+  assert.equal(gapCount({ lo: 1, hi: Number.MAX_SAFE_INTEGER }), null, "the count itself is not a safe integer");
+  assert.equal(gapCount({ lo: 5, hi: 4 }), null);
+  assert.equal(gapCount({ lo: "x", hi: 4 }), null);
+  assert.equal(gapCount(null), null);
 });
 
 test("quick replies are the four from the mockup, each a valid message", () => {
