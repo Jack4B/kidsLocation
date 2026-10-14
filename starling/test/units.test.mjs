@@ -95,7 +95,7 @@ test("the Neighborhood note in Settings follows the units while the sheet is ope
   };
   try {
     await api.setSetting("units", "metric");
-    harness.fire(harness.node('[data-testid="settings-open"]'), "click");
+    await internals.openSettings();
     await settle();
     assert.equal(note(), "Neighborhood rounds your position to about 1 km on your device before it is encrypted");
     await api.setSetting("units", "imperial");

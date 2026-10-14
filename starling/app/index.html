@@ -8,7 +8,7 @@
      served header pins connect-src to 'self' and browsers enforce the
      intersection of both policies, so the site keeps its strict posture. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https:; manifest-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
-<meta name="theme-color" content="#0a0d14">
+<meta name="theme-color" content="#f1f4f2">
 <meta name="description" content="Private, end to end encrypted location sharing for your circle. No accounts, no tracking. Free Android app, live demo in the browser.">
 <!-- iOS reads the web manifest's display mode on recent versions but has
      relied on these two meta tags for full-screen, no-Safari-chrome launch
@@ -72,6 +72,7 @@
 <link rel="modulepreload" href="js/qr.js">
 <link rel="modulepreload" href="js/demo.js">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/landing.css">
@@ -492,35 +493,47 @@
 
   <div class="top-chrome">
     <div class="pill" data-testid="circle-pill">
-      <span class="status-dot dot-idle" id="status-dot" aria-hidden="true"></span>
-      <span class="vh" id="status-text" role="status">Not connected</span>
       <button type="button" class="pill-open" data-testid="circle-open" aria-label="Switch circle" data-i18n-attr="aria-label">
+        <svg class="pill-lock" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></g></svg>
         <span class="pill-name" id="pill-name" dir="auto">My circle</span>
-        <svg class="pill-chevron" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        <span class="pill-count" id="pill-count"></span>
+        <span class="status-dot dot-idle" id="status-dot" aria-hidden="true"></span>
+        <svg class="pill-chevron" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
       </button>
-      <button type="button" class="pill-gear" data-testid="settings-open" aria-label="Settings" data-i18n-attr="aria-label">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Zm7.4-3.2c0 .5 0 .9-.1 1.4l2 1.6-1.9 3.3-2.4-1a7.5 7.5 0 0 1-2.4 1.4l-.4 2.6h-3.8l-.4-2.6a7.5 7.5 0 0 1-2.4-1.4l-2.4 1-1.9-3.3 2-1.6a8 8 0 0 1 0-2.8l-2-1.6 1.9-3.3 2.4 1a7.5 7.5 0 0 1 2.4-1.4l.4-2.6h3.8l.4 2.6a7.5 7.5 0 0 1 2.4 1.4l2.4-1 1.9 3.3-2 1.6c.1.5.1.9.1 1.4Z"/></svg>
-      </button>
+      <span class="vh" id="status-text" role="status">Not connected</span>
     </div>
     <div class="banners" id="banners" role="status" aria-live="polite">
+      <div class="banner banner-sos" id="banner-sos" data-testid="sos-banner" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/></g></svg>
+        <span class="banner-sos-text"><strong id="banner-sos-title"></strong><span data-i18n>Your circle sees your live position</span></span>
+      </div>
       <div class="banner banner-pick" id="banner-pick" data-testid="pick-banner" hidden>
         <span id="banner-pick-text"></span>
-        <button type="button" class="banner-btn" id="banner-pick-center" data-testid="pick-center" data-i18n>Use the map center</button>
-        <button type="button" class="banner-btn" id="banner-pick-cancel" data-testid="pick-cancel" data-i18n>Cancel</button>
+        <span class="banner-pick-sub" data-i18n>Or move the map and use its center.</span>
+        <span class="banner-actions">
+          <button type="button" class="banner-btn banner-btn-primary" id="banner-pick-center" data-testid="pick-center" data-i18n>Use the map center</button>
+          <button type="button" class="banner-btn" id="banner-pick-cancel" data-testid="pick-cancel" data-i18n>Cancel</button>
+        </span>
       </div>
       <div class="banner banner-demo" id="banner-demo" data-testid="demo-banner" hidden>
         <span data-i18n>Demo flight - nothing is real</span>
-        <button type="button" class="banner-btn" id="banner-demo-map" data-testid="demo-map-toggle" data-i18n>Real map</button>
-        <button type="button" class="banner-btn" id="banner-demo-exit" data-i18n>Exit</button>
+        <span class="banner-actions">
+          <button type="button" class="banner-btn" id="banner-demo-map" data-testid="demo-map-toggle" data-i18n>Real map</button>
+          <button type="button" class="banner-btn" id="banner-demo-exit" data-i18n>Exit</button>
+        </span>
       </div>
       <div class="banner banner-demo" id="banner-demo-consent" data-testid="demo-map-consent" hidden>
         <span data-i18n>Show the demo on a real map? Tiles of its Central Park stage load from openstreetmap.org - the demo's only network use.</span>
-        <button type="button" class="banner-btn" id="banner-demo-consent-go" data-testid="demo-map-consent-go" data-i18n>Load map</button>
-        <button type="button" class="banner-btn" id="banner-demo-consent-cancel" data-i18n>Cancel</button>
+        <span class="banner-actions">
+          <button type="button" class="banner-btn" id="banner-demo-consent-go" data-testid="demo-map-consent-go" data-i18n>Load map</button>
+          <button type="button" class="banner-btn" id="banner-demo-consent-cancel" data-i18n>Cancel</button>
+        </span>
       </div>
       <div class="banner banner-keys" id="banner-keys" data-testid="keys-banner" hidden>
         <span id="banner-keys-text" data-i18n>A member's keys changed</span>
-        <button type="button" class="banner-btn" id="banner-keys-open" data-i18n>Check</button>
+        <span class="banner-actions">
+          <button type="button" class="banner-btn" id="banner-keys-open" data-i18n>Check</button>
+        </span>
       </div>
       <div class="banner banner-warn" id="banner-offline" hidden>
         <span class="banner-dot" aria-hidden="true"></span><span data-i18n>Reconnecting...</span>
@@ -531,36 +544,45 @@
     </div>
   </div>
 
-  <button type="button" class="fab" id="fab-fit" aria-label="Show everyone" data-i18n-attr="aria-label" hidden>
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="M3 8V4.5A1.5 1.5 0 0 1 4.5 3H8M16 3h3.5A1.5 1.5 0 0 1 21 4.5V8M21 16v3.5a1.5 1.5 0 0 1-1.5 1.5H16M8 21H4.5A1.5 1.5 0 0 1 3 19.5V16"/><g fill="currentColor"><circle cx="9" cy="10" r="1.8"/><circle cx="15.5" cy="9" r="1.8"/><circle cx="12" cy="15.5" r="1.8"/></g></svg>
-  </button>
-  <button type="button" class="fab" id="fab-locate" aria-label="Center the map on me" data-i18n-attr="aria-label">
-    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.6"/><path d="M12 1.8v3M12 19.2v3M1.8 12h3M19.2 12h3"/></g></svg>
-  </button>
+  <div class="map-ctrl">
+    <button type="button" class="fab" id="fab-style" data-testid="map-style" aria-label="Map style" data-i18n-attr="aria-label">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></g></svg>
+    </button>
+    <button type="button" class="fab" id="fab-fit" data-testid="map-fit" aria-label="Show everyone" data-i18n-attr="aria-label" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="9.5" cy="10.5" r="1.6"/><circle cx="14.5" cy="13.5" r="1.6"/></g></svg>
+    </button>
+    <button type="button" class="fab" id="fab-locate" data-testid="map-locate" aria-label="Center the map on me" data-i18n-attr="aria-label">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></g></svg>
+    </button>
+  </div>
 
   <div class="focus-card" id="focus-card" role="region" aria-label="Member details" data-i18n-attr="aria-label" tabindex="-1" hidden></div>
   <div class="vh" id="focus-said" role="status"></div>
 
   <div class="sheet" data-testid="sheet" id="sheet">
+    <button type="button" class="qbtn-sos sos-fab" data-testid="sos-button" aria-label="Hold to send SOS" data-i18n-attr="aria-label">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/></g></svg>
+      <span class="sos-fab-label" id="sos-label" data-i18n>Hold for SOS</span>
+    </button>
     <div class="sheet-drag" id="sheet-drag">
       <button type="button" class="grabber" aria-label="Expand or collapse the circle sheet" aria-expanded="false" data-i18n-attr="aria-label"></button>
-      <div class="you-card" id="you-card">
-        <div class="ava" id="you-ava"><span class="ava-emoji" id="you-emoji">&#129517;</span></div>
-        <button type="button" class="you-info" id="you-info" data-testid="status-open" aria-label="Set a status for your circle" data-i18n-attr="aria-label">
-          <div class="you-name" id="you-name" dir="auto">You</div>
-          <div class="you-sub" id="you-sub" data-i18n>Not sharing</div>
-        </button>
-        <div class="quick">
-          <button type="button" class="qbtn qbtn-check" data-testid="checkin-button" aria-label="Check in with your circle" data-i18n-attr="aria-label">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+      <div class="sheet-head" id="you-card">
+        <div class="sheet-head-main">
+          <h2 class="sheet-title" id="sheet-title" dir="auto">My circle</h2>
+          <button type="button" class="you-info" id="you-info" data-testid="status-open" aria-label="Set a status for your circle" data-i18n-attr="aria-label">
+            <span class="you-sub" id="you-sub" data-i18n>Not sharing</span>
           </button>
-          <button type="button" class="qbtn qbtn-sos" data-testid="sos-button" aria-label="Hold to send SOS" data-i18n-attr="aria-label">SOS</button>
+        </div>
+        <div class="sheet-head-actions">
+          <button type="button" class="qbtn qbtn-check" data-testid="checkin-button" aria-label="Check in with your circle" data-i18n-attr="aria-label">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+          </button>
+          <button type="button" class="share-toggle" data-testid="share-toggle" aria-pressed="false">
+            <span class="share-dot" aria-hidden="true"></span>
+            <span id="share-label" data-i18n>Start sharing</span>
+          </button>
         </div>
       </div>
-      <button type="button" class="share-toggle" data-testid="share-toggle" aria-pressed="false">
-        <span class="share-dot" aria-hidden="true"></span>
-        <span id="share-label" data-i18n>Start sharing</span>
-      </button>
       <div class="share-window" id="share-window" role="radiogroup" aria-label="Share timer" data-i18n-attr="aria-label" hidden>
         <span class="share-window-cap" data-i18n>Stop by itself:</span>
         <button type="button" class="share-window-btn" data-win="0" role="radio" aria-checked="true" data-i18n>never</button>
@@ -568,7 +590,8 @@
         <button type="button" class="share-window-btn" data-win="7200000" role="radio" aria-checked="false">2 h</button>
         <button type="button" class="share-window-btn" data-win="14400000" role="radio" aria-checked="false">4 h</button>
       </div>
-      <div class="ava-strip" id="ava-strip" aria-hidden="true"></div>
+      <div class="person-row" id="member-list" role="group" aria-label="People in your circle" data-i18n-attr="aria-label"></div>
+      <div class="person-row" id="quiet-list" role="group" aria-label="People with no recent update" data-i18n-attr="aria-label" hidden></div>
     </div>
     <div class="sheet-body" id="sheet-body">
       <div id="alerts"></div>
@@ -576,10 +599,25 @@
         <p class="notice-title" data-i18n>Location is blocked</p>
         <p class="notice-text" data-i18n>Your browser is blocking location for this site. Allow location in your browser's site settings, then tap Start sharing again.</p>
       </div>
-      <div class="notice notice-sos" id="sos-notice" hidden>
-        <p class="notice-title" data-i18n>SOS is armed</p>
-        <p class="notice-text" data-i18n>Your circle sees an alert at your live position. Tap the check mark above to cancel it and let everyone know you are okay.</p>
-        <button type="button" class="btn btn-primary btn-small" id="sos-help" data-testid="sos-help" hidden data-i18n>Get help from outside your circle</button>
+      <div class="sos-card" id="sos-notice" data-testid="sos-card" hidden>
+        <h3 class="sos-card-title">
+          <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.01"/></g></svg>
+          <span data-i18n>SOS is active</span>
+        </h3>
+        <p class="sos-card-text" data-i18n>Your circle got the alarm and sees where you are. When you are safe, cancel the SOS. Your circle then gets word that you are okay.</p>
+        <p class="sos-card-fact" id="sos-card-cadence">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g></svg>
+          <span data-i18n>Your position goes out every 15 seconds while the SOS lasts.</span>
+        </p>
+        <button type="button" class="btn btn-primary" id="sos-cancel" data-testid="sos-cancel">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></svg>
+          <span data-i18n>I am okay, cancel SOS</span>
+        </button>
+        <button type="button" class="btn btn-secondary" id="sos-help" data-testid="sos-help" hidden>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></g></svg>
+          <span data-i18n>Get help from outside your circle</span>
+        </button>
+        <p class="sos-card-note" id="sos-help-note" hidden data-i18n>A link for someone nearby, no app needed. It works for 6 hours.</p>
       </div>
       <div class="nudge" id="nudge" hidden>
         <p class="nudge-title" data-i18n>Just you here so far</p>
@@ -601,11 +639,28 @@
           <span class="tool-sub" id="timer-tool-sub">Get your circle told if you miss a check-in</span>
         </button>
       </div>
-      <div id="member-list"></div>
-      <div id="quiet-list" hidden></div>
       <p class="sheet-foot" data-i18n>End-to-end encrypted. The relay sees ciphertext only.</p>
     </div>
   </div>
+
+  <nav class="tabbar" id="tabbar" aria-label="Main" data-i18n-attr="aria-label">
+    <button type="button" class="tab" data-tab="map" data-testid="tab-map" aria-current="page">
+      <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg></span>
+      <span class="tab-label" data-i18n>Map</span>
+    </button>
+    <button type="button" class="tab" data-tab="chat" data-testid="tab-chat">
+      <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg><span class="tab-badge" id="tab-chat-badge" hidden></span></span>
+      <span class="tab-label" data-i18n>Chat</span>
+    </button>
+    <button type="button" class="tab" data-tab="places" data-testid="tab-places">
+      <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2.2"/></g></svg></span>
+      <span class="tab-label" data-i18n>Places</span>
+    </button>
+    <button type="button" class="tab" data-tab="circle" data-testid="tab-circle">
+      <span class="tab-ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c2.8 0 4.5 2.2 4.5 5"/></g></svg><span class="tab-badge tab-badge-warn" id="tab-circle-badge" hidden></span></span>
+      <span class="tab-label" data-i18n>Circle</span>
+    </button>
+  </nav>
 </section>
 
 <div id="overlays"></div>
