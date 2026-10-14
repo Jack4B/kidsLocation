@@ -6,6 +6,104 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F2-6: aplikacja po polsku i marka Blisko
+
+Zrobiono:
+
+- Polski katalog `starling/app/js/strings-pl.js` pokrywa każdy tekst z
+  `tools/extract-strings.mjs`. Polski jest domyślny niezależnie od języka telefonu
+  (`DEFAULT_LOCALE` w `i18n.js`, `lang: "pl"` w ustawieniach), pierwszy na liście; inne
+  języki zostają do wyboru, opcja „Auto” zniknęła. `i18n.js` obsługuje formy liczby mnogiej
+  (`{ one, few, many, other }` przez `Intl.PluralRules`): 1 miejsce, 2 miejsca, 5 miejsc.
+  „relay” w polskich tekstach to „serwer” (także w nowych tekstach F1-7).
+- Marka: „Blisko” w manifeście, tytule, logotypie, O aplikacji, nazwie aplikacji na
+  Androidzie, powiadomieniach i nazwie na iOS. `t()` podmienia „Starling” na „Blisko” w
+  szablonach innych języków (nigdy w wartościach wpisanych przez ludzi). O aplikacji:
+  „Na bazie Starling, wolnego oprogramowania na licencji GPL-3.0.” Nazwy w kodzie, pakiety
+  i protokół bez zmian.
+- Ikona: zielona pinezka #0B7A64 z sercem na jasnym tle; źródło nadal
+  `app/icons/starling.svg`, wszystkie rastry (web, Android adaptacyjna i monochromatyczna,
+  iOS, og.png) wygenerowane Chromium. Ikona na pasku stanu celowo zostaje ogólną pinezką.
+- Android: domyślne `values/strings.xml` po polsku (kanały powiadomień też), values-de/es/fr/pt
+  zostały, z „Blisko” zamiast „Starling”. iOS: nazwa, region `pl`, polskie prośby o
+  uprawnienia. `help.html` i `privacy.html` po polsku.
+- Testy: polski w tych samych sprawdzeniach kompletności co inne katalogi, nowe testy
+  liczby mnogiej, marki i języka domyślnego (`test/polish-default.test.mjs`).
+  `test/dom-harness.mjs` przełącza stare testy DOM na angielski po starcie. Teksty
+  oczekiwane w skryptach e2e (Node i Python) zmienione na polskie.
+
+Sprawdzono: `node --test test/*.test.mjs` po scaleniu z F1-7: 1146 testów, 1112 przeszło,
+34 pominięto, 0 błędów; `tools/check-clean.sh` czysto. W Chromium przeszły
+`e2e_wrapper`, `e2e_sheet_drag`, `e2e_share_resume`, `e2e_qrscan` (z `chromium` w PATH
+wskazującym Chromium z Playwrighta). Zrzuty ekranu w `wydanie-1.0/polski/`.
+
+Sprawdzono tylko przez czytanie: skrypty Python/Marionette (`e2e_marionette`, `e2e_v2_ui`,
+`e2e_places`, `e2e_lock`), bo tu nie ma Firefoksa; budowanie Androida i iOS (zrobi CI).
+
+Nie zrobiono: sekcje marketingowe strony WWW (tylko web, usuwane w aplikacji) zostały po
+angielsku; nowy wygląd należy do zadania UI.
+
+Pytania do właściciela: czy wymuszać polski także na telefonie w innym języku (teraz tak);
+czy usunąć values-de/es/fr/pt na Androidzie, żeby powiadomienia zawsze były po polsku.
+
+---
+
+## 2026-10-14, Claude, F1-7: relay rodziny i linki zaproszeń bez starlingmap.app
+
+Zrobiono:
+
+- Domyślny relay z budowania, nie z gita. `starling/app/js/build-config.js` w repo ma pusty
+  `BUILD_RELAY`; Gradle (`syncWebAssets`) nadpisuje go w `build/webassets` wartością z
+  `RELAY_URL` i ustawia z niej host App Links (`manifestPlaceholders["relayHost"]`) oraz
+  `BuildConfig.RELAY_HOST` (używane przez `MainActivity.APP_HOST`). Bez `RELAY_URL`
+  host to zarezerwowany `relay.invalid`, a aplikacja przy pierwszym uruchomieniu prosi o
+  adres relaya (nowy arkusz „Connect to your family relay”) i blokuje tworzenie kręgu oraz
+  dołączanie z linku bez relaya. `tools/gen-build-config.mjs` robi to samo dla innych
+  budowań; ta sama reguła walidacji co w Gradle (test pilnuje zgodności).
+- `env.js`: zamiast stałej `https://starlingmap.app` jest `defaultRelay` z build config;
+  linki zaproszeń w aplikacji budowane na originie relaya rodziny (dwuczęściowe, gdy
+  relay to ten wbudowany; trzyczęściowe z relayem, gdy ktoś wpisał inny).
+- Usunięto link „What Starling is and how it works” do starlingmap.app ze startu w
+  aplikacji i placeholder `https://starlingmap.app` w ustawieniach.
+- Relay: `assetlinks.json` z `ANDROID_PACKAGE` i `ANDROID_CERT_SHA256` (domyślnie dane
+  upstreamu, błędna lub połowiczna konfiguracja daje 500). Gdy `ANDROID_PACKAGE` jest
+  ustawione, `GET /` zwraca statyczną polską stronę dla zaproszenia otwartego w
+  przeglądarce. `relay/server.mjs` przekazuje obie zmienne ze środowiska. Logiki podpisów
+  nie dotykano.
+- CI: `RELAY_URL` z sekretów tylko do kroku budowania APK (adres nie jest wypisywany);
+  krok podpisu wypisuje `ANDROID_CERT_SHA256=...` (też w Summary).
+- `docs/WDROZENIE-CT8.md`: kroki dla właściciela.
+- Testy: `test/family-build.test.mjs` (nowy), zmienione `test/env.test.mjs` (stare testy
+  zakładały starlingmap.app jako domyślny relay w aplikacji; teraz sprawdzają relay z
+  build config i brak relaya), nowy przypadek w `test/main-guards.test.mjs`. Skrypty e2e
+  (`e2e_wrapper`, `e2e_share_resume`, `e2e_qrscan`) używają `RELAY_URL=https://relay.e2e.test`
+  przez `serve_local.mjs`.
+
+Sprawdzono: wynik bazowy przed zmianą 1118 testów, 1084 przeszło, 34 pominięto, 0 błędów.
+Po zmianie: 1140, 1106 przeszło, 34 pominięto, 0 błędów. `check-clean.sh` czysty.
+E2E w Chromium: `e2e_wrapper`, `e2e_share_resume`, `e2e_qrscan` przechodzą (w tym dołączenie
+skanem QR). Zrzut ekranu arkusza pierwszego uruchomienia bez relaya obejrzany.
+
+Sprawdzono tylko przez czytanie: zmiany Gradle, manifestu i Kotlina (brak SDK; pierwsze
+prawdziwe sprawdzenie to CI), weryfikacja App Links na telefonie, krok CI z odciskiem.
+
+Nie zrobiono: strona `/help` (link pomocy awaryjnej dla osób bez aplikacji) nie jest
+serwowana przez relay na Node; iOS bez zmian; `privacy.html` i metadane `<head>` w
+`index.html` nadal opisują starlingmap.app (to tekst, nic nie jest pobierane). Teksty
+nowego arkusza są po angielsku jako klucze i przetłumaczone na es/de/fr/pt; polskie
+tłumaczenie należy do F2-6 (test pokrycia go wymusi). Propozycja:
+„Połącz z relayem rodziny”, „Wpisz adres relaya rodziny.”, „Ta aplikacja nie ma
+wbudowanego adresu relaya. Wpisz adres relaya rodziny, na przykład
+https://relay.example.org. Cała rodzina używa tego samego, a do czasu jego ustawienia nic
+nie jest nigdzie wysyłane.” Klucz „What Starling is and how it works &#8599;” zniknął z
+aplikacji, więc nie trzeba go tłumaczyć.
+
+Następny krok: właściciel dodaje sekret `RELAY_URL`, po budowie przepisuje odcisk z logu do
+`~/start-relay.sh` (`ANDROID_PACKAGE=app.kidslocation`, `ANDROID_CERT_SHA256=...`) i
+restartuje relay; potem F1-4 (dwa telefony, link i QR).
+
+---
+
 ## 2026-10-14, Claude, F1-8b: wydanie także z ręcznego uruchomienia
 
 Klucz rodziny dodany przez właściciela. Ręczny przebieg „Aplikacja CI” na `main`

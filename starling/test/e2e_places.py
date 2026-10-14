@@ -73,7 +73,7 @@ def main():
         open_places(a)
         check("places sheet says local-only out loud", q(a,
             "var s = document.querySelector('[data-testid=\"places-sheet\"]');"
-            "return s && s.textContent.indexOf('only on this phone') >= 0;"))
+            "return s && s.textContent.indexOf('tylko w tym telefonie') >= 0;"))
         a.send_keys('[data-testid="place-name-input"]', "Front Porch")
         a.click('[data-testid="place-add-here"]')
         wait_for(lambda: q(a, "return document.querySelectorAll('.place-row').length"),
@@ -85,7 +85,7 @@ def main():
 
         check("place ring drawn on A's map",
               q(a, "return document.querySelectorAll('.place-ring').length") == 1)
-        wait_for(lambda: "At Front Porch" in (q(a, "return document.getElementById('you-sub').textContent") or ""),
+        wait_for(lambda: "W miejscu: Front Porch" in (q(a, "return document.getElementById('you-sub').textContent") or ""),
                  timeout=15, desc="A's own line says At Front Porch")
         check("A's own line says At Front Porch", True)
 
@@ -99,7 +99,7 @@ def main():
         wait_for(lambda: member_sub(a, "Blair") is not None, timeout=30,
                  desc="A sees B's card", nudge=a.nudge_poll)
         check("B's card does not claim the place",
-              "At Front Porch" not in (member_sub(a, "Blair") or ""))
+              "W miejscu: Front Porch" not in (member_sub(a, "Blair") or ""))
 
         # Show everyone: with two dots on A's map the button is there, and
         # after following B away from A one press brings both back in view.
@@ -142,16 +142,16 @@ def main():
         # B walks into the place; A's card for B picks it up from ciphertext
         # positions alone.
         bb.exec(f"window.__geoSet({E.TIMES_SQ[0]}, {E.TIMES_SQ[1]})")
-        wait_for(lambda: "At Front Porch" in (member_sub(a, "Blair") or ""), timeout=45,
+        wait_for(lambda: "W miejscu: Front Porch" in (member_sub(a, "Blair") or ""), timeout=45,
                  desc="A sees Blair at HQ", nudge=a.nudge_poll)
         check("B's card says At Front Porch after arriving", True)
         check("B's card dates the arrival A watched",
-              "At Front Porch since " in (member_sub(a, "Blair") or ""), repr(member_sub(a, "Blair")))
+              "W miejscu: Front Porch od " in (member_sub(a, "Blair") or ""), repr(member_sub(a, "Blair")))
         open_places(a)
         here = q(a,
             "var h = document.querySelector('.place-row [data-testid=\"place-here\"]');"
             "return h && !h.hidden ? h.textContent : '';") or ""
-        check("Places says who is here now", here.startswith("Here now:") and "You" in here and "Blair" in here, repr(here))
+        check("Places says who is here now", here.startswith("Teraz tutaj:") and "Ty" in here and "Blair" in here, repr(here))
         a.escape()
         E.wait_overlay_gone(a)
         time.sleep(0.7)
@@ -231,7 +231,7 @@ def main():
           "i.value = 'Base';"
           "i.dispatchEvent(new Event('change', { bubbles: true }));"
           "return true;")
-        wait_for(lambda: "At Base" in (member_sub(a, "Blair") or ""), timeout=15,
+        wait_for(lambda: "W miejscu: Base" in (member_sub(a, "Blair") or ""), timeout=15,
                  desc="rename reaches the member card")
         check("rename reaches the member card", True)
         clicked = q(a,
@@ -268,7 +268,7 @@ def main():
         # The Places sheet fades out for 280 ms; its rows must not be counted.
         E.wait_overlay_gone(a)
         check("pick banner names the place",
-              q(a, "return document.getElementById('banner-pick-text').textContent") == "Tap the map where Corner is.")
+              q(a, "return document.getElementById('banner-pick-text').textContent") == "Dotknij mapy tam, gdzie jest Corner.")
         check("crosshair while picking",
               q(a, "return getComputedStyle(document.getElementById('map'), '::after').content") not in (None, "none", ""))
         a.escape()
@@ -300,7 +300,7 @@ def main():
                  timeout=10, desc="place removed")
         a.escape()
         E.wait_overlay_gone(a)
-        wait_for(lambda: "At Base" not in (member_sub(a, "Blair") or ""), timeout=15,
+        wait_for(lambda: "W miejscu: Base" not in (member_sub(a, "Blair") or ""), timeout=15,
                  desc="card line dropped the place")
         check("removing the place clears the card line", True)
         check("ring removed from the map",

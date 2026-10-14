@@ -25,6 +25,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const HTTP_PORT = 8941;
 const CDP_PORT = 9341;
 const BASE = `http://127.0.0.1:${HTTP_PORT}`;
+// The relay the served page has built in (serve_local writes build-config.js from it).
+const E2E_RELAY = "https://relay.e2e.test";
 
 const fails = [];
 function check(name, cond, detail = "") {
@@ -123,7 +125,7 @@ async function main() {
   const profile = mkdtempSync(path.join(tmpdir(), "starling-resume-e2e-"));
   const server = spawn("node", [path.join(ROOT, "test", "serve_local.mjs"), String(HTTP_PORT)], {
     cwd: ROOT,
-    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000" },
+    env: { ...process.env, STARLING_TEST: "1", RATE_POST_MIN: "100000", RATE_GET_MIN: "100000", RELAY_URL: E2E_RELAY },
     stdio: "ignore",
   });
   const chromium = spawn("chromium", [
@@ -149,7 +151,7 @@ async function main() {
     await c.open;
     await c.send("Page.enable");
     await c.send("Runtime.enable");
-    // A wrapped page posts to the canonical relay; send that to the local one instead.
+    // A wrapped page posts to its built-in relay; send that to the local one instead.
     const cors = [
       { name: "access-control-allow-origin", value: BASE },
       { name: "access-control-allow-methods", value: "GET, POST" },
@@ -178,7 +180,7 @@ async function main() {
         body,
       });
     });
-    await c.send("Fetch.enable", { patterns: [{ urlPattern: "https://starlingmap.app/*", requestStage: "Request" }] });
+    await c.send("Fetch.enable", { patterns: [{ urlPattern: `${E2E_RELAY}/*`, requestStage: "Request" }] });
     await c.send("Page.addScriptToEvaluateOnNewDocument", { source: BRIDGE });
     await c.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 
@@ -229,11 +231,11 @@ async function main() {
 
     const after = await c.evalJs(READ_CARD);
     check("the share is on again without anybody touching the toggle", after.sharing === true);
-    check("the person is told, not left to notice", after.toasts.some((t) => /back on/i.test(t)), JSON.stringify(after.toasts));
+    check("the person is told, not left to notice", after.toasts.some((t) => /znowu/i.test(t)), JSON.stringify(after.toasts));
     check("the card is on the glass, not just in the DOM", after.seen === true);
     check(
       "and it says the share came back rather than that closing the app always ends it",
-      /put it back on/.test(after.text || "") && !/stops it every time/.test(after.text || ""),
+      /znowu je włączyło/.test(after.text || "") && !/zawsze je zatrzymuje/.test(after.text || ""),
       after.text,
     );
     check("no page errors through any of it", after.errs.length === 0, JSON.stringify(after.errs));
@@ -252,7 +254,7 @@ async function main() {
     await sleep(2500);
     const stopped = await c.evalJs(READ_CARD);
     check("a Stop from the notification is not undone by reopening", stopped.sharing === false);
-    check("and that card names the notification instead", /notification/i.test(stopped.text || ""), stopped.text);
+    check("and that card names the notification instead", /powiadomieni/i.test(stopped.text || ""), stopped.text);
 
     // A restart with Also after a restart on.
     await c.evalJs(`document.querySelector('[data-testid="share-toggle"]').click()`);
@@ -278,8 +280,8 @@ async function main() {
     check("the share came back with nobody at the window", headless.sharing === true);
     check("and said so once, then said its first post got through", JSON.stringify(headless.reports) === '["started","delivered"]', JSON.stringify(headless.reports));
     check("no map tiles and no tile host warmed while nobody looks", headless.offgrid && headless.tiles === 0 && !headless.warmed, JSON.stringify(headless));
-    check("no toast for nobody", !headless.toasts.some((t) => /back on/i.test(t)), JSON.stringify(headless.toasts));
-    check("the card is waiting for whoever opens the app", headless.card === "Sharing came back on by itself", headless.card);
+    check("no toast for nobody", !headless.toasts.some((t) => /znowu/i.test(t)), JSON.stringify(headless.toasts));
+    check("the card is waiting for whoever opens the app", headless.card === "Udostępnianie samo się wznowiło", headless.card);
     check("but not built where a screen reader would never hear it", headless.built === false);
     check("no page errors with no window", headless.errs.length === 0, JSON.stringify(headless.errs));
 

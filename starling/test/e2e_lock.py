@@ -108,7 +108,7 @@ def main():
         # The App-lock switch is the switch inside the App lock group. Click the
         # "Require passcode" switch by walking to it, then fill the passcode sheet.
         b.exec(
-            "const g=[...document.querySelectorAll('.set-group')].find(s=>/App lock/.test(s.textContent));"
+            "const g=[...document.querySelectorAll('.set-group')].find(s=>/Blokada aplikacji/.test(s.textContent));"
             "if(!g) return false; g.querySelector('.switch').click(); return true;"
         )
         wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"passcode-sheet\"]')"),

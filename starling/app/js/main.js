@@ -109,7 +109,7 @@ import {
 } from "./lock.js";
 import { createPlaceTracker, sanitizePlaces, newPlaceId, fenceSnap, announces, DEFAULT_RADIUS } from "./places.js";
 import { ASK_GAP_MS, ASK_WINDOW_MS, DUE_GRACE_MS, DUE_WARN_MS, OK_WINDOW_MS, overdue, storedTimer, warnDue } from "./checkin.js";
-import { debugHooks, apiUrl, customRelayInUse, isWrapped, isBundled, native, pageShown, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
+import { debugHooks, apiUrl, customRelayInUse, getDefaultRelay, isWrapped, isBundled, native, pageShown, relayConfigured, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
 import {
   isSealedRecordError,
   GEN_SLOT,
@@ -222,7 +222,7 @@ const state = {
     stillDefault: 1, // 1 once the on-by-default change has been applied to this device's saved settings
     stillNoted: false, // the one-time note about what the slower timing shows the relay
     showActivity: false, // put still, walking, cycling or driving on your own posts
-    lang: "auto", // UI language; "auto" follows the system, English is the source
+    lang: "pl", // UI language; Polish whatever the phone is set to (i18n.js DEFAULT_LOCALE)
     placeAlerts: true, // say when a member arrives at or leaves a saved place
     batAlerts: true, // say when a member's battery runs low
     detailAlerts: false, // Android: one notification per place event, with name, place and time
@@ -3952,6 +3952,10 @@ async function saveProfile(p) {
 
 function promptCreate() {
   if (!shareCapable() || state.locked) return;
+  if (!relayConfigured()) {
+    promptStartRelay({ required: true, then: promptCreate });
+    return;
+  }
   ui.openIdentitySheet({
     title: state.gen ? "New circle" : "Create your circle",
     intro: "How you appear to the people you invite. This never leaves your circle.",
@@ -4073,6 +4077,12 @@ function promptJoin(invite) {
     showRelayMismatch(invite.relay);
     return;
   }
+  // A link that names no relay means the inviter's built-in one. A build
+  // without one has to be told where that is before it can ask anybody.
+  if (relayVerdict === "same" && !relayConfigured()) {
+    promptStartRelay({ required: true, then: () => promptJoin(invite) });
+    return;
+  }
   ui.openJoinSheet({
     profile: state.profile,
     hasCircle: !!state.gen,
@@ -4113,13 +4123,27 @@ async function saveStartRelay(value) {
     ui.toast("A relay must be an https URL, like https://relay.example.org", "warn");
     return false;
   }
+  if (!norm && noBuiltInRelay()) {
+    ui.toast("Enter your family relay's address.", "warn");
+    return false;
+  }
   await adoptRelay(norm || "");
   ui.toast(norm ? t("Starling will use {host}.", { host: new URL(norm).host }) : t("Starling will use the default relay."));
   return true;
 }
 
-function promptStartRelay() {
-  const ov = ui.openOverlay({ title: "Use your own relay", testid: "start-relay-sheet" });
+// A bundled app built without RELAY_URL has no relay to fall back on: empty
+// is not "the default" there, it is nowhere.
+const noBuiltInRelay = () => isBundled() && !getDefaultRelay();
+
+// `required`: this build has no relay and nothing works until it has one, so
+// the sheet says that instead of offering an optional extra. `then` runs once
+// a relay is saved, to carry on with whatever needed it.
+function promptStartRelay({ required = false, then = null } = {}) {
+  const ov = ui.openOverlay({
+    title: required ? "Connect to your family relay" : "Use your own relay",
+    testid: "start-relay-sheet",
+  });
   const field = ui.el("label", "field");
   field.append(ui.el("span", "field-label", "Relay"));
   const input = ui.el("input", "text-input");
@@ -4133,10 +4157,14 @@ function promptStartRelay() {
   save.type = "button";
   save.dataset.testid = "start-relay-save";
   save.addEventListener("click", async () => {
-    if (await saveStartRelay(input.value)) ov.close();
+    if (!(await saveStartRelay(input.value))) return;
+    ov.close();
+    if (then && relayConfigured()) then();
   });
   ov.body.append(
-    ui.el("p", "ov-note", "Only if you run a relay yourself. Everyone in your circle has to use the same one, and the invite links you send carry it."),
+    required
+      ? ui.el("p", "ov-note", "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.")
+      : ui.el("p", "ov-note", "Only if you run a relay yourself. Everyone in your circle has to use the same one, and the invite links you send carry it."),
     field,
     save,
   );
@@ -5465,6 +5493,10 @@ async function onSettingChange(key, value) {
     const norm = normalizeRelay(value);
     if (String(value).trim() && !norm) {
       ui.toast("A relay must be an https URL, like https://relay.example.org", "warn");
+      return;
+    }
+    if (!norm && noBuiltInRelay()) {
+      ui.toast("Enter your family relay's address.", "warn");
       return;
     }
     state.relay = norm || "";
@@ -7668,6 +7700,7 @@ if (debugHooks()) window.__starlingInternals = {
   writeChainKey,
   joinWithInvite,
   promptJoin,
+  promptCreate,
   inviteLinkFor,
   adoptRelay,
   saveStartRelay,
@@ -7885,7 +7918,7 @@ async function boot() {
     for (const n of document.querySelectorAll(".web-only")) n.remove();
     const about = document.getElementById("ob-about");
     if (about) about.hidden = false;
-    byTestid("onboarding-relay")?.addEventListener("click", promptStartRelay);
+    byTestid("onboarding-relay")?.addEventListener("click", () => promptStartRelay({ required: noBuiltInRelay() }));
   }
 
   byTestid("onboarding-demo").addEventListener("click", startDemo);
@@ -8126,6 +8159,8 @@ async function boot() {
     if (!state.locked) {
       if (params.get("demo") === "1") startDemo();
       else if (invite) promptJoin(invite);
+      // First run of a build with no relay in it: ask before anything else.
+      else if (!relayConfigured()) promptStartRelay({ required: true });
     }
   }
 

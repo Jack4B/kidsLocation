@@ -30,7 +30,7 @@ test("every new string has a Spanish version with the same placeholders", () => 
     assert.ok(tooOld.includes("%1$d") && tooOld.includes("%2$d"), "needs the minimum and the phone's version");
     assert.doesNotMatch(xml, /[\u2013\u2014]/);
   }
-  assert.match(get(en, "android9_body"), /January 2022/);
+  assert.match(get(en, "android9_body"), /styczniu 2022/, "the default strings are Polish");
   assert.match(get(es, "android9_body"), /enero de 2022/);
 });
 

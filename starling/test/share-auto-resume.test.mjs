@@ -245,7 +245,7 @@ test("a boot reads the record the wrapper left, and the card says what happened"
   assert.ok(c, "the card is up");
   assert.equal(c.kind, "warn");
   assert.equal(c.title, "Sharing came back on by itself");
-  assert.match(c.text, /Starling updated while you were sharing/);
+  assert.match(c.text, /Blisko updated while you were sharing/);
   assert.match(c.text, /check who has access to this phone/);
   assert.deepEqual(c.actions.map((a) => a.testid), ["alert-auto-resumed-settings", "alert-auto-resumed-ok"]);
 
@@ -435,9 +435,9 @@ test("the disclosure says what, why and for nothing else, and names Android's ow
   const sheet = findTestid(host, "background-sheet");
   assert.ok(sheet);
   const text = textOf(sheet);
-  assert.match(text, /Starling uses your location to keep sharing it with your circle after a restart or an update, even when the app is closed or not in use/);
-  assert.match(text, /Starling uses it for nothing else/);
-  assert.match(text, /Android opens Starling's location settings next\. Choose Allow all the time, then come back\./);
+  assert.match(text, /Blisko uses your location to keep sharing it with your circle after a restart or an update, even when the app is closed or not in use/);
+  assert.match(text, /Blisko uses it for nothing else/);
+  assert.match(text, /Android opens Blisko's location settings next\. Choose Allow all the time, then come back\./);
   assert.ok(findTestid(host, "background-go") && findTestid(host, "background-later"));
   host.children.length = 0;
   confirmBackgroundLocation({ mode: "dialog", label: "Allow all the time" });
@@ -487,14 +487,14 @@ test("Not now, a denial, or Android having stopped asking all leave it off", asy
   assert.equal(await internals.toggleAutoResume("boot", true), false);
   assert.deepEqual(bridge.auto, { boot: false, update: false });
   assert.ok(
-    toasts().includes("Android will not ask again. In Starling's app settings, open Permissions, then Location, and choose Allow all the time."),
+    toasts().includes("Android will not ask again. In Blisko's app settings, open Permissions, then Location, and choose Allow all the time."),
     toasts().join(" | "),
   );
 
   harness.node("#toasts").children.length = 0;
   bridge.grantDelay = 1100;
   assert.equal(await internals.toggleAutoResume("update", true), false);
-  assert.ok(toasts().includes("Android still allows your location only while you use Starling, so this stays off."));
+  assert.ok(toasts().includes("Android still allows your location only while you use Blisko, so this stays off."));
 
   harness.node("#toasts").children.length = 0;
   bridge.grantDelay = 0;
@@ -507,7 +507,7 @@ test("Not now, a denial, or Android having stopped asking all leave it off", asy
   });
   assert.equal(await internals.toggleAutoResume("update", true), false);
   assert.equal(label, "Allow all the time", "Android 10 gives no label, so the page names it");
-  assert.ok(toasts().includes("Android still allows your location only while you use Starling, so this stays off."), "a quick no from the Android 10 dialog is just a no");
+  assert.ok(toasts().includes("Android still allows your location only while you use Blisko, so this stays off."), "a quick no from the Android 10 dialog is just a no");
 });
 
 test("the lock, Keep sharing off, hidden notifications or no location at all refuse before asking anything", async () => {

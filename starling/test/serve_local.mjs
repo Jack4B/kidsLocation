@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import worker from "../relay/src/index.js";
 import { makeD1 } from "./d1shim.mjs";
+import { buildConfigSource } from "../tools/gen-build-config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const APP_DIR = path.resolve(HERE, "..", "app");
@@ -83,6 +84,15 @@ const server = http.createServer(async (req, res) => {
   // Extensionless paths resolve to their .html file, matching how the host
   // serves the deployed app. Without this, dev and production disagree about
   // what /help means, and only production would be wrong.
+  // RELAY_URL stands in for a build that has a family relay built in, the
+  // way the Android build writes it (tools/gen-build-config.mjs).
+  if (pathname === "/js/build-config.js" && process.env.RELAY_URL) {
+    res.statusCode = 200;
+    for (const [k, v] of Object.entries(STATIC_HEADERS)) res.setHeader(k, v);
+    res.setHeader("content-type", TYPES[".js"]);
+    return res.end(req.method === "HEAD" ? undefined : buildConfigSource(process.env.RELAY_URL));
+  }
+
   let rel = pathname === "/" ? "/index.html" : pathname;
   if (!path.extname(rel) && fs.existsSync(path.resolve(APP_DIR, "." + rel + ".html"))) {
     rel += ".html";

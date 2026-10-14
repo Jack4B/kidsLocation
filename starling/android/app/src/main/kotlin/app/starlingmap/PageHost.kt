@@ -210,7 +210,7 @@ object PageHost {
             ): WebResourceResponse? = loader?.shouldInterceptRequest(request.url)
 
             // The WebView only ever navigates inside the bundled app. A
-            // starlingmap.app link CARRYING A FRAGMENT is a deep link (an
+            // family relay link CARRYING A FRAGMENT is a deep link (an
             // invite, a help beacon) and stays internal; a bare site link is
             // a trip to the website, which is a different thing from the app
             // and belongs in the system browser. Everything else goes to the
