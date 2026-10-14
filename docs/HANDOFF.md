@@ -106,3 +106,43 @@ na `main` (commit `5ffc0c8`). F0-3 jest w połowie: zostaje podpięcie Gemini i 
 Następny krok: właściciel wykonuje F0-1 i F0-2 oraz podpina Gemini i Groka; potem F0-5 i F1-1.
 
 Pytania do właściciela: wynik `node -v` na CT8; czy jest Mac; gdzie ma leżeć kod (D4).
+
+---
+
+## 2026-10-14, Claude, F3 czat (gałąź `zadanie/F3-czat`)
+
+Wynik bazowy przed zmianą (z `origin/wydanie/1.0`, po `npm ci` i `tools/sync-vendor.sh`):
+1118 testów, 1084 przeszło, 34 pominięto, 0 nie przeszło.
+
+Zrobiono:
+
+- Czat rodzinny według ADR-001, wariant A: typ `t:"chat"` w strumieniu członka, koperta
+  `{v:2, ts, t:"chat", k, q, x}`, budżet 402 B na tekst, miękkie 280 znaków. Bez zmian
+  w `crypto.js`, `wire.js`, `PROTOCOL.md` i relayu.
+- `app/js/chat.js` (format, budżet, archiwum, luki, kolejka FIFO, kontroler),
+  `app/js/chatview.js` (`mountChat`), `app/css/chat.css`, gałąź odbioru w `net.js`,
+  podpięcie w `main.js` (przycisk w narzędziach arkusza, archiwum przez `atRestForm`,
+  wipe, powiadomienia, linie miejsc w osi).
+- Android: kanał „Wiadomości” (`events_chat`), ogólny tekst na ekranie blokady.
+- Testy: `test/chat*.test.mjs` (59 nowych), w tym dwóch członków przez prawdziwy kod
+  relaya. Zaktualizowane istniejące testy (zmiana zamierzona): `detail-alerts`,
+  `notify-kinds`, `sw-manifest`, lista plików w `i18n`.
+- E2E w przeglądarce: `test/e2e_chat.mjs` (dwa konteksty Playwright, lokalny relay przez
+  `test/serve_local.mjs`); zrzuty w `/mnt/project-files/wydanie-1.0/czat/`.
+- Dokumentacja: `docs/adr/ADR-001-czat.md` (przyjęty, sekcja decyzji i opis protokołu),
+  `starling/docs/CHAT.md`, `docs/nowe-teksty-F3.md`.
+
+Wynik po zmianie: 1178 testów, 1144 przeszło, 34 pominięto, 0 nie przeszło.
+`check-clean.sh` i `check-notification-privacy.sh` przechodzą.
+
+Nie zrobiono lub nie sprawdzono:
+
+- Build Androida, prawdziwy telefon, iOS, dwa konteksty JS na Androidzie.
+- F3-7 (pole możliwości w `loc`).
+- Dopisek do `PROTOCOL.md` (plik zamrożony; wymaga zgody właściciela).
+- Czat na kanale poprzedniej generacji w czasie re-key jest pomijany (widać lukę).
+- Interfejs czatu po angielsku do czasu polskiego katalogu (F2-6); teksty
+  w `docs/nowe-teksty-F3.md`.
+
+Następny krok: recenzja i scalenie przez prowadzącego; decyzje do ewentualnej zmiany przez
+właściciela są w sekcji „Decyzje przyjęte 2026-10-14” w ADR-001.

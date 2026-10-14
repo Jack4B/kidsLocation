@@ -61,6 +61,11 @@ Makiety i tokeny: `docs/DESIGN.md`. Zmiany głównie w `app/css/app.css`, `app/j
 
 Zależy od D2. Najpierw projekt, dopiero potem kod.
 
+Stan 2026-10-14: ADR-001 przyjęty z decyzjami domyślnymi (`docs/adr/ADR-001-czat.md`).
+F3-1 do F3-6 i opis protokołu (F3-8, poza `PROTOCOL.md`) wdrożone na gałęzi
+`zadanie/F3-czat`, czeka na scalenie. Otwarte: F3-7 (pole możliwości), dopisek do
+`PROTOCOL.md` za zgodą właściciela, sprawdzenie na prawdziwym telefonie.
+
 | ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
 |---|---|---|---|---|
 | F3-0 | ADR: gdzie żyją wiadomości czatu i jak długo (D2). Wariant A: nowy typ `t:"chat"` w istniejącym strumieniu plus zmiana limitu wpisów. Wariant B: osobna linia lub kanał wyprowadzony z łańcucha kluczy (zmiana protokołu). | C | G i X | ADR w `docs/` z odpowiedzią na pytania z `docs/DECYZJE.md` (D2); właściciel zatwierdza |
