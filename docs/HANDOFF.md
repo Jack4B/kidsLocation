@@ -188,7 +188,9 @@ Zrobiono:
 - Dokumentacja: `docs/adr/ADR-001-czat.md` (przyjęty, sekcja decyzji i opis protokołu),
   `starling/docs/CHAT.md`, `docs/nowe-teksty-F3.md`.
 
-Wynik po zmianie: 1178 testów, 1144 przeszło, 34 pominięto, 0 nie przeszło.
+Wynik po zmianie: 1178 testów, 1144 przeszło, 34 pominięto, 0 nie przeszło. Po scaleniu
+nowszego `wydanie/1.0` (F1-7) do gałęzi: 1200 testów, 1166 przeszło, 34 pominięto,
+0 nie przeszło; E2E czatu przechodzi.
 `check-clean.sh` i `check-notification-privacy.sh` przechodzą.
 
 Nie zrobiono lub nie sprawdzono:
