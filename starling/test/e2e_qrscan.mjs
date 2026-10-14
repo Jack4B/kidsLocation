@@ -396,7 +396,14 @@ async function main() {
     chromium.kill();
     chromium2?.kill();
     server.kill();
-    rmSync(work, { recursive: true, force: true });
+    // Chromium flushes its profile on the way down; a leftover temp dir is
+    // harmless, a teardown throw masking real results is not.
+    await sleep(400);
+    try {
+      rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    } catch {
+      // still shutting down; the OS temp cleaner owns it now
+    }
   }
 
   if (fails.length) {
