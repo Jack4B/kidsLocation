@@ -1,0 +1,177 @@
+package app.starlingmap
+
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import androidx.annotation.StringRes
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+
+// Circle-event notifications, shared by the activity (bridge notify calls)
+// and the location service (which needs to speak after the activity is gone,
+// e.g. when the task is swiped away). One id, tag replaces within a channel.
+// An active SOS gets its own channel (see MainActivity.SOS_CHANNEL) so it can
+// carry a sound and a vibration pattern the routine channel does not, without
+// touching either channel's settings after an existing install already
+// created them.
+object Events {
+
+    private val SOS_VIBRATION = longArrayOf(0, 400, 200, 400, 200, 400, 200, 400)
+
+    private val ROUTINE = listOf(
+        MainActivity.EVENTS_CHANNEL to R.string.notif_events_channel,
+        MainActivity.ARRIVE_CHANNEL to R.string.notif_arrive_channel,
+        MainActivity.LEAVE_CHANNEL to R.string.notif_leave_channel,
+        MainActivity.CHECKIN_CHANNEL to R.string.notif_checkin_channel,
+    )
+
+    // Never the SOS channel: only post(urgent = true) reaches that one.
+    fun channelFor(kind: String): String = when (kind) {
+        "arrive" -> MainActivity.ARRIVE_CHANNEL
+        "leave" -> MainActivity.LEAVE_CHANNEL
+        "checkin" -> MainActivity.CHECKIN_CHANNEL
+        else -> MainActivity.EVENTS_CHANNEL
+    }
+
+    fun post(ctx: Context, title: String, body: String, tag: String, urgent: Boolean = false, kind: String = "") {
+        if (title.isEmpty()) return
+        // title/body never reach a notification field; see the commit message for why.
+        show(ctx, R.string.app_name, if (urgent) R.string.notif_sos_text else R.string.notif_locked_text, tag, urgent, channelFor(kind))
+    }
+
+    // Opt-in only (see StarlingBridge.notifyDetail). The one path where a caller's words reach a notification field.
+    fun postDetail(ctx: Context, title: String, body: String, tag: String, kind: String, member: String, onLock: Boolean) {
+        if (title.isEmpty()) return
+        show(ctx, R.string.app_name, R.string.notif_locked_text, tag, false, channelFor(kind),
+            Detail(title, body, member, onLock))
+    }
+
+    class Detail(val title: String, val body: String, val member: String, val onLock: Boolean)
+
+    // The share reminder (ShareReminder). Its words say nothing about a circle or a person.
+    fun postShareOff(ctx: Context) =
+        show(ctx, R.string.notif_remind_title, R.string.notif_remind_text, ShareReminder.TAG, false)
+
+    // After a restart or an update (ShareResume). Same rule: no circle, no person.
+    fun postShareResume(ctx: Context, @StringRes textRes: Int) =
+        show(ctx, R.string.notif_swiped_title, textRes, ShareResume.TAG, false)
+
+    fun postShareResumed(ctx: Context, @StringRes textRes: Int) =
+        show(ctx, R.string.notif_resumed_title, textRes, ShareResume.RESUMED_TAG, false)
+
+    // String resources only, so nothing a caller was handed can reach a notification field, except through postDetail.
+    private fun show(ctx: Context, @StringRes titleRes: Int, @StringRes textRes: Int, tag: String, urgent: Boolean,
+        routine: String = MainActivity.EVENTS_CHANNEL, detail: Detail? = null) {
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = if (urgent) ensureSosChannel(ctx) else routine
+        if (!urgent) ensureEventChannels(ctx)
+        val tap = Intent(ctx, MainActivity::class.java)
+        if (detail != null && detail.member.isNotEmpty()) tap.putExtra(MainActivity.EXTRA_MEMBER, detail.member)
+        // A request code per tag, or every tap would reuse the first notification's extra.
+        val open = PendingIntent.getActivity(
+            ctx,
+            if (detail == null) 0 else tag.hashCode(),
+            tap,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val heading = detail?.title ?: ctx.getString(titleRes)
+        val text = detail?.body ?: ctx.getString(textRes)
+        val publicHeading = if (detail?.onLock == true) heading else ctx.getString(titleRes)
+        val publicText = if (detail == null) text else if (detail.onLock) detail.body else ctx.getString(R.string.notif_place_text)
+        val publicVersion = NotificationCompat.Builder(ctx, channelId)
+            .setSmallIcon(R.drawable.ic_stat_starling)
+            .setContentTitle(publicHeading)
+            .setContentText(publicText)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .build()
+        val n = NotificationCompat.Builder(ctx, channelId)
+            .setSmallIcon(R.drawable.ic_stat_starling)
+            .setContentTitle(heading)
+            .setContentText(text)
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion)
+            .apply {
+                if (urgent) {
+                    priority = NotificationCompat.PRIORITY_HIGH
+                    // Do Not Disturb lets alarms through by default and holds everything else back.
+                    setCategory(NotificationCompat.CATEGORY_ALARM)
+                }
+            }
+            .build()
+        nm.notify(tag.ifEmpty { "event" }, MainActivity.EVENTS_NOTIF_ID, n)
+    }
+
+    private fun buildChannel(ctx: Context, channelId: String, urgent: Boolean): NotificationChannel {
+        val name = ctx.getString(
+            if (urgent) R.string.notif_sos_channel else ROUTINE.firstOrNull { it.first == channelId }?.second ?: R.string.notif_events_channel,
+        )
+        val channel = NotificationChannel(channelId, name, NotificationManager.IMPORTANCE_HIGH)
+        if (urgent) {
+            // A ringtone, not the default notification ding, and a pattern
+            // that keeps pulsing: this is the one channel in the app that
+            // must not read like every other alert.
+            val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            val attrs = AudioAttributes.Builder()
+                // Alarm usage gets it through Do Not Disturb, at the alarm volume.
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            channel.setSound(sound, attrs)
+            channel.enableVibration(true)
+            channel.vibrationPattern = SOS_VIBRATION
+        }
+        return channel
+    }
+
+    // All of them at once, so each is in system settings to pick a sound for before its first alert.
+    fun ensureEventChannels(ctx: Context) {
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val base = nm.getNotificationChannel(MainActivity.EVENTS_CHANNEL)
+        nm.createNotificationChannels(
+            ROUTINE.map { (id, _) ->
+                val channel = buildChannel(ctx, id, false)
+                if (base != null && startsAsEvents(id, nm.getNotificationChannel(id) != null)) copySettings(base, channel)
+                channel
+            },
+        )
+    }
+
+    // A new channel starts as Circle alerts is set, so alerts the person silenced do not come back loud.
+    fun startsAsEvents(id: String, exists: Boolean): Boolean = !exists && id != MainActivity.EVENTS_CHANNEL
+
+    private fun copySettings(from: NotificationChannel, to: NotificationChannel) {
+        to.importance = from.importance
+        to.setSound(from.sound, from.audioAttributes)
+        // The pattern first: setting it also sets whether the channel vibrates.
+        to.vibrationPattern = from.vibrationPattern
+        to.enableVibration(from.shouldVibrate())
+        to.setShowBadge(from.canShowBadge())
+    }
+
+    // A channel's sound attributes never change in place, so the pre-alarm channel is retired.
+    fun ensureSosChannel(ctx: Context): String {
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        runCatching { nm.deleteNotificationChannel(MainActivity.OLD_SOS_CHANNEL) }
+        nm.createNotificationChannel(buildChannel(ctx, MainActivity.SOS_CHANNEL, true))
+        return MainActivity.SOS_CHANNEL
+    }
+
+    fun cancel(ctx: Context, tag: String) {
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.cancel(tag.ifEmpty { "event" }, MainActivity.EVENTS_NOTIF_ID)
+    }
+}
