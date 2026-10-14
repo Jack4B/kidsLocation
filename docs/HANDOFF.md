@@ -6,6 +6,21 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-14, Claude, F0-6 (przegląd zgodności, nowe zadanie)
+
+Zrobiono: przegląd forka 0.21.0 względem zasad prywatności z `AGENTS.md`, wynik w
+`docs/PRZEGLAD-ZGODNOSCI.md`. Najważniejsze: kafelki OSM są domyślnie włączone (wymagają
+świadomego wyjątku albo pośrednika), a aplikacja bez ustawionego relaya rozmawia z
+`starlingmap.app` i tam kieruje linki zaproszeń. Zaproponowano zadania F0-6, F1-6, F1-7 na końcu
+`docs/PLAN.md`; to propozycja, właściciel je przyjmuje albo odrzuca.
+
+Sprawdzono tylko przez czytanie kodu i `grep`; nie podglądano ruchu sieciowego telefonu.
+
+Pytanie do właściciela: kafelki OSM, opcja A (wyjątek, rekomendacja), B (domyślnie bez mapy
+ulic) czy C (pośrednik na serwerze)?
+
+---
+
 ## 2026-10-14, Claude, przekazanie do nowej sesji
 
 Dodano `docs/KONTEKST-ROZMOWY.md` (streszczenie rozmowy, ograniczenia, pytania) i źródła
