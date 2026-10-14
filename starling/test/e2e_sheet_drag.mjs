@@ -224,7 +224,14 @@ async function main() {
     check("f: and leaves the panel at half", (await snapOf()) === "half");
 
     console.log("body at full");
-    await fresh("full", 400);
+    // Since the redesign the people sit in a sideways row above the body, so
+    // the demo's body (alerts, tools) no longer overflows on its own, and a
+    // 400 px screen leaves the body no room under that row. A full-height
+    // screen with a spacer standing in for a long body; the gestures below
+    // are what is tested.
+    await fresh("full");
+    await c.evalJs(`(() => { const s = document.createElement("div"); s.style.height = "600px"; document.getElementById("sheet-body").append(s); })()`);
+    await sleep(100);
     const room = await c.evalJs(`(() => { const b = document.getElementById("sheet-body"); return b.scrollHeight - b.clientHeight; })()`);
     check("e: the list is long enough to scroll", room > 80, String(room));
     p = await center("#sheet-body");

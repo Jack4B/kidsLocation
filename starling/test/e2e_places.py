@@ -51,7 +51,7 @@ def member_sub(b, name):
 
 
 def open_places(b):
-    b.click('[data-testid="places-open"]')
+    b.click('[data-testid="tab-places"]')
     wait_for(lambda: q(b, "return !!document.querySelector('[data-testid=\"places-sheet\"]')"),
              timeout=10, desc="places sheet")
 
@@ -280,12 +280,19 @@ def main():
         a.click('[data-testid="place-add-pick"]')
         wait_for(lambda: q(a, pick_on), timeout=10, desc="pick banner again")
         E.wait_overlay_gone(a)
+        a.click('[data-testid="tab-circle"]')
         a.click('[data-testid="settings-open"]')
         wait_for(lambda: q(a, "return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
                  timeout=10, desc="Settings over the pick")
         a.escape()
-        E.wait_overlay_gone(a)
+        # Settings sits on the Circle page now: Escape closes Settings, and a
+        # second Escape the Circle page under it; the pick outlives both.
+        wait_for(lambda: q(a, "return !document.querySelector('[data-testid=\"settings-sheet\"]')"),
+                 timeout=10, desc="Settings closed")
         check("Escape closes Settings opened over a pick, and only Settings", q(a, pick_on))
+        a.escape()
+        E.wait_overlay_gone(a)
+        check("the pick is still on after leaving the Circle page", q(a, pick_on))
         a.click('[data-testid="pick-center"]')
         wait_for(lambda: q(a, rows) == 2, timeout=10, desc="center pick saved")
         check("Use the map center saves a place and ends the pick", not q(a, pick_on))

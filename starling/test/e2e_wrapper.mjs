@@ -128,7 +128,7 @@ async function bootAndRead(c, { wrapper }) {
 async function readCredit(c) {
   await c.evalJs(`document.querySelector('[data-testid="onboarding-demo"]').click()`);
   await waitFor(() => c.evalJs("window.__starlingApi.state.demo === true"), "demo running");
-  await c.evalJs(`document.querySelector('[data-testid="settings-open"]').click()`);
+  await c.evalJs(`document.querySelector('[data-testid="tab-circle"]').click(); document.querySelector('[data-testid="settings-open"]').click()`);
   return waitFor(
     () => c.evalJs(`(() => {
       const p = document.querySelector('[data-testid="about-credit"]');
@@ -182,7 +182,7 @@ async function checkinScenario() {
   await c.evalJs(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))`);
   await sleep(500);
 
-  await c.evalJs(`document.querySelector('[data-testid="settings-open"]').click()`);
+  await c.evalJs(`document.querySelector('[data-testid="tab-circle"]').click(); document.querySelector('[data-testid="settings-open"]').click()`);
   await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="settings-share-checkin"]')`), "the check-in row in Settings");
   const row = await c.evalJs(`(() => {
     const r = document.querySelector('[data-testid="settings-share-checkin"]');

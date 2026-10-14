@@ -102,6 +102,7 @@ def main():
         log("second circle stashed, back on the first")
 
         # Turn on app lock through settings.
+        b.click('[data-testid="tab-circle"]')
         b.click('[data-testid="settings-open"]')
         wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
                  timeout=10, desc="settings open")
@@ -193,6 +194,7 @@ def main():
 
         # Duress: setting it to the unlock passcode is refused, a distinct
         # code is accepted, and typing it on the lock screen erases the lot.
+        b.click('[data-testid="tab-circle"]')
         b.click('[data-testid="settings-open"]')
         wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"duress-set\"]')"),
                  timeout=10, desc="duress button")

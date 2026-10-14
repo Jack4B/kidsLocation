@@ -297,8 +297,14 @@ def near(m, latlon, tol=0.001):
 
 
 def wait_overlay_gone(b):
-    wait_for(lambda: b.exec("return document.querySelector('.ov-wrap') === null"),
+    # Sheets and dialogs close themselves; a tab page (Places, Circle) under
+    # them stays until the Map tab is chosen, so go back to the map too.
+    wait_for(lambda: b.exec("return document.querySelector('.ov-wrap:not(.ov-page-wrap)') === null"),
              timeout=10, desc=f"{b.name} overlay closed")
+    b.exec("if (document.querySelector('.ov-page-wrap'))"
+           " document.querySelector('[data-testid=\"tab-map\"]').click(); return true;")
+    wait_for(lambda: b.exec("return document.querySelector('.ov-wrap') === null"),
+             timeout=10, desc=f"{b.name} back on the map")
 
 
 def sheet_to_peek(b):
@@ -311,6 +317,7 @@ def sheet_to_peek(b):
 
 
 def set_offgrid(b):
+    b.click('[data-testid="tab-circle"]')
     b.click('[data-testid="settings-open"]')
     wait_for(lambda: b.exec("return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
              timeout=10, desc=f"{b.name} settings sheet")
@@ -384,6 +391,7 @@ def flow_a_create(a):
         raise E2EError(f"bad channel id: {channel}")
 
     # Off-grid basemap first (clean map shots), then the settings screenshot.
+    a.click('[data-testid="tab-circle"]')
     a.click('[data-testid="settings-open"]')
     wait_for(lambda: a.exec("return !!document.querySelector('[data-testid=\"settings-sheet\"]')"),
              timeout=10, desc="A settings sheet")
