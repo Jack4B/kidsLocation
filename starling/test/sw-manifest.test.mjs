@@ -78,6 +78,7 @@ const PRECACHE = [
   "/index.html",
   "/css/tokens.css",
   "/css/app.css",
+  "/css/chat.css",
   "/js/main.js",
   "/js/ui.js",
   "/js/map.js",

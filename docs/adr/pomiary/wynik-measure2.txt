@@ -1,0 +1,14 @@
+E5 = E2 + k(11 b64u, 64 bity) + q narzut 213 B, na tekst 275 B
+   typowy polski    max dlugosc z rezerwa: 256
+   same diakrytyki  max dlugosc z rezerwa: 137
+   ASCII            max dlugosc z rezerwa: 275
+   CJK 3 B          max dlugosc z rezerwa: 91
+   emoji 4 B        max dlugosc z rezerwa: 137
+   cudzyslow        max dlugosc z rezerwa: 137
+E6 = E1 + k + q (bez nazwy) narzut 86 B, na tekst 402 B
+   typowy polski    max dlugosc z rezerwa: 371
+   same diakrytyki  max dlugosc z rezerwa: 201
+   ASCII            max dlugosc z rezerwa: 402
+   CJK 3 B          max dlugosc z rezerwa: 134
+   emoji 4 B        max dlugosc z rezerwa: 201
+   cudzyslow        max dlugosc z rezerwa: 201

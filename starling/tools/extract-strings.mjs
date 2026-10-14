@@ -25,7 +25,7 @@ const add = (s) => {
   keys.add(n);
 };
 
-const JS_FILES = ["app/js/main.js", "app/js/ui.js", "app/js/helpview.js", "app/js/fmt.js", "app/js/demo.js", "app/js/sharehealth.js", "app/js/ratchet.js"];
+const JS_FILES = ["app/js/main.js", "app/js/ui.js", "app/js/chat.js", "app/js/chatview.js", "app/js/helpview.js", "app/js/fmt.js", "app/js/demo.js", "app/js/sharehealth.js", "app/js/ratchet.js"];
 
 // Unescape the source spelling of a double-quoted literal.
 const unq = (s) => s.replaceAll('\\"', '"').replaceAll("\\'", "'").replaceAll("\\n", " ");
@@ -71,7 +71,7 @@ for (const f of JS_FILES) {
   for (const m of src.matchAll(/\b(?:CHIP_TEXT|STATUS_LINE)\s*=\s*\{([^}]+)\}/g)) {
     for (const v of m[1].matchAll(/"((?:[^"\\]|\\.)+)"/g)) add(unq(v[1]));
   }
-  for (const m of src.matchAll(/\bSTATUS_CHIPS\s*=\s*\[([^\]]+)\]/g)) {
+  for (const m of src.matchAll(/\b(?:STATUS_CHIPS|QUICK_REPLIES)\s*=\s*\[([^\]]+)\]/g)) {
     for (const v of m[1].matchAll(/"((?:[^"\\]|\\.)+)"/g)) add(unq(v[1]));
   }
 }

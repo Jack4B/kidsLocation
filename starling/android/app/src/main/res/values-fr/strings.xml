@@ -6,6 +6,8 @@
     <string name="notif_arrive_channel">Arrivées</string>
     <string name="notif_leave_channel">Départs</string>
     <string name="notif_checkin_channel">Nouvelles de sécurité</string>
+    <string name="notif_chat_channel">Messages</string>
+    <string name="notif_chat_text">Nouveau message</string>
     <string name="notif_sos_channel">Alertes d\'urgence</string>
     <string name="notif_sos_text">Ouvrez Blisko maintenant.</string>
     <string name="notif_title">Partage avec votre cercle</string>

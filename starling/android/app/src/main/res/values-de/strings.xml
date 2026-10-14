@@ -6,6 +6,8 @@
     <string name="notif_arrive_channel">Ankommen</string>
     <string name="notif_leave_channel">Gehen</string>
     <string name="notif_checkin_channel">Meldungen</string>
+    <string name="notif_chat_channel">Nachrichten</string>
+    <string name="notif_chat_text">Neue Nachricht</string>
     <string name="notif_sos_channel">Notfall-Hinweise</string>
     <string name="notif_sos_text">Öffne Blisko jetzt.</string>
     <string name="notif_title">Teilst mit deinem Kreis</string>

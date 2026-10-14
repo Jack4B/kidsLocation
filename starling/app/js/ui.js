@@ -3892,22 +3892,6 @@ export function renderFocusCard(root, rec, ctx) {
 
 // ------------------------------------------------------------- tab pages
 
-// The Chat tab. A placeholder until the family chat lands: the chat work
-// replaces this one function (and nothing else has to know).
-export function openChatPage({ onClose } = {}) {
-  const ov = openOverlay({ title: "Chat", testid: "chat-page", className: "ov-chat", onClose, page: true });
-  const empty = el("div", "page-empty");
-  const art = el("div", "page-empty-art");
-  art.append(icon("chat", 40));
-  empty.append(
-    art,
-    el("h2", "page-empty-title", "Coming soon: family chat"),
-    el("p", "page-empty-text", "Messages to your circle will live here, end-to-end encrypted like your location."),
-  );
-  ov.body.append(empty);
-  return { close: ov.close, refresh() {} };
-}
-
 // One row of a settings-style list: icon, label, value, and where it leads.
 function listRow({ ico, label, value, valueCls, testid, onClick, chevron = false }) {
   const row = btn("list-row", null);
