@@ -235,3 +235,28 @@ test("negative control: a first-hop implementation would fail the trust test abo
   const rightImpl = hops[hops.length - 1];
   assert.notEqual(wrongImpl, rightImpl, "the two implementations must disagree, or the real test proves nothing");
 });
+
+test("the relay hosts the help page and its files from the app folder, nothing outside it", async () => {
+  const app = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "app");
+  const { get, close } = await up({ staticDir: app });
+  const page = await get("/help");
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /^text\/html/);
+  assert.match(page.headers.get("content-security-policy"), /connect-src 'self'/);
+  assert.match(await page.text(), /js\/helpview\.js/);
+  const js = await get("/js/helpview.js");
+  assert.equal(js.status, 200);
+  assert.match(js.headers.get("content-type"), /^text\/javascript/);
+  assert.equal((await get("/../relay/server.mjs")).status, 404);
+  assert.equal((await get("/%2e%2e/relay/server.mjs")).status, 404);
+  assert.equal((await get("/js/nope.js")).status, 404);
+  const health = await get("/api/v2/health");
+  assert.deepEqual(await health.json(), { ok: true }, "the API still answers first");
+  await close();
+});
+
+test("without an app folder the relay serves no pages", async () => {
+  const { get, close } = await up();
+  assert.equal((await get("/help")).status, 404);
+  await close();
+});

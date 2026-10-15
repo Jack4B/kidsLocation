@@ -6,6 +6,16 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F5-8: relay hostuje stronę pomocy SOS
+
+- Link pomocy SOS prowadzi na `<relay>/help`, a relay odpowiadał 404. `relay/server.mjs` podaje
+  teraz pliki aplikacji z folderu `app/` obok relaya (lub `STATIC_DIR`, pusty wyłącza), tylko dla
+  GET i HEAD, na które API odpowiedziało 404. `/help` to `help.html`. Ścieżki są sprawdzane przez
+  `realpath`, nic spoza folderu nie wychodzi. Nagłówki jak w `app/_headers`.
+- Na CT8 skrypt `aktualizuj-relay.sh` (w plikach projektu) kopiuje cały `starling/` i uruchamia
+  `npm ci` oraz `tools/sync-vendor.sh`, bo strona potrzebuje Leafleta.
+- Testy w `test/server.test.mjs`. Nie sprawdzone na prawdziwym CT8.
+
 ## 2026-10-15, Claude, F2-10c: lista rodziny zwija się do samej nazwy kręgu
 
 - Zgłoszenie: na widoku ogólnym lista rodziny nie daje się zwinąć. Najniższa pozycja („peek”)
