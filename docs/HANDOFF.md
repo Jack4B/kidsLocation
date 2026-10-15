@@ -6,6 +6,23 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F5-7: udostępnianie zabijane na Xiaomi i Poco
+
+Właściciel: na Xiaomi 14T Pro i Poco X5 5G udostępnianie znika po kilku godzinach mimo
+zgód „zawsze”, braku ograniczeń baterii, autostartu i zablokowania w ostatnich.
+
+Zrobiono: alarm-strażnik (`ShareResume.armWatchdog`, co 15 min, odnawiany przy każdym ticku
+usługi). Alarm przeżywa zabity proces; gdy przyjdzie, a usługa nie działa i udostępnianie
+jest nadal uzbrojone, a od uzbrojenia nikt go nie zatrzymał (`killedBySystem`), idzie tą
+samą ścieżką co po restarcie telefonu: przy włączonym automatycznym wznawianiu wraca samo,
+w przeciwnym razie powiadomienie „Telefon zatrzymał Blisko w tle. Dotknij…”. Zatrzymanie
+przez osobę kasuje alarm. Bez nowych uprawnień.
+
+Sprawdzono: `npm test` 1237, 0 błędów (testy źródłowe Kotlina). Nie sprawdzono na telefonie;
+pełne wymuszone zatrzymanie (force stop) kasuje też alarmy, więc wtedy strażnik nie pomoże.
+
+---
+
 ## 2026-10-15, Claude, F5-6: poprawki po wydaniu 1.0
 
 Zrobiono:

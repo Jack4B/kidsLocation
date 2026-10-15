@@ -651,8 +651,9 @@ test("Kotlin: one gate decides, and it needs every input", () => {
     /if \(autoOn && keepSharing && background && notifications && webViewOk && \(!torOn \|\| torSupported\)\) return Path\.HEADLESS/,
   );
   assert.match(decide, /return Path\.OFFER\s*\}$/);
-  const start = code(fn(src, "onSystemStart"));
-  assert.match(start, /if \(LocationService\.running \|\| starting\) return/, "a share already running is left alone");
+  assert.match(code(fn(src, "onSystemStart")), /if \(LocationService\.running \|\| starting\) return/, "a share already running is left alone");
+  assert.match(code(fn(src, "onWatchdog")), /if \(LocationService\.running \|\| starting\) \{/, "the watchdog leaves a running share alone too");
+  const start = code(fn(src, "resumeOrOffer"));
   assert.match(start, /if \(!\(keep && background && notifications\)\) autoOff\(ctx\)/, "a switch that cannot be honoured goes off");
   assert.match(start, /Path\.HEADLESS -> try \{\s*starting = true\s*LocationService\.startResumed\(ctx, why\)\s*\} catch \(e: Exception\) \{\s*starting = false\s*Events\.postShareResume\(ctx, offer\)/);
   for (const f of ["ShareResume.kt", "LocationService.kt", "PageHost.kt", "MainActivity.kt", "StarlingBridge.kt", "Wipe.kt", "TorProxy.kt"]) {
@@ -739,7 +740,7 @@ test("Kotlin: the page's word is checked, and anything but started ends the shar
   assert.ok(abandon.indexOf("PageHost.destroy()") < abandon.indexOf("LocationService.stop(ctx)"), "no page, no posts, then no service");
   const up = code(fn(src, "serviceUp"));
   assert.match(up, /if \(!runCatching \{ PageHost\.bootHeadless\(app\) \}\.getOrDefault\(false\)\) \{\s*abandon\(app, offerText\(why\)\)/, "a page that cannot be built is the tap, not a crash at boot");
-  assert.match(code(fn(src, "onSystemStart")), /val torSupported = webViewOk && torOn && runCatching \{ TorProxy\.supported\(\) \}\.getOrDefault\(false\)/, "and neither is a WebView that cannot answer");
+  assert.match(code(fn(src, "resumeOrOffer")), /val torSupported = webViewOk && torOn && runCatching \{ TorProxy\.supported\(\) \}\.getOrDefault\(false\)/, "and neither is a WebView that cannot answer");
   assert.match(up, /CONFIRM_MS/);
   assert.match(up, /ORBOT_WAIT_MS/);
   assert.match(up, /R\.string\.notif_resume_orbot_text/);
@@ -811,4 +812,30 @@ test("Kotlin: the report counts and states, never a position", () => {
     assert.match(h, new RegExp(`o\\.put\\("${field}", `), field);
   }
   assert.match(h, /o\.put\("resumedBy", ShareResume\.headlessWhy \?: ""\)/);
+});
+
+test("Kotlin: a watchdog alarm brings back a share the system killed, never one a person stopped", () => {
+  const src = kt("ShareResume.kt");
+  const dog = code(fn(src, "onWatchdog"));
+  assert.match(dog, /if \(!killedBySystem\(/, "a stop recorded since the share was armed was a person's");
+  assert.match(dog, /if \(!dueNow\(ctx\)\) return/, "a window that ran out stays ended");
+  assert.match(dog, /resumeOrOffer\(ctx, "boot", R\.string\.notif_resume_killed_text\)/, "the same gates as a restart");
+  assert.match(code(fn(src, "disarm")), /cancelWatchdog\(ctx\)/, "stopping a share takes the alarm down");
+  assert.match(fn(src, "onReceive"), /ShareResume\.WATCHDOG_ACTION[\s\S]*?ShareResume\.onWatchdog\(context\)/);
+  const svc = kt("LocationService.kt");
+  assert.match(code(fn(svc, "armTick")), /ShareResume\.armWatchdog\(this\)/, "every tick pushes the alarm on");
+  assert.match(code(fn(svc, "onStartCommand")), /ShareResume\.armWatchdog\(this\)\s*startWatching\(\)/);
+});
+
+test("the watchdog's own rule: only an armed share with no newer stop by a person", () => {
+  // Mirrors ShareResume.killedBySystem.
+  const killed = (armedAt, route, stopAt) => armedAt > 0 && (route == null || route === "system" || stopAt < armedAt);
+  const src = kt("ShareResume.kt");
+  assert.match(src, /armedAt > 0L && \(stopRoute == null \|\| stopRoute == "system" \|\| stopAt < armedAt\)/);
+  assert.equal(killed(100, null, 0), true);
+  assert.equal(killed(100, "swipe", 50), true, "an older stop is history");
+  assert.equal(killed(100, "swipe", 150), false);
+  assert.equal(killed(100, "notif", 150), false);
+  assert.equal(killed(100, "system", 150), true);
+  assert.equal(killed(0, null, 0), false);
 });

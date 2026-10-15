@@ -3,6 +3,9 @@ package app.starlingmap
 import android.Manifest
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.os.SystemClock
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -36,6 +39,9 @@ object ShareResume {
     private const val ORBOT_ASK_MS = 25_000L
 
     private val WHYS = setOf("boot", "update")
+    // A share the system killed (Xiaomi, Poco and other aggressive battery managers) comes back like after a restart.
+    const val WATCHDOG_ACTION = "app.kidslocation.SHARE_WATCHDOG"
+    private const val WATCHDOG_MS = 15 * 60_000L
     private val PAGE_STATES = setOf("started", "delivered", "locked", "declined")
 
     enum class Path { NONE, OFFER, HEADLESS }
@@ -74,6 +80,7 @@ object ShareResume {
 
     fun disarm(ctx: Context) {
         prefs(ctx).edit().remove(PREF_AT).remove(PREF_DEADLINE).apply()
+        cancelWatchdog(ctx)
         runCatching { Events.cancel(ctx, TAG) }
         runCatching { Events.cancel(ctx, RESUMED_TAG) }
     }
@@ -103,10 +110,49 @@ object ShareResume {
         return Path.OFFER
     }
 
+    // Armed while a share runs, from the service's start and every tick; the alarm outlives a killed process.
+    fun armWatchdog(ctx: Context) {
+        val am = ctx.getSystemService(AlarmManager::class.java) ?: return
+        runCatching {
+            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + WATCHDOG_MS, watchdogIntent(ctx))
+        }
+    }
+
+    fun cancelWatchdog(ctx: Context) {
+        runCatching { ctx.getSystemService(AlarmManager::class.java)?.cancel(watchdogIntent(ctx)) }
+    }
+
+    private fun watchdogIntent(ctx: Context): PendingIntent = PendingIntent.getBroadcast(
+        ctx,
+        7,
+        Intent(ctx, ShareResumeReceiver::class.java).setAction(WATCHDOG_ACTION),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
+    fun killedBySystem(armedAt: Long, stopRoute: String?, stopAt: Long): Boolean =
+        armedAt > 0L && (stopRoute == null || stopRoute == "system" || stopAt < armedAt)
+
+    fun onWatchdog(ctx: Context) {
+        if (LocationService.running || starting) {
+            armWatchdog(ctx)
+            return
+        }
+        // Nothing runs and the share is still due: the system ended it, not the person.
+        // Any stop recorded since the share was armed (a swipe, the notification) was a person's.
+        val p = prefs(ctx)
+        if (!killedBySystem(p.getLong(PREF_AT, 0L), p.getString(MainActivity.PREF_STOP_ROUTE, null), p.getLong(MainActivity.PREF_STOP_TS, 0L))) return
+        if (!dueNow(ctx)) return
+        armWatchdog(ctx)
+        resumeOrOffer(ctx, "boot", R.string.notif_resume_killed_text)
+    }
+
     fun onSystemStart(ctx: Context, why: String) {
         if (why !in WHYS) return
         if (LocationService.running || starting) return
-        val offer = offerText(why)
+        resumeOrOffer(ctx, why, offerText(why))
+    }
+
+    private fun resumeOrOffer(ctx: Context, why: String, @StringRes offer: Int) {
         val due = dueNow(ctx)
         val keep = PageHost.keepSharing(ctx)
         val background = backgroundHeld(ctx)
@@ -365,6 +411,10 @@ object ShareResume {
 
 class ShareResumeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == ShareResume.WATCHDOG_ACTION) {
+            ShareResume.onWatchdog(context)
+            return
+        }
         val why = when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED -> "boot"
             Intent.ACTION_MY_PACKAGE_REPLACED -> "update"
