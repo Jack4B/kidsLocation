@@ -319,3 +319,11 @@ test("a folded card stays folded when it redraws, and folds by a swipe or a touc
   assert.match(main, /getContainer\?\.\(\)\.addEventListener\("pointerdown"[^]*?makeRoomForMap\(\)/);
   assert.match(main, /card\.addEventListener\("touchend"/);
 });
+
+test("the circle sheet folds below peek to its name, by a swipe or a touch on the map", () => {
+  const ui = readFileSync(new URL("../app/js/ui.js", import.meta.url), "utf8");
+  assert.match(ui, /if \(name === "min"\) return Math\.min\(minH\(\), peekH\(\)\);/);
+  assert.match(ui, /for \(const name of \["min", "peek", "half", "full"\]\)/, "a drag can end at the folded snap");
+  const main = readFileSync(new URL("../app/js/main.js", import.meta.url), "utf8");
+  assert.match(main, /else if \(sheet && sheet\.getSnap\(\) !== "min"\) sheet\.snapTo\("min"\);/);
+});

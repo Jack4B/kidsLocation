@@ -87,7 +87,7 @@ const center = (sel) =>
 const snapOf = () =>
   c.evalJs(`(() => {
     const s = document.getElementById("sheet");
-    return s.classList.contains("sheet-full") ? "full" : s.classList.contains("sheet-peek") ? "peek" : "half";
+    return s.classList.contains("sheet-min") ? "min" : s.classList.contains("sheet-full") ? "full" : s.classList.contains("sheet-peek") ? "peek" : "half";
   })()`);
 
 const expanded = () => c.evalJs(`document.querySelector(".grabber").getAttribute("aria-expanded")`);
@@ -129,6 +129,27 @@ const cardBox = () =>
     return { hidden: el.hidden, min: el.classList.contains("fc-min"), h: Math.round(r.height), top: Math.round(r.top) };
   })()`);
 
+async function sheetFold() {
+  await fresh("peek");
+  {
+    const sheetTop = () => c.evalJs(`document.getElementById("sheet").getBoundingClientRect().top`);
+    const peekTop = await sheetTop();
+    await swipe(300, 200, 260);
+    await sleep(500);
+    check("a drag on the map folds the circle sheet below peek", (await snapOf()) === "min" && (await sheetTop()) > peekTop + 100, `${await snapOf()} ${peekTop} -> ${await sheetTop()}`);
+    check("the circle's name still shows", (await c.evalJs(`document.getElementById("sheet-title").getBoundingClientRect().bottom`)) < 844 - 60);
+    await c.evalJs(`document.querySelector(".grabber").click()`);
+    await sleep(500);
+    check("the grabber brings it back to peek", (await snapOf()) === "peek");
+    await swipe(195, peekTop + 60, peekTop + 300);
+    await sleep(500);
+    check("a swipe down on the sheet from peek folds it", (await snapOf()) === "min", await snapOf());
+    await swipe(195, (await sheetTop()) + 20, 300);
+    await sleep(500);
+    check("a swipe up opens it again", (await snapOf()) !== "min", await snapOf());
+  }
+}
+
 async function openCard() {
   await fresh("half");
   const p = await center('[data-testid="member-card"]');
@@ -165,6 +186,7 @@ async function main() {
     await c.send("Page.enable");
     await c.send("Runtime.enable");
     await c.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
+    await sheetFold();
 
     await openCard();
     const open = await cardBox();

@@ -3200,6 +3200,14 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
   const H = () => sheetEl.offsetHeight || window.innerHeight;
 
   const peekH = () => dragEl.offsetHeight + 8;
+  // The lowest snap: only the grabber and the circle's name, so the map shows whole.
+  const minH = () => {
+    const main = dragEl.querySelector(".sheet-head-main");
+    if (!main) return 96;
+    return Math.round(main.getBoundingClientRect().bottom - sheetEl.getBoundingClientRect().top + 6);
+  };
+  // What a folded sheet hides is out of the tab order too.
+  const MIN_HIDDEN = ".sheet-head-actions, .share-window, .person-row";
   // The drag region grows when the avatar strip fills in; re-apply so the
   // peek snap never clips content that appeared after the last measure.
   if ("ResizeObserver" in window) {
@@ -3210,6 +3218,7 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     }).observe(dragEl);
   }
   function heightFor(name) {
+    if (name === "min") return Math.min(minH(), peekH());
     if (name === "peek") return Math.min(peekH(), Math.round(H() * 0.72));
     if (name === "half") return Math.round(H() * 0.56);
     return H() - 76;
@@ -3221,16 +3230,20 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     const visible = heightFor(snap);
     sheetEl.style.transform = `translateY(${Math.max(0, H() - visible)}px)`;
     sheetEl.classList.toggle("sheet-full", snap === "full");
-    sheetEl.classList.toggle("sheet-peek", snap === "peek");
-    bodyEl.style.height =
-      snap === "peek" ? "0px" : `${Math.max(0, visible - dragEl.offsetHeight - 8)}px`;
-    bodyEl.style.overflowY = snap === "peek" ? "hidden" : "auto";
+    const low = snap === "peek" || snap === "min";
+    sheetEl.classList.toggle("sheet-peek", low);
+    sheetEl.classList.toggle("sheet-min", snap === "min");
+    for (const n of dragEl.querySelectorAll(MIN_HIDDEN)) {
+      if ("inert" in HTMLElement.prototype) n.inert = snap === "min";
+    }
+    bodyEl.style.height = low ? "0px" : `${Math.max(0, visible - dragEl.offsetHeight - 8)}px`;
+    bodyEl.style.overflowY = low ? "hidden" : "auto";
     // At peek the body is clipped to zero height; keep its member cards and
     // nudges out of the tab order and the accessibility tree until expanded.
     // inert is the clean tool; where it is missing, hide from AT and drop the
     // whole subtree out of tab order the portable way.
     const hasInert = "inert" in HTMLElement.prototype;
-    if (snap === "peek") {
+    if (low) {
       bodyEl.setAttribute("aria-hidden", "true");
       if (hasInert) bodyEl.inert = true;
       else setTabbable(bodyEl, false);
@@ -3241,8 +3254,8 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     }
     // Overflow clips at the padding box, so bottom padding would leak a
     // sliver of the first card at peek.
-    bodyEl.style.paddingBottom = snap === "peek" ? "0px" : "";
-    document.documentElement.style.setProperty("--peek", `${peekH()}px`);
+    bodyEl.style.paddingBottom = low ? "0px" : "";
+    document.documentElement.style.setProperty("--peek", `${snap === "min" ? visible : peekH()}px`);
     if (snap === "full") {
       sheetEl.setAttribute("role", "dialog");
       sheetEl.setAttribute("aria-modal", "true");
@@ -3253,7 +3266,7 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
       untrap?.();
       untrap = null;
     }
-    dragEl.querySelector(".grabber")?.setAttribute("aria-expanded", String(snap !== "peek"));
+    dragEl.querySelector(".grabber")?.setAttribute("aria-expanded", String(!low));
     if (!animate) requestAnimationFrame(() => sheetEl.classList.remove("no-anim"));
     onSnap?.(snap);
   }
@@ -3271,7 +3284,7 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
   let swallowUntil = 0;
 
   // Click (keyboard, screen reader double-tap, or a plain tap on the bar)
-  // toggles between peek and half.
+  // toggles between peek and half; from the folded snap it comes back to peek.
   const grab = dragEl.querySelector(".grabber");
   grab?.addEventListener("click", () => {
     snap = snap === "peek" ? "half" : "peek";
@@ -3344,7 +3357,7 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     if (now > lastT) vel = (e.clientY - lastY) / (now - lastT);
     lastY = e.clientY;
     lastT = now;
-    const visible = Math.min(heightFor("full"), Math.max(120, startVisible + (startY - e.clientY)));
+    const visible = Math.min(heightFor("full"), Math.max(heightFor("min"), startVisible + (startY - e.clientY)));
     sheetEl.style.transform = `translateY(${H() - visible}px)`;
   });
   // A non-passive touchmove is the only way to stop the browser starting a
@@ -3386,7 +3399,7 @@ export function createSheet(sheetEl, dragEl, bodyEl, { onSnap } = {}) {
     const projected = visible - vel * 160;
     let best = "peek";
     let bestDist = Infinity;
-    for (const name of ["peek", "half", "full"]) {
+    for (const name of ["min", "peek", "half", "full"]) {
       const d = Math.abs(heightFor(name) - projected);
       if (d < bestDist) {
         bestDist = d;
