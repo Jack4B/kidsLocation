@@ -1,5 +1,6 @@
 // Runs relay/src/index.js under plain node:http with a file-backed SQLite database instead of D1.
 import http from "node:http";
+import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import worker from "./src/index.js";
@@ -91,6 +92,55 @@ async function toWebResponse(req, env, opts) {
   }
 }
 
+// The app's pages the relay hosts itself, for links that must name the relay's
+// origin: the emergency help page above all (see helpUrlBase in app/js/env.js).
+// Only GET and HEAD the Worker answered 404 fall through to here.
+const STATIC_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".map": "application/json; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+};
+const STATIC_HEADERS = {
+  "cache-control": "no-cache",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "no-referrer",
+  "cross-origin-opener-policy": "same-origin",
+  "cross-origin-resource-policy": "same-origin",
+  "content-security-policy":
+    "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self'; manifest-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+};
+
+async function staticResponse(root, pathname) {
+  let rel;
+  try {
+    rel = decodeURIComponent(pathname);
+  } catch {
+    return null;
+  }
+  if (rel === "/help") rel = "/help.html";
+  const type = STATIC_TYPES[path.extname(rel).toLowerCase()];
+  if (!type || rel.includes("\0")) return null;
+  const file = path.join(root, path.normalize(rel));
+  try {
+    // realpath also follows links, so nothing outside the app folder is ever read.
+    const real = await realpath(file);
+    if (!real.startsWith(root + path.sep)) return null;
+    const body = await readFile(real);
+    return new Response(body, { status: 200, headers: { "content-type": type, ...STATIC_HEADERS } });
+  } catch {
+    return null;
+  }
+}
+
 async function writeWebResponse(res, response) {
   const headers = {};
   response.headers.forEach((v, k) => { headers[k] = v; });
@@ -105,6 +155,7 @@ export function createServer({
   publicOrigin,
   rateVars = {},
   sweepIntervalMs = 10 * 60_000,
+  staticDir = null,
 } = {}) {
   const env = {
     DB: makeD1(dbPath),
@@ -112,8 +163,16 @@ export function createServer({
   };
   const opts = { trustProxy, publicOrigin: publicOrigin || "http://127.0.0.1" };
 
+  const root = staticDir ? realpath(path.resolve(staticDir)).catch(() => null) : Promise.resolve(null);
   const server = http.createServer((req, res) => {
     toWebResponse(req, env, opts)
+      .then(async (response) => {
+        if (response.status !== 404 || (req.method !== "GET" && req.method !== "HEAD")) return response;
+        const dir = await root;
+        if (!dir) return response;
+        const found = await staticResponse(dir, new URL(req.url, opts.publicOrigin).pathname);
+        return found || response;
+      })
       .then((response) => writeWebResponse(res, response))
       .catch(() => {
         if (!res.headersSent) res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
@@ -147,6 +206,8 @@ async function main() {
     trustProxy,
     publicOrigin,
     sweepIntervalMs,
+    // The app folder next to the relay, unless STATIC_DIR names another or is empty.
+    staticDir: process.env.STATIC_DIR ?? path.join(HERE, "..", "app"),
     rateVars: {
       RATE_POST_MIN: process.env.RATE_POST_MIN,
       RATE_GET_MIN: process.env.RATE_GET_MIN,
