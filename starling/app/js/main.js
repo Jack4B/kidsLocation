@@ -811,6 +811,11 @@ function ensureMapUI() {
   mapView.map.on?.("click", () => {
     if (pickName === null) makeRoomForMap();
   });
+  // A finger put down on the map, before Leaflet decides it is a drag or a tap.
+  mapView.map.getContainer?.().addEventListener("pointerdown", (e) => {
+    if (pickName === null && !e.target.closest?.(".leaflet-marker-icon")) makeRoomForMap();
+  });
+  foldCardBySwipe($("#focus-card"));
   $("#banner-demo-exit").addEventListener("click", exitDemo);
   $("#banner-demo-map").addEventListener("click", toggleDemoMap);
   $("#banner-demo-consent-go").addEventListener("click", loadDemoMap);
@@ -1986,6 +1991,25 @@ function makeRoomForMap() {
   const card = $("#focus-card");
   if (focusedId && !card.hidden) ui.setFocusCardMin(card, true);
   else if (sheet && sheet.getSnap() !== "peek") sheet.snapTo("peek");
+}
+
+// A swipe down on a person's card folds it, a swipe up unfolds it, the way the
+// circle sheet moves. Only from the card's top, so its list still scrolls.
+function foldCardBySwipe(card) {
+  // Touch events, not pointer ones: the browser cancels the pointer once the card's
+  // list starts to scroll, but touchend still comes.
+  let y0 = null;
+  card.addEventListener("touchstart", (e) => {
+    const y = e.touches[0].clientY;
+    y0 = y - card.getBoundingClientRect().top <= 96 || card.classList.contains("fc-min") ? y : null;
+  }, { passive: true });
+  card.addEventListener("touchend", (e) => {
+    if (y0 === null) return;
+    const dy = e.changedTouches[0].clientY - y0;
+    y0 = null;
+    if (dy > 40 && card.scrollTop <= 0) ui.setFocusCardMin(card, true);
+    else if (dy < -40) ui.setFocusCardMin(card, false);
+  });
 }
 
 function unfocus() {
