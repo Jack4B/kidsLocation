@@ -168,6 +168,14 @@ export function closeAllOverlays() {
 export const overlaysOpen = () => overlayStack.length > 0;
 
 // The basemap choices, shared by Settings and the map's own style button.
+const SPEED_ALERT_CHOICES = [
+  { value: 0, label: "Off" },
+  { value: 80, label: "80 km/h" },
+  { value: 100, label: "100 km/h" },
+  { value: 120, label: "120 km/h" },
+  { value: 140, label: "140 km/h" },
+];
+
 const BASEMAP_CHOICES = [
   { value: "auto", label: "Auto" },
   { value: "dark", label: "Dark" },
@@ -2757,6 +2765,13 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
       note: "Tell me when a member's phone drops under 15 percent, before their dot goes dark",
       value: values.settings.batAlerts,
       onChange: (v) => onChange("batAlerts", v),
+    }),
+    segControl({
+      label: "Fast driving alerts",
+      note: "Tell me when someone in the circle holds a speed over this limit. Worked out on this phone from their positions, so it is an estimate.",
+      options: SPEED_ALERT_CHOICES,
+      value: Number(values.settings.speedAlertKmh) || 0,
+      onChange: (v) => onChange("speedAlertKmh", v),
     }),
   );
   if (typeof native()?.notifyDetail === "function") {

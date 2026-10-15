@@ -17,6 +17,10 @@ Zrobiono:
 - Oś zdarzeń osoby: przy każdym przejeździe prędkość maksymalna („maks. 95 km/h”), liczona
   na telefonie odbiorcy z punktów trasy, które już ma. Wymaga dwóch odcinków z rzędu
   (odporność na pojedynczy zły odczyt), pokazywana od 25 km/h. Bez zmian w protokole.
+- Powiadomienie o szybkiej jeździe (Ustawienia, Powiadomienia): próg 80, 100, 120 lub 140 km/h,
+  domyślnie wyłączone. Liczone na telefonie odbiorcy z trasy z ostatnich 3 minut tą samą
+  metodą (`peakKmh`); jedno powiadomienie na osobę na 15 minut. Bez zmian w protokole i na
+  serwerze, więc działa tylko dla osób, które wysyłają pozycję w tle (dziś Android).
 - sw cache v49.
 
 Sprawdzono: `npm test` 1235 testów, 1201 przechodzi, 34 pominięte, 0 błędów;
@@ -24,7 +28,7 @@ Sprawdzono: `npm test` 1235 testów, 1201 przechodzi, 34 pominięte, 0 błędów
 
 Nie zrobiono: link pomocy SOS `/help` nadal prowadzi do strony, której serwer Node nie ma;
 wymaga serwowania strony pomocy (z vendorowanym Leafletem) przez relay albo osobnego
-hostingu. Powiadomienie o szybkiej jeździe (próg) zostaje na kolejne zadanie.
+hostingu. Brak testu end-to-end powiadomienia o szybkiej jeździe (logika `peakKmh` ma testy).
 
 ---
 
