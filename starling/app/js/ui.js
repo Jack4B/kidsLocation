@@ -3819,7 +3819,8 @@ export function renderFocusCard(root, rec, ctx) {
     coords.append(code, copyBtn);
     root.append(head, chips, actions, compass, hist, verify, coords, grab);
   }
-  root.className = `focus-card fc-${status}`;
+  // Keep the fold: the card redraws on every update and map move.
+  root.className = `focus-card fc-${status}${root.classList.contains("fc-min") ? " fc-min" : ""}`;
   root.style.setProperty("--m-hue", String(rec.hue ?? 0));
   $(".ava-emoji", root).textContent = initialOf(rec.name) || rec.emoji || "";
   $(".fc-name", root).textContent = rec.name || t("Member");

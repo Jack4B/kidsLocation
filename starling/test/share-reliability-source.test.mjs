@@ -311,3 +311,11 @@ test("Back asks the page first, and only a page at the map lets it leave", () =>
   assert.match(main, /if \(focusedId\) \{\s*unfocus\(\);\s*return true;/, "a person's card closes on Back");
   assert.match(main, /if \(name === "map" && activeTab === "map" && focusedId\) \{\s*unfocus\(\);/, "and on the Map tab");
 });
+
+test("a folded card stays folded when it redraws, and folds by a swipe or a touch on the map", () => {
+  const ui = readFileSync(new URL("../app/js/ui.js", import.meta.url), "utf8");
+  assert.match(ui, /root\.className = `focus-card fc-\$\{status\}\$\{root\.classList\.contains\("fc-min"\) \? " fc-min" : ""\}`/);
+  const main = readFileSync(new URL("../app/js/main.js", import.meta.url), "utf8");
+  assert.match(main, /getContainer\?\.\(\)\.addEventListener\("pointerdown"[^]*?makeRoomForMap\(\)/);
+  assert.match(main, /card\.addEventListener\("touchend"/);
+});

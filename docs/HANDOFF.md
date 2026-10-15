@@ -6,6 +6,15 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F2-10b: karta osoby naprawdę się zwija
+
+- Przyczyna zgłoszenia „karta się nie zwija”: `renderFocusCard` nadpisywał `className` przy każdym
+  odświeżeniu (nowa pozycja, ruch mapy) i gubił `fc-min`. Teraz klasa zwinięcia zostaje.
+- Karta zwija się też przesunięciem palca w dół od jej górnej części i rozwija w górę
+  (zdarzenia dotyku, bo przewijanie listy anuluje zdarzenia pointer).
+- Dotknięcie mapy (pointerdown na kontenerze Leafleta, poza znacznikami) zwija kartę od razu.
+- Nowy test e2e `test/e2e_card_fold.mjs` (CDP, dotyk) i test źródła. Service worker v51.
+
 ## 2026-10-15, Claude, F2-10: powrót z karty osoby i zwijanie
 
 Właściciel: z karty osoby nie da się wrócić do mapy inaczej niż przez inną zakładkę; nie da
