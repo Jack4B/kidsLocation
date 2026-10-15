@@ -6,6 +6,17 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F5-9: raport udostępniania mówi, jak zginął proces
+
+- Zgłoszenie: udostępnianie dalej staje na Xiaomi 14T Pro i Poco X5 5G. Raport z Poco był
+  zrobiony już po ponownym otwarciu aplikacji, więc nie mówił, co zakończyło poprzednie
+  udostępnianie.
+- Raport ma teraz „Last share stopped by” (trasa zatrzymania z `PREF_STOP_ROUTE`, o ile strona
+  jej jeszcze nie odczytała) i do 4 wpisów `ApplicationExitInfo` (Android 11+): powód, wiek,
+  ważność procesu i opis systemu oczyszczony do bezpiecznych znaków (na Xiaomi zwykle nazywa
+  proces, który zabił aplikację).
+- Następny krok: raport z telefonu po zatrzymaniu, potem poprawka w miejscu, które wskaże.
+
 ## 2026-10-15, Claude, F5-8: relay hostuje stronę pomocy SOS
 
 - Link pomocy SOS prowadzi na `<relay>/help`, a relay odpowiadał 404. `relay/server.mjs` podaje

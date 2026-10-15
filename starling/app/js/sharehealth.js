@@ -113,6 +113,34 @@ const failWord = (v) =>
 
 const BUCKETS = { 5: "exempted", 10: "active", 20: "working set", 30: "frequent", 40: "rare", 45: "restricted", 50: "never" };
 
+// ApplicationExitInfo reasons, by number.
+const EXIT_WORDS = {
+  0: "unknown", 1: "exited itself", 2: "signaled", 3: "low memory", 4: "crashed", 5: "crashed (native)",
+  6: "not responding", 7: "init failure", 8: "permission change", 9: "excessive resources",
+  10: "user requested", 11: "user stopped", 12: "dependency died", 13: "other", 14: "freezer",
+  15: "package state change", 16: "package updated",
+};
+const STOP_WORDS = { system: "the system", notif: "the notification", swipe: "a swipe", lock: "the app lock", renderer: "the page crashed", stalled: "the page stalled", "": "none recorded" };
+const exitDesc = (v) => (typeof v === "string" ? v.replace(/[^A-Za-z0-9 ._:#=-]/g, "").slice(0, 80) : "");
+
+function exitLines(h) {
+  const lines = [];
+  if (typeof h.stopRoute === "string") {
+    const by = Object.hasOwn(STOP_WORDS, h.stopRoute) ? STOP_WORDS[h.stopRoute] : "other";
+    lines.push(`Last share stopped by: ${by}${h.stopAgoMs != null ? `, ${age(h.stopAgoMs)}` : ""}`);
+  }
+  if (Array.isArray(h.exits)) {
+    if (!h.exits.length) lines.push("App process exits: none recorded");
+    for (const e of h.exits.slice(0, 4)) {
+      if (!e || typeof e !== "object") continue;
+      const word = Object.hasOwn(EXIT_WORDS, e.reason) ? EXIT_WORDS[e.reason] : "unknown";
+      const d = exitDesc(e.desc);
+      lines.push(`App process exit: ${word}, ${age(e.agoMs)}, importance ${num(e.importance)}${d ? `, "${d}"` : ""}`);
+    }
+  }
+  return lines;
+}
+
 export function shareReport({ h, page, now }) {
   const p = page || {};
   const lines = ["Starling sharing report"];
@@ -161,6 +189,7 @@ export function shareReport({ h, page, now }) {
     }
     lines.push(`Page frozen during shares: ${num(h.freezes)} times, woken ${num(h.nudges)} times, last answered ${age(h.lastPulseMs)}`);
     if (h.holderFailed) lines.push("Could not hold the page after the app closed");
+    lines.push(...exitLines(h));
   }
   lines.push(`Posts this share: ${num(p.ok ?? 0)} sent, ${num(p.failed ?? 0)} failed`);
   const f = p.fixes || {};

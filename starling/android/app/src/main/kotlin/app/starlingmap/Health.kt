@@ -10,6 +10,7 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.Process
+import org.json.JSONArray
 import android.os.SystemClock
 import android.webkit.WebView
 import androidx.core.app.NotificationManagerCompat
@@ -108,10 +109,37 @@ object Health {
         o.put("resumedBy", ShareResume.headlessWhy ?: "")
         o.put("headlessResumes", ShareResume.resumes)
         o.put("headlessAbandons", ShareResume.abandons)
+        // How the last share ended, and how Android says the process last died:
+        // the only trace of a vendor killer once the app is open again.
+        val prefs = ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+        o.put("stopRoute", prefs.getString(MainActivity.PREF_STOP_ROUTE, null) ?: "")
+        val stopTs = prefs.getLong(MainActivity.PREF_STOP_TS, 0L)
+        o.put("stopAgoMs", if (stopTs > 0L) System.currentTimeMillis() - stopTs else JSONObject.NULL)
+        o.put("exits", exits(ctx))
         o.put(
             "tor",
             ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE).getBoolean(MainActivity.PREF_TOR, false),
         )
         return o.toString()
+    }
+
+    // The last few process deaths, newest first. The description is the
+    // system's own words (on Xiaomi it names the killer), cut to a safe shape.
+    private fun exits(ctx: Context): JSONArray {
+        val out = JSONArray()
+        if (Build.VERSION.SDK_INT < 30) return out
+        runCatching {
+            val am = ctx.getSystemService(ActivityManager::class.java)
+            for (e in am.getHistoricalProcessExitReasons(ctx.packageName, 0, 4)) {
+                out.put(
+                    JSONObject()
+                        .put("reason", e.reason)
+                        .put("agoMs", System.currentTimeMillis() - e.timestamp)
+                        .put("importance", e.importance)
+                        .put("desc", (e.description ?: "").replace(Regex("[^A-Za-z0-9 ._:#=-]"), "").take(80)),
+                )
+            }
+        }
+        return out
     }
 }
