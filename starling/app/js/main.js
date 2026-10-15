@@ -1555,7 +1555,7 @@ function renderAlerts() {
     seen.add(item.id);
     if (announcedAlerts.has(item.id)) continue;
     announcedAlerts.add(item.id);
-    if (item.kind !== "info" && !item.toasted && item.title && sheet && sheet.getSnap() === "peek") ui.toast(item.title);
+    if (item.kind !== "info" && !item.toasted && item.title && sheet && ["peek", "min"].includes(sheet.getSnap())) ui.toast(item.title);
   }
   announcedAlerts = seen;
 }
@@ -1990,7 +1990,7 @@ function focusMember(id, { keyboard = false } = {}) {
 function makeRoomForMap() {
   const card = $("#focus-card");
   if (focusedId && !card.hidden) ui.setFocusCardMin(card, true);
-  else if (sheet && sheet.getSnap() !== "peek") sheet.snapTo("peek");
+  else if (sheet && sheet.getSnap() !== "min") sheet.snapTo("min");
 }
 
 // A swipe down on a person's card folds it, a swipe up unfolds it, the way the
@@ -2526,7 +2526,7 @@ async function onKeyChange(id, presented) {
   ui.toast(t("{who}'s keys changed. Their location is hidden until you accept it.", { who: known?.nick || known?.name || t("A member") }), "warn");
   // At peek the sheet body is inert and the warning would be invisible. The
   // chrome banner shows either way; this puts the card itself in front too.
-  if (state.screen === "map" && sheet && sheet.getSnap() === "peek") sheet.snapTo("half");
+  if (state.screen === "map" && sheet && ["peek", "min"].includes(sheet.getSnap())) sheet.snapTo("half");
   render();
 }
 
@@ -7214,7 +7214,7 @@ async function fireSos() {
   // The armed-SOS card, with the cancel instructions and the help-link
   // button, lives in the sheet body; surface it rather than leave it
   // behind a drag gesture at exactly the wrong moment.
-  if (sheet && sheet.getSnap() === "peek") sheet.snapTo("half");
+  if (sheet && ["peek", "min"].includes(sheet.getSnap())) sheet.snapTo("half");
   if (state.demo) {
     ui.toast("SOS sent to your circle. Tap the check mark to cancel.", "sos");
     render();

@@ -6,6 +6,15 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F2-10c: lista rodziny zwija się do samej nazwy kręgu
+
+- Zgłoszenie: na widoku ogólnym lista rodziny nie daje się zwinąć. Najniższa pozycja („peek”)
+  zajmowała około 40% ekranu (przyciski i rząd osób).
+- Nowa najniższa pozycja arkusza `min`: widać tylko uchwyt i nazwę kręgu. Arkusz zjeżdża tam
+  po dotknięciu lub przeciągnięciu mapy i po przesunięciu palcem w dół. Uchwyt wraca do „peek”.
+  Ukryte przyciski i rząd osób są `inert`.
+- `test/e2e_card_fold.mjs` sprawdza też arkusz. Service worker v52.
+
 ## 2026-10-15, Claude, F2-10b: karta osoby naprawdę się zwija
 
 - Przyczyna zgłoszenia „karta się nie zwija”: `renderFocusCard` nadpisywał `className` przy każdym
