@@ -438,6 +438,7 @@ class LocationService : Service(), LocationListener {
             stopSelf()
             return START_NOT_STICKY
         }
+        ShareResume.armWatchdog(this)
         startWatching()
         // A page that started over asks again and has to hear where things stand.
         if (still.on) sink?.invoke(JSONObject().put("still", true).toString())
@@ -609,6 +610,7 @@ class LocationService : Service(), LocationListener {
     }
 
     private fun armTick() {
+        ShareResume.armWatchdog(this)
         val am = getSystemService(ALARM_SERVICE) as AlarmManager
         runCatching {
             am.setAndAllowWhileIdle(

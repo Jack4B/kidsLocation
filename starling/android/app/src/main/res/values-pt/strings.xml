@@ -23,6 +23,7 @@
     <string name="notif_remind_text">Abra o Blisko para compartilhar de novo.</string>
     <string name="notif_resume_boot_text">Seu telefone foi reiniciado. Toque para compartilhar de novo.</string>
     <string name="notif_resume_update_text">O Blisko foi atualizado. Toque para compartilhar de novo.</string>
+    <string name="notif_resume_killed_text">Your phone stopped Blisko in the background. Tap to share again.</string>
     <string name="notif_title_resumed_boot">Compartilhando de novo após reiniciar</string>
     <string name="notif_title_resumed_update">Compartilhando de novo após uma atualização</string>
     <string name="notif_waiting_orbot">Aguardando o Orbot. Nada é enviado até o Tor conectar.</string>
