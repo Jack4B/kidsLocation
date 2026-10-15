@@ -806,6 +806,10 @@ function ensureMapUI() {
   // A person who moves the map before the first fix has chosen where to look.
   mapView.map.on?.("dragstart", () => {
     mapHandled = true;
+    makeRoomForMap();
+  });
+  mapView.map.on?.("click", () => {
+    if (pickName === null) makeRoomForMap();
   });
   $("#banner-demo-exit").addEventListener("click", exitDemo);
   $("#banner-demo-map").addEventListener("click", toggleDemoMap);
@@ -1819,6 +1823,11 @@ function openingView() {
 // and under the navigation bar, so the map keeps running beneath it and
 // coming back to it is instant.
 function openTab(name) {
+  // Map tapped again while a person's card is open: back to the whole map.
+  if (name === "map" && activeTab === "map" && focusedId) {
+    unfocus();
+    return;
+  }
   if (name === activeTab && tabPage) return;
   if (name !== "map" && focusedId) unfocus();
   closeTabPage();
@@ -1969,6 +1978,14 @@ function focusMember(id, { keyboard = false } = {}) {
   if (Number.isFinite(rec.lat)) mapView?.focusOn(rec.lat, rec.lon, 16, Math.round(window.innerHeight * 0.3));
   render();
   if (keyboard) $("#focus-card").focus();
+}
+
+// Moving or tapping the map folds what covers it: a person's card to its first
+// row, the circle sheet to its peek.
+function makeRoomForMap() {
+  const card = $("#focus-card");
+  if (focusedId && !card.hidden) ui.setFocusCardMin(card, true);
+  else if (sheet && sheet.getSnap() !== "peek") sheet.snapTo("peek");
 }
 
 function unfocus() {
@@ -8140,23 +8157,49 @@ window.addEventListener("hashchange", () => {
   promptJoin(invite);
 });
 
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  if (ui.closeTopOverlay()) return;
+// One step back, for Escape and for the phone's Back: true when something on
+// the page took it, false when the page is already at its start (the map).
+function stepBack() {
+  if (ui.closeTopOverlay()) return true;
   if (chatLayer && !chatLayer.hidden) {
     closeChat();
-    return;
+    return true;
   }
   if (pickName !== null) {
     backOutOfPick();
-    return;
+    return true;
   }
   if (focusedId) {
     unfocus();
-    return;
+    return true;
   }
-  if (sheet && sheet.getSnap() === "full") sheet.snapTo("half");
-  else if (sheet && sheet.getSnap() === "half") sheet.snapTo("peek");
+  if (activeTab !== "map") {
+    openTab("map");
+    return true;
+  }
+  if (sheet && sheet.getSnap() === "full") {
+    sheet.snapTo("half");
+    return true;
+  }
+  if (sheet && sheet.getSnap() === "half") {
+    sheet.snapTo("peek");
+    return true;
+  }
+  return false;
+}
+
+// The Android wrapper asks this before it lets Back leave the app.
+window.__starlingBack = () => {
+  try {
+    return stepBack();
+  } catch {
+    return false;
+  }
+};
+
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  stepBack();
 });
 
 async function boot() {

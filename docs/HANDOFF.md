@@ -6,6 +6,23 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F2-10: powrót z karty osoby i zwijanie
+
+Właściciel: z karty osoby nie da się wrócić do mapy inaczej niż przez inną zakładkę; nie da
+się zwinąć karty ani arkusza kręgu, żeby zobaczyć całą mapę.
+
+Zrobiono: systemowe „Wstecz” na Androidzie najpierw pyta stronę (`window.__starlingBack`,
+`stepBack()` w `main.js`): zamyka okno, czat, kartę osoby, wraca z zakładki na mapę, zwija
+arkusz; dopiero mapa w stanie początkowym oddaje „Wstecz” dotychczasowym regułom. Ponowne
+dotknięcie zakładki Mapa zamyka kartę osoby. Uchwyt karty osoby jest przyciskiem: zwija kartę
+do pierwszego wiersza i rozwija. Przesunięcie lub dotknięcie mapy zwija kartę osoby albo
+arkusz kręgu do minimum. sw cache v50.
+
+Sprawdzono: `npm test` 1238, 0 błędów; e2e sheet_drag i wrapper przechodzą. Nie sprawdzono
+na telefonie ani zrzutem ekranu zwiniętej karty.
+
+---
+
 ## 2026-10-15, Claude, F5-7: udostępnianie zabijane na Xiaomi i Poco
 
 Właściciel: na Xiaomi 14T Pro i Poco X5 5G udostępnianie znika po kilku godzinach mimo

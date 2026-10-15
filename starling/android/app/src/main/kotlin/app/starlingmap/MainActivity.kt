@@ -78,6 +78,22 @@ class MainActivity : FragmentActivity() {
             moveTaskToBack(true)
         }
     }
+    // Back first asks the page to take one step (close a person's card, a sheet, a
+    // tab); only a page already at the map lets Back go on to the rules above.
+    private val pageBack = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            if (!::webView.isInitialized) return passBack()
+            webView.evaluateJavascript("(window.__starlingBack && window.__starlingBack()) === true") { took ->
+                if (took != "true") passBack()
+            }
+        }
+
+        private fun passBack() {
+            isEnabled = false
+            onBackPressedDispatcher.onBackPressed()
+            isEnabled = true
+        }
+    }
     private var pendingGeoCallback: Pair<String, GeolocationPermissions.Callback>? = null
 
     private val locationPermission = registerForActivityResult(
@@ -142,6 +158,8 @@ class MainActivity : FragmentActivity() {
 
         applyTorPref()
         onBackPressedDispatcher.addCallback(this, backWhileSharing)
+        // Added last, so it is asked first.
+        onBackPressedDispatcher.addCallback(this, pageBack)
 
         // Either a fresh page or the one that has been holding a share up
         // while nothing was on screen. In the second case it is already booted

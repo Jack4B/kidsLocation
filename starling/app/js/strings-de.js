@@ -814,6 +814,7 @@ export const de = {
   // F2-1 redesign: English until translated.
   "{dist} in {min} min": "{dist} in {min} min",
   "top {kmh} km/h": "top {kmh} km/h",
+  "Show more or less": "Show more or less",
   "Fast driving alerts": "Fast driving alerts",
   "Tell me when someone in the circle holds a speed over this limit. Worked out on this phone from their positions, so it is an estimate.": "Tell me when someone in the circle holds a speed over this limit. Worked out on this phone from their positions, so it is an estimate.",
   "80 km/h": "80 km/h",

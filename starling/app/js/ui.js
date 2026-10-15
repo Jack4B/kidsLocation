@@ -3744,12 +3744,23 @@ function timelineEntry(entry, now, isLatest) {
   return row;
 }
 
+export function setFocusCardMin(root, min) {
+  root.classList.toggle("fc-min", min);
+  root.querySelector(".fc-grab")?.setAttribute("aria-expanded", String(!min));
+  if (min) root.scrollTop = 0;
+}
+
 export function renderFocusCard(root, rec, ctx) {
   const { now, mePos, statusOf, trailOn, onTrailToggle, onClose, place, since, ask, askWho, onAsk } = ctx;
   const status = statusOf(rec, now);
   if (root.dataset.member !== rec.id) {
     root.dataset.member = rec.id;
     root.replaceChildren();
+    // A new person opens in full; the handle folds the card down to its first row so the map shows.
+    root.classList.remove("fc-min");
+    const grab = btn("fc-grab", null, "Show more or less");
+    grab.setAttribute("aria-expanded", "true");
+    grab.addEventListener("click", () => setFocusCardMin(root, !root.classList.contains("fc-min")));
     const head = el("div", "fc-head");
     const ava = buildAva("ava ava-big");
     const main = el("div", "fc-main");
@@ -3806,7 +3817,7 @@ export function renderFocusCard(root, rec, ctx) {
     const copyBtn = btn("btn-mini", "Copy", "Copy coordinates");
     copyBtn.classList.add("fc-copy");
     coords.append(code, copyBtn);
-    root.append(head, chips, actions, compass, hist, verify, coords);
+    root.append(head, chips, actions, compass, hist, verify, coords, grab);
   }
   root.className = `focus-card fc-${status}`;
   root.style.setProperty("--m-hue", String(rec.hue ?? 0));
