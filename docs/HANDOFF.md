@@ -6,6 +6,28 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-15, Claude, F5-6: poprawki po wydaniu 1.0
+
+Zrobiono:
+
+- Powiadomienia o miejscach (`detailAlerts`): bez zgody na zablokowany ekran powiadomienie
+  nie zawiera imienia ani miejsca także w wersji prywatnej, tak samo jak czat (F3-9).
+  Strażnik w `Events.kt` obejmuje teraz każdy rodzaj; `check-notification-privacy.sh` i
+  `detail-alerts.test.mjs` sprawdzają ogólny warunek.
+- Oś zdarzeń osoby: przy każdym przejeździe prędkość maksymalna („maks. 95 km/h”), liczona
+  na telefonie odbiorcy z punktów trasy, które już ma. Wymaga dwóch odcinków z rzędu
+  (odporność na pojedynczy zły odczyt), pokazywana od 25 km/h. Bez zmian w protokole.
+- sw cache v49.
+
+Sprawdzono: `npm test` 1235 testów, 1201 przechodzi, 34 pominięte, 0 błędów;
+`check-clean.sh` i `check-notification-privacy.sh` czyste. Nie sprawdzono na telefonie.
+
+Nie zrobiono: link pomocy SOS `/help` nadal prowadzi do strony, której serwer Node nie ma;
+wymaga serwowania strony pomocy (z vendorowanym Leafletem) przez relay albo osobnego
+hostingu. Powiadomienie o szybkiej jeździe (próg) zostaje na kolejne zadanie.
+
+---
+
 ## 2026-10-14, Claude, F6 (plan) i README
 
 Zrobiono: rozpisano fazę 6 „Wspólne miejsca w kręgu” (F6-0 do F6-7) w `docs/PLAN.md` i

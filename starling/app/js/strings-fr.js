@@ -813,6 +813,7 @@ export const fr = {
   "This app has no relay address built in. Enter the address of your family relay, like https://relay.example.org. Everyone in the family uses the same one, and nothing is sent anywhere until it is set.": "Cette app n'a aucune adresse de relais intégrée. Saisissez l'adresse du relais de votre famille, par exemple https://relay.example.org. Toute la famille utilise le même, et rien n'est envoyé tant qu'il n'est pas défini.",
   // F2-1 redesign: English until translated.
   "{dist} in {min} min": "{dist} in {min} min",
+  "top {kmh} km/h": "top {kmh} km/h",
   "{n} of {max} places. Arrive and leave alerts come only to this phone.": "{n} of {max} places. Arrive and leave alerts come only to this phone.",
   "{n} people": "{n} people",
   "{n} person": "{n} person",

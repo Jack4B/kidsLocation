@@ -4,7 +4,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildTimeline, STAY_MIN_MS, TIMELINE_MAX } from "../app/js/timeline.js";
+import { buildTimeline, peakKmh, STAY_MIN_MS, TIMELINE_MAX } from "../app/js/timeline.js";
 
 const MIN = 60 * 1000;
 const NOW = 1_700_000_000_000;
@@ -84,4 +84,34 @@ test("unsorted input and broken points are handled", () => {
   const out = buildTimeline(trail, opts());
   assert.equal(out.length, 1);
   assert.equal(out[0].start, NOW - 30 * MIN);
+});
+
+// 0.001 degree of latitude is about 111 m; every 15 s that is about 26.7 km/h.
+const fix = (sAgo, dLat) => ({ lat: 52.2 + dLat, lon: 21.0, ts: NOW - sAgo * 1000 });
+
+test("top speed is the highest speed held over two segments in a row", () => {
+  // 15 s steps of 0.001, 0.001, 0.004, 0.004, 0.001 degrees: about 27, 27, 107, 107, 27 km/h.
+  const pts = [fix(75, 0), fix(60, 0.001), fix(45, 0.002), fix(30, 0.006), fix(15, 0.01), fix(0, 0.011)];
+  const kmh = peakKmh(pts);
+  assert.ok(kmh >= 105 && kmh <= 108, `got ${kmh}`);
+});
+
+test("one jump between two fixes cannot make a top speed on its own", () => {
+  // A single 2 km jump between slow segments: about 27, 506, 27 km/h.
+  const kmh = peakKmh([fix(45, 0), fix(30, 0.001), fix(15, 0.02), fix(0, 0.021)]);
+  assert.ok(kmh < 30, `got ${kmh}`);
+});
+
+test("too few or too close points name no top speed", () => {
+  assert.equal(peakKmh([]), null);
+  assert.equal(peakKmh([fix(15, 0), fix(0, 0.001)]), null);
+  assert.equal(peakKmh([fix(3, 0), fix(2, 0.001), fix(1, 0.002)]), null);
+});
+
+test("a move entry carries its top speed", () => {
+  const trail = [];
+  for (let i = 0; i <= 20; i++) trail.push({ lat: 52.2 + i * 0.002, lon: 21.0, ts: NOW - (20 - i) * 15000 });
+  const [move] = buildTimeline(trail, opts());
+  assert.equal(move.kind, "move");
+  assert.ok(move.maxKmh >= 50 && move.maxKmh <= 56, `got ${move.maxKmh}`);
 });

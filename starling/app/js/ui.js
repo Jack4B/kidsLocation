@@ -3699,6 +3699,9 @@ function windowTitle(id) {
   return t("Last hour");
 }
 
+// Below this a top speed says nothing a walk or a bike ride would not.
+const TOP_SPEED_SHOWN_KMH = 25;
+
 function timelineEntry(entry, now, isLatest) {
   const row = el("li", `tl-row tl-${entry.kind}`);
   const dot = el("span", "tl-dot");
@@ -3716,6 +3719,9 @@ function timelineEntry(entry, now, isLatest) {
   } else {
     title = t("On the move");
     sub = t("{dist} in {min} min", { dist: fmtDistance(entry.meters), min: mins });
+    if (Number.isFinite(entry.maxKmh) && entry.maxKmh >= TOP_SPEED_SHOWN_KMH) {
+      sub += ` · ${t("top {kmh} km/h", { kmh: entry.maxKmh })}`;
+    }
   }
   text.append(el("div", "tl-title", title), el("div", "tl-sub", sub));
   const time = el("time", "tl-time", fmtClock(entry.start));
