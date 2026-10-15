@@ -299,3 +299,15 @@ test("the fused provider is only used on Android 12+, never with Tor on, and fal
   assert.match(request, /if \(!fusedOn\) throw e\s*fusedOn = false/, "a refused fused request retries on gps and network");
   assert.match(fn(svc, "register"), /requestLocationUpdates\(LocationPlan\.FUSED, req,/);
 });
+
+test("Back asks the page first, and only a page at the map lets it leave", () => {
+  const act = kt("MainActivity.kt");
+  assert.match(act, /private val pageBack = object : OnBackPressedCallback\(true\)/);
+  assert.match(act, /evaluateJavascript\("\(window\.__starlingBack && window\.__starlingBack\(\)\) === true"\) \{ took ->\s*if \(took != "true"\) passBack\(\)/);
+  const onCreate = fn(act, "onCreate");
+  assert.ok(onCreate.indexOf("addCallback(this, pageBack)") > onCreate.indexOf("addCallback(this, backWhileSharing)"), "added last, asked first");
+  const main = readFileSync(new URL("../app/js/main.js", import.meta.url), "utf8");
+  assert.match(main, /window\.__starlingBack = \(\) => \{\s*try \{\s*return stepBack\(\);/);
+  assert.match(main, /if \(focusedId\) \{\s*unfocus\(\);\s*return true;/, "a person's card closes on Back");
+  assert.match(main, /if \(name === "map" && activeTab === "map" && focusedId\) \{\s*unfocus\(\);/, "and on the Map tab");
+});

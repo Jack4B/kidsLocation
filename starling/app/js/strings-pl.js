@@ -788,6 +788,7 @@ export const pl = {
   // F2-1 redesign.
   "{dist} in {min} min": "{dist} w {min} min",
   "top {kmh} km/h": "maks. {kmh} km/h",
+  "Show more or less": "Pokaż więcej lub mniej",
   "Fast driving alerts": "Powiadomienia o szybkiej jeździe",
   "Tell me when someone in the circle holds a speed over this limit. Worked out on this phone from their positions, so it is an estimate.": "Powiadom mnie, gdy ktoś z kręgu jedzie szybciej niż ten próg. Liczone na tym telefonie z jego pozycji, więc to przybliżenie.",
   "80 km/h": "80 km/h",

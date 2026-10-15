@@ -1746,16 +1746,35 @@ a.land-download {
   box-shadow: var(--shadow-2);
 }
 
-.focus-card::before {
-  content: "";
+.fc-grab {
   position: absolute;
   left: 50%;
-  top: 10px;
+  top: 0;
   transform: translateX(-50%);
-  width: 36px;
+  width: 64px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.fc-grab::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 10px;
   height: 4px;
   border-radius: 2px;
   background: var(--outline);
+}
+
+/* Folded: only the first row stays, the rest of the map is visible. */
+.focus-card.fc-min {
+  top: auto;
+  height: calc(var(--fc-min-h, 132px));
+  overflow: hidden;
 }
 
 .focus-card[hidden] {
