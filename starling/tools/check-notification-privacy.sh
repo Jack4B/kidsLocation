@@ -76,18 +76,18 @@ for line in \
 done
 
 # A Detail carrying the caller's title/body is built only in postDetail, and
-# only after the chat branch that, without onLock, uses resources alone.
+# only after the branch that, without onLock, uses resources alone (chat and places).
 post_detail=$(awk '/fun postDetail\(/,/^    }$/' "$events")
-guard=$(grep -n 'if (kind == "chat" && !onLock) {' <<<"$post_detail" | head -1 | cut -d: -f1)
+guard=$(grep -n 'if (!onLock) {' <<<"$post_detail" | head -1 | cut -d: -f1)
 caller=$(grep -n 'Detail(title, body' <<<"$post_detail" | head -1 | cut -d: -f1)
 if [ -z "$guard" ] || [ -z "$caller" ] || [ "$guard" -ge "$caller" ]; then
-  echo "Events.kt postDetail lets a chat notice without onLock carry the caller's words"
+  echo "Events.kt postDetail lets a notice without onLock carry the caller's words"
   fail=1
 else
   branch=$(sed -n "${guard},$((caller - 1))p" <<<"$post_detail")
   if grep -qE '\btitle\b|\bbody\b|detail\.' <<<"$(grep -v '^ *if (title' <<<"$branch")" \
-    || ! grep -q 'Detail(ctx.getString(R.string.app_name), ctx.getString(R.string.notif_chat_text), member, false' <<<"$branch"; then
-    echo "Events.kt postDetail's chat branch without onLock is not built from resources only:"
+    || ! grep -q 'Detail(ctx.getString(R.string.app_name), ctx.getString(lockedRes), member, false' <<<"$branch"; then
+    echo "Events.kt postDetail's branch without onLock is not built from resources only:"
     echo "$branch"
     fail=1
   fi

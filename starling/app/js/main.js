@@ -141,7 +141,7 @@ import {
 } from "./circles.js";
 import * as ui from "./ui.js";
 import { createMapView } from "./map.js";
-import { buildTimeline } from "./timeline.js";
+import { buildTimeline, peakKmh } from "./timeline.js";
 import { createPoller, createRoster, createSender, statusOf, displayStatus, sortMembers, staleAfter } from "./net.js";
 import { createOutbox } from "./outbox.js";
 import { createChatController, chatNotice } from "./chat.js";
@@ -227,6 +227,7 @@ const state = {
     lang: "pl", // UI language; Polish whatever the phone is set to (i18n.js DEFAULT_LOCALE)
     placeAlerts: true, // say when a member arrives at or leaves a saved place
     batAlerts: true, // say when a member's battery runs low
+    speedAlertKmh: 0, // say when a member holds a speed over this (km/h); 0 is off
     detailAlerts: false, // Android: one notification per place event, with name, place and time
     detailOnLock: false, // Android: let those words show on a locked screen too
     chatPreview: false, // Android: also put a message's text in its notification (needs chatOnLock)
@@ -492,6 +493,11 @@ let quietDismissed = false;
 // have already been called out for a low battery. Memory only, like prevStatus.
 const placeTracker = createPlaceTracker();
 const batWarned = new Set();
+// Member id to when the last fast-driving alert went out for them.
+const speedWarned = new Map();
+// Speeds are read from this much of a member's trail, and one alert covers this long.
+const SPEED_WINDOW_MS = 3 * 60 * 1000;
+const SPEED_COOLDOWN_MS = 15 * 60 * 1000;
 // Per member, cleared when their next SOS starts.
 const sosQuietTold = new Set();
 const sosCardHidden = new Set();
@@ -7724,6 +7730,20 @@ function checkAlerts() {
         }
       } else if (rec.bat > 0.25) {
         if (batWarned.delete(rec.id)) cancelEventNotification(`bat-${rec.id}`);
+      }
+    }
+
+    const limit = Number(state.settings.speedAlertKmh);
+    if (limit > 0 && Array.isArray(rec.trail)) {
+      const recent = rec.trail.filter((p) => p && now - p.ts <= SPEED_WINDOW_MS).sort((a, b) => a.ts - b.ts);
+      const kmh = peakKmh(recent);
+      if (kmh !== null && kmh >= limit && now - (speedWarned.get(rec.id) || 0) >= SPEED_COOLDOWN_MS) {
+        speedWarned.set(rec.id, now);
+        const msg = t("{who} is going {kmh} km/h", { who, kmh });
+        if (!muted) {
+          ui.toast(msg, "warn");
+          notifyEvent(msg, t("Over the limit you set: {limit} km/h.", { limit }), `speed-${rec.id}`, "other");
+        }
       }
     }
   }

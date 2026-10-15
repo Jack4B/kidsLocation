@@ -168,6 +168,14 @@ export function closeAllOverlays() {
 export const overlaysOpen = () => overlayStack.length > 0;
 
 // The basemap choices, shared by Settings and the map's own style button.
+const SPEED_ALERT_CHOICES = [
+  { value: 0, label: "Off" },
+  { value: 80, label: "80 km/h" },
+  { value: 100, label: "100 km/h" },
+  { value: 120, label: "120 km/h" },
+  { value: 140, label: "140 km/h" },
+];
+
 const BASEMAP_CHOICES = [
   { value: "auto", label: "Auto" },
   { value: "dark", label: "Dark" },
@@ -2758,6 +2766,13 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
       value: values.settings.batAlerts,
       onChange: (v) => onChange("batAlerts", v),
     }),
+    segControl({
+      label: "Fast driving alerts",
+      note: "Tell me when someone in the circle holds a speed over this limit. Worked out on this phone from their positions, so it is an estimate.",
+      options: SPEED_ALERT_CHOICES,
+      value: Number(values.settings.speedAlertKmh) || 0,
+      onChange: (v) => onChange("speedAlertKmh", v),
+    }),
   );
   if (typeof native()?.notifyDetail === "function") {
     gAlerts.append(
@@ -3699,6 +3714,9 @@ function windowTitle(id) {
   return t("Last hour");
 }
 
+// Below this a top speed says nothing a walk or a bike ride would not.
+const TOP_SPEED_SHOWN_KMH = 25;
+
 function timelineEntry(entry, now, isLatest) {
   const row = el("li", `tl-row tl-${entry.kind}`);
   const dot = el("span", "tl-dot");
@@ -3716,6 +3734,9 @@ function timelineEntry(entry, now, isLatest) {
   } else {
     title = t("On the move");
     sub = t("{dist} in {min} min", { dist: fmtDistance(entry.meters), min: mins });
+    if (Number.isFinite(entry.maxKmh) && entry.maxKmh >= TOP_SPEED_SHOWN_KMH) {
+      sub += ` · ${t("top {kmh} km/h", { kmh: entry.maxKmh })}`;
+    }
   }
   text.append(el("div", "tl-title", title), el("div", "tl-sub", sub));
   const time = el("time", "tl-time", fmtClock(entry.start));

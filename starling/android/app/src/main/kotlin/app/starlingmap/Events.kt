@@ -55,13 +55,16 @@ object Events {
     // The page already sends only generic words then; this keeps a page bug from leaking a name or a message.
     fun postDetail(ctx: Context, title: String, body: String, tag: String, kind: String, member: String, onLock: Boolean) {
         if (title.isEmpty()) return
-        if (kind == "chat" && !onLock) {
-            show(ctx, R.string.app_name, R.string.notif_chat_text, tag, false, channelFor(kind),
-                Detail(ctx.getString(R.string.app_name), ctx.getString(R.string.notif_chat_text), member, false, R.string.notif_chat_text))
+        val lockedRes = if (kind == "chat") R.string.notif_chat_text else R.string.notif_place_text
+        // Without the lock-screen opt-in no name, place or text is posted at all: Android shows
+        // the private version on a secure lock screen under its default settings.
+        if (!onLock) {
+            show(ctx, R.string.app_name, lockedRes, tag, false, channelFor(kind),
+                Detail(ctx.getString(R.string.app_name), ctx.getString(lockedRes), member, false, lockedRes))
             return
         }
         show(ctx, R.string.app_name, R.string.notif_locked_text, tag, false, channelFor(kind),
-            Detail(title, body, member, onLock, if (kind == "chat") R.string.notif_chat_text else R.string.notif_place_text))
+            Detail(title, body, member, onLock, lockedRes))
     }
 
     class Detail(val title: String, val body: String, val member: String, val onLock: Boolean,

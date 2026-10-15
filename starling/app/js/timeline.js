@@ -12,10 +12,31 @@ export const STAY_RADIUS_M = 100;
 export const STAY_MIN_MS = 3 * 60 * 1000;
 // The sheet shows this many entries, newest first.
 export const TIMELINE_MAX = 5;
+// Segments shorter than this in time are too noisy to read a speed from.
+export const SPEED_MIN_DT_MS = 5000;
+// A top speed is named only from this many segments in a row, so one bad fix cannot.
+export const SPEED_RUN = 2;
+
+// The highest speed (km/h, rounded) held over SPEED_RUN consecutive segments of
+// points sorted by time, or null when the points say too little.
+export function peakKmh(pts) {
+  const seg = [];
+  for (let i = 1; i < pts.length; i++) {
+    const dt = pts[i].ts - pts[i - 1].ts;
+    if (dt < SPEED_MIN_DT_MS) continue;
+    seg.push((haversineMeters(pts[i - 1].lat, pts[i - 1].lon, pts[i].lat, pts[i].lon) / dt) * 3600);
+  }
+  let best = null;
+  for (let i = 0; i + SPEED_RUN <= seg.length; i++) {
+    const held = Math.min(...seg.slice(i, i + SPEED_RUN));
+    if (best === null || held > best) best = held;
+  }
+  return best === null ? null : Math.round(best);
+}
 
 // trail: [{lat, lon, ts}] in any order. Returns entries newest first:
 //   { kind: "stay", start, end, place } where place is a saved place name or null
-//   { kind: "move", start, end, meters }
+//   { kind: "move", start, end, meters, maxKmh } where maxKmh may be null
 // Only points inside [now - windowMs, now] are read.
 export function buildTimeline(trail, { now, windowMs, places = [] } = {}) {
   const from = now - windowMs;
@@ -67,6 +88,9 @@ export function buildTimeline(trail, { now, windowMs, places = [] } = {}) {
       const lead = prev ? haversineMeters(prev.lastLat, prev.lastLon, first.lat, first.lon) : 0;
       out.push({ kind: "move", start, end: last.ts, meters: lead + meters, lastLat: last.lat, lastLon: last.lon });
     }
+  }
+  for (const e of out) {
+    if (e.kind === "move") e.maxKmh = peakKmh(pts.filter((p) => p.ts >= e.start && p.ts <= e.end));
   }
   return out
     .filter((e) => e.kind === "stay" || e.meters >= STAY_RADIUS_M)
