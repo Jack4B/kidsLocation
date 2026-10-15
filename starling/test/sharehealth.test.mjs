@@ -264,3 +264,23 @@ test("the report says unknown for position fix counts it was not given", () => {
   assert.ok(part.includes("Position fixes: 3 used, unknown confirmed the held spot, unknown set aside"), part);
   assert.ok(!part.includes("NaN"));
 });
+
+test("the report says how the app last died and how the share stopped, in fixed words", () => {
+  const text = shareReport({
+    h: {
+      service: false, stopRoute: "system", stopAgoMs: 3_600_000,
+      exits: [
+        { reason: 10, agoMs: 7_200_000, importance: 125, desc: "kill by com.miui.powerkeeper <x@y> \"q\"" },
+        { reason: 3, agoMs: 60_000, importance: 400, desc: "" },
+        { reason: 99, agoMs: 1000, importance: 100 },
+      ],
+    },
+    page: { version: "0.21.0", sharing: false },
+    now: Date.now(),
+  });
+  assert.match(text, /Last share stopped by: the system, /);
+  assert.match(text, /App process exit: user requested, .*importance 125, "kill by com\.miui\.powerkeeper xy q"/);
+  assert.match(text, /App process exit: low memory, /);
+  assert.match(text, /App process exit: unknown, /);
+  assert.doesNotMatch(text, /[<>@"]x|q"\\"/);
+});
