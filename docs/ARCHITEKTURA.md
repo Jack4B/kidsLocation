@@ -15,7 +15,7 @@ Gdy kod i ten plik się rozjeżdżają, wygrywa kod i trzeba poprawić plik.
 | `app/js/map.js` | 352 linie | Mapa na Leaflet; start na widoku świata (`setView([20, 0], 3)` około linii 42) |
 | `app/js/crypto.js`, `ratchet.js`, `wire.js` | 332, 325, 206 linii | Szyfrowanie, łańcuch kluczy, stałe protokołu; `crypto.js` i `wire.js` zamrożone |
 | `relay/src/index.js` | 453 linie | Serwer pośredniczący; ten sam kod działa w Cloudflare i pod Node |
-| `relay/server.mjs` | 183 linie | Adapter Node z plikową bazą SQLite; wymaga Node 24 |
+| `relay/server.mjs` | 183 linie | Adapter Node z plikową bazą SQLite; `package.json` deklaruje Node 24, działa też na 22.22 (F0-1) |
 | `android/` | około 4,7 tys. linii Kotlina | Cienka otoczka WebView: usługa lokalizacji w tle, most do JS, powiadomienia |
 | `ios/` | 252 linie Swifta | Otoczka WKWebView bez działania w tle |
 | `test/` | około 26,5 tys. linii | 1118 testów jednostkowych, wektory testowe, testy e2e w przeglądarce |

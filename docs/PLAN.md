@@ -17,7 +17,7 @@ Skróty: C = Claude, G = Gemini, X = Grok, W = właściciel.
 
 | ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
 |---|---|---|---|---|
-| F0-1 | Sprawdzić hosting CT8: `node -v`, czy działa `node:sqlite`, czy można trzymać długo działający proces i wystawić go na HTTPS przez domenę | W | C | Wynik wpisany w `docs/DECYZJE.md` (D1) |
+| F0-1 | Sprawdzić hosting CT8: `node -v`, czy działa `node:sqlite`, czy można trzymać długo działający proces i wystawić go na HTTPS przez domenę | W | C | Wynik wpisany w `docs/DECYZJE.md` (D1). Stan: wersja Node wpisana (v22.22.2); zostaje stały proces i HTTPS |
 | F0-2 | Ustalić ścieżkę iOS: czy jest Mac z Xcode, czy płatne konto Apple, czy syn może dostać telefon z Androidem | W | C | Decyzja D3 zamknięta |
 | F0-3 | Założyć repozytorium i podpiąć modele (`docs/PODLACZENIE-AGENTOW.md`) | W | brak | Repo istnieje, Claude ma dostęp do zapisu, Gemini i Grok mają sposób pracy |
 | F0-4 | Rozstrzygnąć układ repozytoriów (D4): kod w forku, tu tylko dokumenty, czy wszystko razem | W | C | Decyzja D4 zamknięta. **Zrobione 2026-10-14: B, kod w `starling/` (PR F0-4).** |

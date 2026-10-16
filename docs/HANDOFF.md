@@ -326,6 +326,25 @@ na tym PR). Budowy Androida lokalnie nie uruchamiano.
 Następny krok: F1-7 (własny applicationId, klucz podpisu, wersje, domyślny relay i linki
 zaproszeń poza starlingmap.app), równolegle F1-4 (test dwóch Androidów na relayu CT8).
 Otwarte PR-y z dokumentami (#1 do #6, #8) mają wpisy w HANDOFF i będą wymagały rebase.
+## 2026-10-14, Claude, F0-1 (wynik CT8, część pierwsza)
+
+Zrobiono:
+
+- Wpisano do D1 wynik od właściciela: na CT8 (`s1`) `node -v` to `v22.22.2`.
+- Sprawdzono, że relay nie potrzebuje Node 24: używa tylko podstawowego API `node:sqlite`,
+  dostępnego bez flagi od Node 22.13. W kontenerze na Node 22.22.0: `node --test
+  test/relay.test.mjs` 61/61, `node --test test/server.test.mjs` 13/13, cały zestaw 1084
+  przeszło, 34 pominięte, 0 błędów; `node relay/server.mjs` z plikową bazą odpowiada na
+  `/api/v2/health` treścią `{"ok":true}`.
+- Poprawiono zdanie „wymaga Node 24" w `ARCHITEKTURA.md` i `KONTEKST-ROZMOWY.md`.
+
+Nie zrobiono: nic nie uruchamiano na CT8. Kontener to nie CT8 (inny system, możliwa inna
+kompilacja Node).
+
+Następny krok (właściciel): trzy sprawdzenia na CT8 wypisane w D1. Potem decyzja D1.
+
+Pytanie do właściciela: czy zmienić w `AGENTS.md` wymóg „Node 24 lub nowszy" na „Node 22.22
+lub nowszy", skoro tak działa serwer? Zmiana `engines` w forku to osobna sprawa (D4).
 
 ---
 

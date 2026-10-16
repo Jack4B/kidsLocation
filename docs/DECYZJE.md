@@ -5,17 +5,17 @@ i krótkie uzasadnienie. Modele nie rozstrzygają za właściciela.
 
 ## D1. Gdzie działa relay
 
-Status: **otwarta**, zależy od F0-1 i F1-1.
+Status: **otwarta**, zależy od F0-1 (wersja Node sprawdzona, zostaje stały proces i HTTPS) i F1-1.
 
 Fakty: relay to jeden plik (`relay/src/index.js`, około 450 linii) plus adapter
-`relay/server.mjs` uruchamiający ten sam kod pod Node z plikową bazą SQLite. Wymaga
-Node 24 lub nowszego (używa `node:sqlite`) i długo działającego procesu za serwerem
+`relay/server.mjs` uruchamiający ten sam kod pod Node z plikową bazą SQLite. Używa
+`node:sqlite` (działa od Node 22.13; `package.json` deklaruje Node 24) i długo działającego procesu za serwerem
 HTTPS (Apache lub nginx). Wersja chmurowa to Cloudflare Worker z bazą D1, a autor
 zaznacza, że darmowy limit zapisów D1 jest ciasny.
 
 | Opcja | Zalety | Wady |
 |---|---|---|
-| A. Node na CT8 | Własny serwer, brak zależności od chmury, brak limitów D1 | Nieznane, czy CT8 pozwala na Node 24 i stały proces; po stronie hostingu mogą być limity procesów |
+| A. Node na CT8 | Własny serwer, brak zależności od chmury, brak limitów D1 | CT8 ma Node 22.22.2, relay na nim działa; nieznane, czy CT8 pozwala na stały proces; po stronie hostingu mogą być limity procesów |
 | B. Cloudflare Worker + D1 | Gotowy skrypt wdrożenia, zero zmian w kodzie | Cloudflare widzi adresy IP i czas; możliwy limit zapisów przy 6 do 7 osobach |
 | C. Port relaya na PHP + SQLite | Pasuje do tego, co już działa na CT8 | Druga implementacja do utrzymania; trzeba zweryfikować podpisy (Ed25519 i P-256) lub świadomie je uprościć |
 | D. Mały VPS | Pełna kontrola | Koszt i administracja |
@@ -23,6 +23,33 @@ zaznacza, że darmowy limit zapisów D1 jest ciasny.
 Rekomendacja: najpierw F0-1. Jeśli CT8 obsługuje Node 24 i stały proces, wybierz A. Jeśli nie,
 zacznij od B (najszybciej do działającego systemu) i ewentualnie wróć do C. Wybór D tylko, gdy
 żadna z pozostałych nie zadziała.
+
+Wynik F0-1, część pierwsza (2026-10-14, właściciel i Claude):
+
+- Na CT8 (serwer `s1`) `node -v` zwraca `v22.22.2`. Node 24 nie ma, ale nie jest potrzebny:
+  `node:sqlite` działa bez flagi od Node 22.13, a relay używa tylko podstawowego API
+  (`DatabaseSync`, `prepare`, `run`, `get`, `all`, `exec`; `relay/d1sqlite.mjs`). Jedyny skutek to
+  ostrzeżenie `ExperimentalWarning` w logu przy starcie.
+- Sprawdzone w kontenerze Claude na Node 22.22.0 (nie na samym CT8): `test/relay.test.mjs`
+  61 z 61, `test/server.test.mjs` 13 z 13, cały zestaw 1084 przeszło, 34 pominięte, 0 błędów
+  (po `bash tools/sync-vendor.sh`). `node relay/server.mjs` z plikową bazą odpowiada na
+  `GET /api/v2/health` treścią `{"ok":true}`. Ten sam wynik na Node 24.21.0 (F0-5).
+- `package.json` forka deklaruje `"engines": {"node": ">=24"}`, a `AGENTS.md` każe testować na
+  Node 24. To wymóg formalny, nie techniczny dla relaya; zmiana obu to decyzja właściciela.
+
+Zostaje do sprawdzenia na CT8 (właściciel, kilka minut):
+
+1. `node -e "const {DatabaseSync}=require('node:sqlite');console.log(new DatabaseSync(':memory:').prepare('select sqlite_version() v').get())"`
+   ma wypisać wersję SQLite (potwierdza, że kompilacja Node na serwerze ma SQLite).
+2. Czy CT8 pozwala na stale działający proces Node i jak wystawia go na HTTPS przez domenę
+   (panel lub `devil www`, typ strony Node.js, certyfikat Let's Encrypt). To wniosek z ogólnej
+   wiedzy o panelu, nie sprawdzony fakt: strony Node.js na tego typu hostingu zwykle uruchamia
+   Passenger, który sam startuje i usypia proces. Relay to znosi, bo baza jest w pliku, a
+   czyszczenie po 24 godzinach i tak dzieje się przy każdym odczycie.
+3. Czy proces przeżywa restart serwera i czy limity konta (procesy, pamięć) nie zabijają go.
+
+Wniosek: wersja Node przestała blokować opcję A. Jeśli punkty 2 i 3 dadzą odpowiedź twierdzącą,
+rekomendacja to A. Liczby obciążenia dla opcji B: F1-1.
 
 ## D2. Gdzie żyją wiadomości czatu i jak długo
 
