@@ -6,6 +6,12 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-16, Claude, F5-11: śmierć strony przy czyszczeniu HyperOS nie blokuje wznowienia
+
+- Raport z Xiaomi 2407FPN8EG (wersja 36): „SwipeUpClean” godzinę wcześniej, a ostatnie zatrzymanie zapisane jako „the page crashed”. HyperOS najpierw zabija renderer WebView, więc `onRenderProcessGone` zapisywało trasę `renderer`, a budzik uznawał ją za decyzję człowieka i nie wznawiał.
+- `ShareResume.killedBySystem` traktuje teraz `renderer` i `stalled` jak `system`. Gdy strona padnie bez okna, a „udostępniaj po zamknięciu” jest włączone, budzik startuje za 60 s.
+- Testy: `node --test test/share-auto-resume.test.mjs` zielone. Sprawdzić na Xiaomi i Poco po instalacji.
+
 ## 2026-10-16, Claude, F5-10: zamknięcie z listy ostatnich na Xiaomi nie kończy udostępniania
 
 - Raport z Xiaomi (wersja 34) pokazał przyczynę: „Last share stopped by: a swipe” i wyjścia

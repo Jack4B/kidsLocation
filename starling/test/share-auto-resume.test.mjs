@@ -829,13 +829,18 @@ test("Kotlin: a watchdog alarm brings back a share the system killed, never one 
 
 test("the watchdog's own rule: only an armed share with no newer stop by a person", () => {
   // Mirrors ShareResume.killedBySystem.
-  const killed = (armedAt, route, stopAt) => armedAt > 0 && (route == null || route === "system" || stopAt < armedAt);
+  const killed = (armedAt, route, stopAt) => armedAt > 0 && (route == null || ["system", "renderer", "stalled"].includes(route) || stopAt < armedAt);
   const src = kt("ShareResume.kt");
-  assert.match(src, /armedAt > 0L && \(stopRoute == null \|\| stopRoute == "system" \|\| stopAt < armedAt\)/);
+  assert.match(src, /val SYSTEM_ROUTES = setOf\("system", "renderer", "stalled"\)/);
+  assert.match(src, /armedAt > 0L && \(stopRoute == null \|\| stopRoute in SYSTEM_ROUTES \|\| stopAt < armedAt\)/);
   assert.equal(killed(100, null, 0), true);
   assert.equal(killed(100, "swipe", 50), true, "an older stop is history");
   assert.equal(killed(100, "swipe", 150), false);
   assert.equal(killed(100, "notif", 150), false);
   assert.equal(killed(100, "system", 150), true);
+  assert.equal(killed(100, "renderer", 150), true, "HyperOS kills the page before the app");
+  assert.equal(killed(100, "stalled", 150), true);
+  const host = kt("PageHost.kt");
+  assert.match(host, /if \(sharing && ui == null && keepSharing\(app\)\) ShareResume\.armWatchdog\(app, ShareResume\.AFTER_SWIPE_MS\)/);
   assert.equal(killed(0, null, 0), false);
 });
