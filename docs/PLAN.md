@@ -56,7 +56,7 @@ Makiety i tokeny: `docs/DESIGN.md`. Zmiany głównie w `app/css/app.css`, `app/j
 | F2-6 | Polski katalog tłumaczeń (`app/js/strings-pl.js`) i rejestracja w `i18n.js`; test pokrycia zmusza do pełnego katalogu | G | X | Wszystkie teksty po polsku, test pokrycia przechodzi, korekta językowa Groka |
 | F2-7 | Czcionki lokalnie, bez Google Fonts (Bricolage Grotesque, Figtree; obie na licencji OFL, sprawdzić) i dodanie do precache service workera | G | C | Brak żądań do `fonts.googleapis.com`; aplikacja działa offline |
 | F2-8 | Dostępność: etykiety przycisków, kolejność fokusu, cele dotyku, przegląd na prawdziwym telefonie | G | X | Lista kontrolna z `docs/DESIGN.md` odhaczona na urządzeniu |
-| F2-9 | Makiety brakujących ekranów: Miejsca, aktywny SOS, zaproszenie i QR, pierwsze uruchomienie | C | G | Makiety w obu motywach, dopisane do `docs/DESIGN.md` |
+| F2-9 | Makiety brakujących ekranów: Miejsca, aktywny SOS, zaproszenie i QR, pierwsze uruchomienie | C | G | Makiety w obu motywach, dopisane do `docs/DESIGN.md`. Stan: szkic `docs/makiety/makiety-F2-9.html`, czeka na recenzję G |
 
 ## Faza 3: czat
 
