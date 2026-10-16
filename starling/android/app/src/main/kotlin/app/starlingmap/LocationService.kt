@@ -794,6 +794,16 @@ class LocationService : Service(), LocationListener {
             super.onTaskRemoved(rootIntent)
             return
         }
+        if (PageHost.keepSharing(this)) {
+            // Asked to keep sharing when closed, so a swipe is not a stop. On
+            // Xiaomi and Poco the swipe ("SwipeUpClean") takes the page and then
+            // the whole process; ending here as the system lets the watchdog,
+            // armed short, bring the share back by itself.
+            ShareResume.armWatchdog(this, ShareResume.AFTER_SWIPE_MS)
+            stopSelf()
+            super.onTaskRemoved(rootIntent)
+            return
+        }
         stopAsked = true
         postShareEnded("swipe")
         stopSelf()

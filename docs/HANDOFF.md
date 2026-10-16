@@ -6,6 +6,18 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-16, Claude, F5-10: zamknięcie z listy ostatnich na Xiaomi nie kończy udostępniania
+
+- Raport z Xiaomi (wersja 34) pokazał przyczynę: „Last share stopped by: a swipe” i wyjścia
+  procesu „SwipeUpClean”. HyperOS przy zamknięciu karty w ostatnich aplikacjach zabija stronę,
+  a potem cały proces. `onTaskRemoved` zapisywał to jako zatrzymanie przez osobę („swipe”),
+  więc strażnik nigdy nie wznawiał udostępniania.
+- Teraz przy włączonym „Udostępniaj po zamknięciu aplikacji” takie zamknięcie kończy usługę
+  jako zatrzymanie przez system i ustawia strażnika na 60 s (`ShareResume.AFTER_SWIPE_MS`),
+  który wznawia udostępnianie bez otwierania aplikacji. Bez tej opcji zachowanie bez zmian.
+- Do sprawdzenia na telefonie: zamknąć Blisko z listy ostatnich i po około minucie zobaczyć
+  powiadomienie o wznowieniu oraz świeżą pozycję u innych.
+
 ## 2026-10-15, Claude, F5-9: raport udostępniania mówi, jak zginął proces
 
 - Zgłoszenie: udostępnianie dalej staje na Xiaomi 14T Pro i Poco X5 5G. Raport z Poco był

@@ -42,6 +42,8 @@ object ShareResume {
     // A share the system killed (Xiaomi, Poco and other aggressive battery managers) comes back like after a restart.
     const val WATCHDOG_ACTION = "app.kidslocation.SHARE_WATCHDOG"
     private const val WATCHDOG_MS = 15 * 60_000L
+    // After a swipe that took the page while the share was to keep going.
+    const val AFTER_SWIPE_MS = 60_000L
     private val PAGE_STATES = setOf("started", "delivered", "locked", "declined")
 
     enum class Path { NONE, OFFER, HEADLESS }
@@ -111,10 +113,10 @@ object ShareResume {
     }
 
     // Armed while a share runs, from the service's start and every tick; the alarm outlives a killed process.
-    fun armWatchdog(ctx: Context) {
+    fun armWatchdog(ctx: Context, delayMs: Long = WATCHDOG_MS) {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
         runCatching {
-            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + WATCHDOG_MS, watchdogIntent(ctx))
+            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delayMs, watchdogIntent(ctx))
         }
     }
 
