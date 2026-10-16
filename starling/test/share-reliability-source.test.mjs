@@ -327,3 +327,13 @@ test("the circle sheet folds below peek to its name, by a swipe or a touch on th
   const main = readFileSync(new URL("../app/js/main.js", import.meta.url), "utf8");
   assert.match(main, /else if \(sheet && sheet\.getSnap\(\) !== "min"\) sheet\.snapTo\("min"\);/);
 });
+
+test("with keep sharing on, a swipe that took the page ends as the system's stop and comes back by itself", () => {
+  const removed = fn(kt("LocationService.kt"), "onTaskRemoved");
+  const keep = removed.indexOf("if (PageHost.keepSharing(this)) {");
+  const swipe = removed.indexOf('postShareEnded("swipe")');
+  assert.ok(keep > 0 && keep < swipe, "checked before the swipe is written down");
+  assert.match(removed, /if \(PageHost\.keepSharing\(this\)\) \{[\s\S]*?ShareResume\.armWatchdog\(this, ShareResume\.AFTER_SWIPE_MS\)\s*stopSelf\(\)/);
+  assert.doesNotMatch(removed.slice(keep, removed.lastIndexOf("stopAsked = true")), /stopAsked = true/, "not stopAsked, so onDestroy records the system");
+  assert.match(kt("ShareResume.kt"), /const val AFTER_SWIPE_MS = 60_000L/);
+});
