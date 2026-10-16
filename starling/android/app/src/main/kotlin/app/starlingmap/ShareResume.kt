@@ -131,8 +131,12 @@ object ShareResume {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
+    // A dead page or a stalled one is the system's doing too: HyperOS kills the
+    // WebView renderer first when it clears the app, and that stop must not veto the resume.
+    val SYSTEM_ROUTES = setOf("system", "renderer", "stalled")
+
     fun killedBySystem(armedAt: Long, stopRoute: String?, stopAt: Long): Boolean =
-        armedAt > 0L && (stopRoute == null || stopRoute == "system" || stopAt < armedAt)
+        armedAt > 0L && (stopRoute == null || stopRoute in SYSTEM_ROUTES || stopAt < armedAt)
 
     fun onWatchdog(ctx: Context) {
         if (LocationService.running || starting) {

@@ -199,6 +199,8 @@ object PageHost {
                 val sharing = LocationService.running
                 destroy()
                 if (sharing) LocationService.endShare(app, "renderer")
+                // With no window nothing recreates the page, so the watchdog brings the share back soon.
+                if (sharing && ui == null && keepSharing(app)) ShareResume.armWatchdog(app, ShareResume.AFTER_SWIPE_MS)
                 // Behind a stopped activity the fresh page's share start waits for the window.
                 ui?.recreate()
                 return true
