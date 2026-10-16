@@ -129,3 +129,11 @@ później. Starsze klienty (do 0.17.1) mogą potraktować nieznany typ jak pozyc
 - Konta, numery telefonów, logowanie przez usługi zewnętrzne.
 - Długa historia pozycji po stronie serwera.
 - Wersja dla przeglądarki jako miejsce przechowywania kręgu (upstream świadomie to blokuje).
+
+## Zadania zaproponowane po przeglądzie zgodności (do akceptacji właściciela)
+
+| ID | Zadanie | Kto | Recenzja | Kryterium ukończenia |
+|---|---|---|---|---|
+| F0-6 | Przegląd zgodności forka z `AGENTS.md` (żądania do stron trzecich, `innerHTML`, logi) | C | G | `docs/PRZEGLAD-ZGODNOSCI.md`. Stan: szkic 2026-10-14, czeka na recenzję G |
+| F1-6 | Pośrednik kafelków OSM na serwerze rodziny (opcja C z F0-6), jeśli właściciel wybierze | C | X | Telefony nie łączą się z `tile.openstreetmap.org`; zasady OSM spełnione |
+| F1-7 | Domyślny relay i baza linków zaproszeń na domenie rodziny bez wpisywania adresu do publicznego kodu | C | G | Świeża instalacja nie kontaktuje się z `starlingmap.app` |

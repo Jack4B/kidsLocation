@@ -326,6 +326,18 @@ na tym PR). Budowy Androida lokalnie nie uruchamiano.
 Następny krok: F1-7 (własny applicationId, klucz podpisu, wersje, domyślny relay i linki
 zaproszeń poza starlingmap.app), równolegle F1-4 (test dwóch Androidów na relayu CT8).
 Otwarte PR-y z dokumentami (#1 do #6, #8) mają wpisy w HANDOFF i będą wymagały rebase.
+## 2026-10-14, Claude, F0-6 (przegląd zgodności, nowe zadanie)
+
+Zrobiono: przegląd forka 0.21.0 względem zasad prywatności z `AGENTS.md`, wynik w
+`docs/PRZEGLAD-ZGODNOSCI.md`. Najważniejsze: kafelki OSM są domyślnie włączone (wymagają
+świadomego wyjątku albo pośrednika), a aplikacja bez ustawionego relaya rozmawia z
+`starlingmap.app` i tam kieruje linki zaproszeń. Zaproponowano zadania F0-6, F1-6, F1-7 na końcu
+`docs/PLAN.md`; to propozycja, właściciel je przyjmuje albo odrzuca.
+
+Sprawdzono tylko przez czytanie kodu i `grep`; nie podglądano ruchu sieciowego telefonu.
+
+Pytanie do właściciela: kafelki OSM, opcja A (wyjątek, rekomendacja), B (domyślnie bez mapy
+ulic) czy C (pośrednik na serwerze)?
 
 ---
 
