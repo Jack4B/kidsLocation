@@ -326,6 +326,19 @@ na tym PR). Budowy Androida lokalnie nie uruchamiano.
 Następny krok: F1-7 (własny applicationId, klucz podpisu, wersje, domyślny relay i linki
 zaproszeń poza starlingmap.app), równolegle F1-4 (test dwóch Androidów na relayu CT8).
 Otwarte PR-y z dokumentami (#1 do #6, #8) mają wpisy w HANDOFF i będą wymagały rebase.
+## 2026-10-14, Claude, F1-2 (instrukcja wdrożenia na Cloudflare)
+
+Właściciel napisał w wątku projektu: „możemy użyć cloudflare worker". Dopisano instrukcję
+`docs/WDROZENIE-CLOUDFLARE.md` na podstawie `relay/deploy.sh` i `relay/wrangler.toml` z forka:
+lokalne zmiany w `wrangler.toml` (usunąć trasę `starlingmap.app`), `wrangler login`,
+`bash relay/deploy.sh`, sprawdzenie `/api/v2/health`, podłączenie telefonów.
+
+Nie zrobiono: wdrożenia (robi je właściciel na swoim koncie). Formalnego zamknięcia D1 w
+`DECYZJE.md` nie dopisano tutaj, żeby nie kolidować z otwartymi PR-ami F0-1 i F1-1; do zrobienia
+po ich scaleniu.
+
+Następny krok: właściciel wdraża i podaje wynik `/api/v2/health` (bez adresu w repozytorium),
+potem F1-4 (test na dwóch telefonach).
 
 ---
 
