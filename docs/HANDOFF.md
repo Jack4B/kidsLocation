@@ -6,6 +6,15 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F5-3, F5-4, F5-5, F3-8: kopia relaya, instrukcja, upstream, protokół
+
+- Zgoda właściciela 2026-10-18 („Rób wszystko, masz moje zgody”) obejmuje dopisek w `PROTOCOL.md`.
+- `starling/tools/kopia-relay.sh`: dzienna kopia bazy relaya przez `VACUUM INTO`, 7 ostatnich, instalacja do crona jednym poleceniem (`docs/WDROZENIE-CT8.md`). Sprawdzone lokalnie na Node 22; na CT8 do uruchomienia przez właściciela.
+- `docs/INSTRUKCJA-RODZINY.md`: instalacja, ustawienia baterii, dołączanie, codzienne użycie, zgubiony telefon.
+- `docs/AKTUALIZACJE-UPSTREAM.md`: raz w miesiącu i od razu przy poprawkach bezpieczeństwa, przez `git subtree pull` na gałęzi zadania.
+- `starling/docs/PROTOCOL.md`: sekcja „Chat and place messages” (bez zmian w kryptografii i formacie ramki), odnośniki do `CHAT.md` i `PLACES.md`.
+- Nie zrobiono: F5-1 przegląd innym modelem (Gemini niepodpięty).
+
 ## 2026-10-18, Claude, F6-8: miejsca od razu dla nowych osób, test e2e
 
 - `test/e2e_shared_places.mjs` (Playwright, dwa telefony, uruchamiany ręcznie): A dodaje miejsce, B je dostaje, B zmienia nazwę i promień, A to dostaje, A usuwa, B traci; feed relaya nie zawiera nazwy. Przechodzi lokalnie.

@@ -96,6 +96,22 @@ liście zweryfikowanych linków. Jeśli nie jest, linki otworzą się w przeglą
 z instrukcją, a dołączenie dalej działa przez skan kodu QR albo wklejenie linku w
 aplikacji.
 
+## Kopia zapasowa bazy relaya
+
+Baza (`~/starling/relay/data/starling.db`) trzyma tylko zaszyfrowane paczki i klucze publiczne.
+Bez niej telefony i tak działają dalej, ale kopia oszczędza ponowne łączenie kręgu po awarii.
+
+Po `aktualizuj-relay.sh`, raz:
+
+```sh
+sh ~/blisko/tools/kopia-relay.sh --install
+```
+
+Skrypt dopisuje do crona kopię o 03:17, od razu robi pierwszą i trzyma 7 ostatnich w
+`~/kopie-relay/` (log: `~/kopie-relay.log`). Kopia powstaje przez `VACUUM INTO`, więc relay
+nie musi stać. Przywrócenie: zatrzymaj relay, skopiuj wybrany plik na miejsce bazy, uruchom
+`~/start-relay.sh`.
+
 ## Czego aplikacja nie wysyła nigdzie indziej
 
 - Relay: tylko relay rodziny (albo adres wpisany ręcznie w ustawieniach).

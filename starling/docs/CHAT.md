@@ -2,8 +2,7 @@
 
 This describes the `chat` message type as implemented in `app/js/chat.js`,
 `app/js/chatview.js` and the `chat` branch of `ingest` in `app/js/net.js`. It is an
-addendum to `PROTOCOL.md`, which is left unchanged; folding it into `PROTOCOL.md` is a
-decision for the project owner. The design record (in Polish) is
+addendum to `PROTOCOL.md`, which summarises it under "Chat and place messages". The design record (in Polish) is
 `docs/adr/ADR-001-czat.md` in the kidsLocation repository.
 
 Nothing in the cryptography, the wire format or the relay changes. A chat message is one

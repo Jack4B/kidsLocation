@@ -873,6 +873,23 @@ re-key is attributed in the UI to the member who signed it, and removals are
 named. There is no admin role, because there is no server to hold one and a
 device that is lost would take the role with it.
 
+## Chat and place messages
+
+Two more plaintext types travel in a member's own stream: `t: "chat"` (a line of
+family chat) and `t: "place"` (adding, changing or removing a shared place). Both
+use the same ratchet, signature, frame and `PAD_LEN` padding as a location
+message, so the relay cannot tell them apart by type or size, and nothing in the
+key schedule, the wire API or the relay changes for them. This client drops any
+type it does not know rather than read it as a position; versions up to 0.17.1
+did not, so every phone in a circle should run a current build.
+
+- `chat`: `{v, ts, t: "chat", k, q, x}`, with `x` at most 402 bytes once JSON
+  encoded. Full rules: `docs/CHAT.md`.
+- `place`: `{v, ts, t: "place", op: "set", id, w, n, la, lo, r}` or
+  `{v, ts, t: "place", op: "del", id, w}`. The newest write by `(w, writer)`
+  wins; removals are kept for 7 days; each phone resends its own writes every
+  6 hours and at once when someone new joins. Full rules: `docs/PLACES.md`.
+
 ## Wire API
 
 All endpoints are under `/api/v2/`. `/api/v1/` returns `410 Gone` with
