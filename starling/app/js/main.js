@@ -5877,6 +5877,8 @@ async function openSettings(focus = null) {
             enabled: () => !!shareGuard,
             enable: (pin) => setShareGuard(pin, true),
             disable: (pin) => setShareGuard(pin, false),
+            lock: childLockState,
+            release: releaseChildLock,
           },
       shareClock,
       shareCheckin,
@@ -6228,9 +6230,39 @@ async function loadShareGuard() {
   }
   try {
     native()?.setShareGuard?.(!!shareGuard);
+    // A phone made device owner after child mode came on gets the locks now.
+    const lk = childLockState();
+    if (lk?.owner && lk.applied !== !!shareGuard) native().setChildLock(!!shareGuard);
   } catch {
     // older wrapper
   }
+}
+
+function childLockState() {
+  try {
+    const raw = native()?.childLockState?.();
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function releaseChildLock(pin) {
+  if (shareGuard) {
+    const r = await checkPin(shareGuard, pin);
+    shareGuard = r.guard;
+    await dbSet("shareGuard", shareGuard).catch(() => {});
+    if (!r.ok) {
+      if (r.wait) ui.toast(waitText(r.wait), "warn");
+      return false;
+    }
+  }
+  try {
+    native()?.releaseChildLock?.();
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 const waitText = (ms) => t("Too many wrong tries. Try again in {n} min.", { n: Math.max(1, Math.ceil(ms / 60000)) });
@@ -6278,6 +6310,7 @@ async function setShareGuard(pin, on) {
   }
   try {
     native()?.setShareGuard?.(on);
+    if (childLockState()?.owner) native().setChildLock(on);
   } catch {
     // older wrapper
   }

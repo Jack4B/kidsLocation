@@ -340,6 +340,15 @@ class StarlingBridge(private val app: Context) {
     fun setShareGuard(on: Boolean) = PageHost.setShareGuard(app, on)
 
     @JavascriptInterface
+    fun childLockState(): String = ChildLock.state(app)
+
+    @JavascriptInterface
+    fun setChildLock(on: Boolean): String = ChildLock.apply(app, on)
+
+    @JavascriptInterface
+    fun releaseChildLock(): String = ChildLock.release(app)
+
+    @JavascriptInterface
     fun shareClock(): Boolean = LocationService.clockShown(app)
 
     @JavascriptInterface

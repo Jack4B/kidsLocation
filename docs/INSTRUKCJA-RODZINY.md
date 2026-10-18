@@ -17,6 +17,8 @@ W Blisko, **Ustawienia, Udostępnianie**:
 - **Udostępniaj po zamknięciu aplikacji** i **Także po ponownym uruchomieniu**.
 - Na telefonie dziecka: **Tryb dziecka** z PIN-em rodzica. Bez PIN-u nie da się wtedy
   wyłączyć udostępniania ani wyjść z kręgu, a z powiadomienia znika „Zatrzymaj”.
+- Żeby dziecko nie mogło też wyłączyć lokalizacji ani zatrzymać aplikacji w ustawieniach
+  Androida: `docs/OCHRONA-TELEFONU-DZIECKA.md` (raz, kablem USB).
 
 W ustawieniach Androida, dla aplikacji Blisko:
 
