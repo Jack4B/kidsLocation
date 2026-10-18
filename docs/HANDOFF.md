@@ -13,6 +13,11 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 - Ustawienie przez `adb shell dpm set-device-owner app.kidslocation/app.starlingmap.AdminReceiver`, opis w `docs/OCHRONA-TELEFONU-DZIECKA.md`.
 - Nie sprawdzone na telefonie: zachowanie HyperOS przy ograniczeniach (kafelek lokalizacji, kafelek trybu samolotowego) i czy przyznanie zgody na lokalizację w tle przez device owner przechodzi na Androidzie 14.
 
+## 2026-10-18, Claude, F5-15: drugi budzik wznawiania
+
+- Córka (Poco) znowu znikała mimo wznawiania. Obok alarmu co 15 minut jest teraz zadanie okresowe JobScheduler (`ShareJob`, 15 minut, przetrwa restart), które woła ten sam `ShareResume.onWatchdog`, więc wznowienie nie odpali się dwa razy.
+- Czeka: raport udostępniania z telefonu córki po kolejnym zniknięciu. Tryb administratora urządzenia (blokada lokalizacji i wymuszenia zatrzymania) czeka na wyraźną zgodę właściciela.
+
 ## 2026-10-18, Claude, F5-3, F5-4, F5-5, F3-8: kopia relaya, instrukcja, upstream, protokół
 
 - Zgoda właściciela 2026-10-18 („Rób wszystko, masz moje zgody”) obejmuje dopisek w `PROTOCOL.md`.

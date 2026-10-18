@@ -118,10 +118,12 @@ object ShareResume {
         runCatching {
             am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + delayMs, watchdogIntent(ctx))
         }
+        ShareJob.schedule(ctx)
     }
 
     fun cancelWatchdog(ctx: Context) {
         runCatching { ctx.getSystemService(AlarmManager::class.java)?.cancel(watchdogIntent(ctx)) }
+        ShareJob.cancel(ctx)
     }
 
     private fun watchdogIntent(ctx: Context): PendingIntent = PendingIntent.getBroadcast(
