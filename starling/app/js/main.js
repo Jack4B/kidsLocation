@@ -8256,6 +8256,31 @@ if (debugHooks()) window.__starlingInternals = {
 
 // ----------------------------------------------------------------- boot
 
+// A circle that goes quiet while this phone is in one with other people is
+// how a missed re-key looks from the inside: everyone else moved to new keys
+// and this phone listens on a channel nobody posts to. Opening the app fixed
+// it, because a fresh page reads the whole window again; this does the same
+// on its own, at most every QUIET_REWIND_MS. Phones in still mode post every
+// five minutes, so a real circle is never this quiet for long.
+const QUIET_REWIND_MS = 20 * 60 * 1000;
+let lastRewind = Date.now();
+
+function circleQuiet(now = Date.now()) {
+  if (!poller || !roster || state.demo || state.locked || !state.gen || circleBusy) return false;
+  if (!state.identity || !state.pinned.size) return false;
+  const newest = Math.max(0, ...roster.list().filter((r) => r.id !== state.identity.memberId).map((r) => r.ts || 0));
+  return now - newest > QUIET_REWIND_MS && now - lastRewind > QUIET_REWIND_MS;
+}
+
+function rewindIfQuiet(now = Date.now()) {
+  if (!circleQuiet(now)) return;
+  lastRewind = now;
+  if (poller) holdTrimForBacklog();
+  roster.clear();
+  poller.rewind();
+}
+setInterval(() => rewindIfQuiet(), 60 * 1000);
+
 // With a poller, the backlog is read before anything is trimmed; see holdTrimForBacklog.
 function catchUp() {
   if (poller && !state.demo) holdTrimForBacklog();

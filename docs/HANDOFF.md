@@ -6,6 +6,12 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F5-12: krąg, który ucichł, czyta okno od nowa
+
+- 2026-10-18 krąg rozjechał się po zmianie kluczy: telefon w tle nie przeszedł na nowy kanał, a po otwarciu aplikacji od razu dogonił resztę (świeża strona czyta całe okno jeszcze raz).
+- Teraz robi to sam: gdy przez 20 minut nikt inny w kręgu nic nie wysłał, strona czyści roster i czyta okno relaya od początku (`poller.rewind`), najwyżej raz na 20 minut. Zgubiona wiadomość ze zmianą kluczy trafia wtedy ponownie do obsługi.
+- Testy: `test/quiet-rewind.test.mjs`, cały zestaw zielony. Do sprawdzenia na telefonach przy następnej dziennej zmianie kluczy.
+
 ## 2026-10-18, Claude, F6: wspólne miejsca w kręgu
 
 - D7 według odpowiedzi domyślnych: każdy w kręgu zmienia i usuwa; nowe miejsce jest wspólne, przełącznik „Udostępniaj w kręgu” robi z niego prywatne; stare miejsca zostają prywatne; alerty liczy każdy telefon sam.
