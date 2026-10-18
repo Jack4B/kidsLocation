@@ -2488,6 +2488,7 @@ function setupNet() {
     onChange: () => {
       checkAlerts();
       persistRatchet();
+      resendPlacesForNewcomers();
       reconcileRoster().catch((e) => window.__starlingErrors.push(`roster: ${String(e)}`));
       // Nobody is looking: coming back to the app polls at once and draws then.
       if (pageShown()) render();
@@ -3251,11 +3252,11 @@ async function flushPlaces() {
 // The relay forgets a message after a day, and a phone that was off longer,
 // or joined later, would never hear of a place. Every member re-sends the
 // writes that are theirs, a few times a day, never more than ten or so posts.
-async function resendPlacesIfDue(now = Date.now()) {
+async function resendPlacesIfDue(now = Date.now(), force = false) {
   const self = placeSelf();
   if (!self) return;
   const last = Number(await dbGet("placesResentAt").catch(() => 0)) || 0;
-  if (now - last < PLACE_RESEND_MS) return;
+  if (!force && now - last < PLACE_RESEND_MS) return;
   const ids = [
     ...ownWrites(state.places, self).map((p) => p.id),
     ...placeTombs.filter((x) => x.c === self && x.by === self).map((x) => x.id),
@@ -3265,6 +3266,18 @@ async function resendPlacesIfDue(now = Date.now()) {
   flushPlaces();
 }
 setInterval(() => resendPlacesIfDue().catch(() => {}), 30 * 60 * 1000);
+
+// Someone new in the circle has none of its places yet; they should not wait
+// hours for the next resend. A newcomer shows up as a bigger roster, or, when
+// their admission re-keyed the circle, as a new channel.
+let placePeers = { channel: null, n: 0 };
+function resendPlacesForNewcomers() {
+  const channel = state.gen?.channelId ?? null;
+  const n = state.pinned?.size ?? 0;
+  const grew = placePeers.channel !== null && (channel !== placePeers.channel || n > placePeers.n);
+  placePeers = { channel, n };
+  if (grew) resendPlacesIfDue(Date.now(), true).catch(() => {});
+}
 
 function addPlace(name, lat, lon) {
   const id = newPlaceId();
@@ -8128,6 +8141,10 @@ if (debugHooks()) window.__starlingApi = api;
 // object, and script running in this page is inside the circle already.
 if (debugHooks()) window.__starlingInternals = {
   state,
+  addPlace,
+  editPlace,
+  sharePlace,
+  unsharePlace,
   mergeSavedSettings,
   noteStillDefault,
   pinnedStore,
