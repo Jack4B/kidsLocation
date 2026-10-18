@@ -6,6 +6,13 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F6: wspólne miejsca w kręgu
+
+- D7 według odpowiedzi domyślnych: każdy w kręgu zmienia i usuwa; nowe miejsce jest wspólne, przełącznik „Udostępniaj w kręgu” robi z niego prywatne; stare miejsca zostają prywatne; alerty liczy każdy telefon sam.
+- Wiadomość `t:"place"` w strumieniu członka (jak czat), ostatni zapis wygrywa po `(w, członek)`, znaczniki usunięcia przez 7 dni, każdy telefon co 6 h ponownie wysyła swoje zapisy. Opis: `starling/docs/PLACES.md`.
+- Kod: `places.js` (format, parser, scalanie), `net.js` (kierowanie do `onPlace`), `main.js` (wysyłka, odbiór, ponowne wysyłanie), `ui.js` (przełącznik, kto ostatnio zmienił). Testy: `test/places-shared.test.mjs`, cały zestaw zielony (1257 testów, 0 błędów).
+- Nie zrobione: e2e z dwoma telefonami (F6-6) i dodatek do `PROTOCOL.md` (wymaga zgody właściciela). Do sprawdzenia na telefonach.
+
 ## 2026-10-16, Claude, F5-11: śmierć strony przy czyszczeniu HyperOS nie blokuje wznowienia
 
 - Raport z Xiaomi 2407FPN8EG (wersja 36): „SwipeUpClean” godzinę wcześniej, a ostatnie zatrzymanie zapisane jako „the page crashed”. HyperOS najpierw zabija renderer WebView, więc `onRenderProcessGone` zapisywało trasę `renderer`, a budzik uznawał ją za decyzję człowieka i nie wznawiał.

@@ -98,7 +98,7 @@ const POSITION_KINDS = new Set(["loc", "checkin", "sos", "bye"]);
 // re-pinned: their points are dropped and the change is surfaced, because
 // re-pinning on the relay's say-so is the whole of the "burgle into the group"
 // attack.
-export function createRoster({ channelId, ratchet, selfId, pinned, onControl, onKeyChange, onChat }) {
+export function createRoster({ channelId, ratchet, selfId, pinned, onControl, onKeyChange, onChat, onPlace }) {
   const members = new Map();
   const seen = new Map(); // memberId -> { e, ts } of the last accepted position
   // Control messages get their own dedup, a bounded set rather than a moving
@@ -255,7 +255,7 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
           await onControl?.(entry.m, obj, p.e);
           continue;
         }
-        if (obj.t === "chat") {
+        if (obj.t === "chat" || obj.t === "place") {
           // A message, not a position: it never touches the member's record,
           // their status or the replay mark, so a chat cannot turn an SOS
           // into "live" and a relay serving it late cannot bury a position.
@@ -266,7 +266,8 @@ export function createRoster({ channelId, ratchet, selfId, pinned, onControl, on
           if (Number.isSafeInteger(ratchet.backlogFloor) && p.e < ratchet.backlogFloor) continue;
           if (!chatFresh(entry.m, p.e, p.ts)) continue;
           try {
-            await onChat?.(entry.m, obj, p.e, p.ts);
+            if (obj.t === "chat") await onChat?.(entry.m, obj, p.e, p.ts);
+            else await onPlace?.(entry.m, obj, p.e, p.ts);
           } catch {
             // a broken archive write must not stop the rest of the feed
           }

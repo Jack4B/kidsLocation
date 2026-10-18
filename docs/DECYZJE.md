@@ -89,7 +89,7 @@ kod i commity po angielsku.
 
 ## D7. Wspólne miejsca w kręgu
 
-Status: **otwarta**, rozstrzyga F6-0. Właściciel zlecił rozpisanie 2026-10-14.
+Status: **rozstrzygnięta 2026-10-18** odpowiedziami domyślnymi (właściciel 2026-10-15: miejsca po odnowieniu limitu, z domyślnymi odpowiedziami D7). Wdrożenie: F6, `starling/docs/PLACES.md`.
 
 Fakty: miejsca żyją dziś tylko na telefonie (`starling/app/js/places.js`), najwyżej 10, promień
 100, 250 lub 500 m. Relay nie wie, że istnieją. Czat pokazał, że nowy typ wiadomości w strumieniu
