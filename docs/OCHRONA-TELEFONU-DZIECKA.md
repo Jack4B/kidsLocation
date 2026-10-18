@@ -35,6 +35,10 @@ Potrzebny komputer z `adb` (pakiet „Android SDK Platform Tools”) i kabel USB
 
 ## Ustawienie
 
+Najprościej z telefonu rodzica, bez komputera: Termux i skrypt `narzedzia/ochrona-dziecka.sh`
+(`bash ochrona-dziecka.sh`). Robi wszystkie kroki poniżej przez debugowanie bezprzewodowe, a
+do tego przyznaje zgody i zdejmuje ograniczenia baterii. Ręcznie z komputera:
+
 Podłącz telefon do komputera, na telefonie zezwól na debugowanie, a na komputerze wpisz:
 
 ```sh
