@@ -3496,7 +3496,8 @@ div.danger-zone,
   white-space: nowrap;
 }
 
-.place-sum-meta {
+.place-sum-meta,
+.place-sum-share {
   font-size: 0.875rem;
   color: var(--ink-2);
 }

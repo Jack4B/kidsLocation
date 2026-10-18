@@ -6,6 +6,12 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F2-11: metry w polskiej aplikacji, raport jako Blisko
+
+- Jednostki „Automatycznie” idą za językiem aplikacji: polska aplikacja pokazuje metry i kilometry, nawet gdy telefon ma język angielski (USA). Wcześniej telefony z angielskim pokazywały stopy i mile.
+- Raport udostępniania zaczyna się od „Blisko sharing report”. „Okolica, około 1 km” nie łamie się przed „km”. Linia „Wspólne / Tylko na tym telefonie” na liście miejsc ma styl drugiej linii.
+- Zrzuty przy szerokości 360 px: mapa, lista, karta osoby, Miejsca, Czat, Krąg bez wyjść poza ekran. Czekam na zrzuty od właściciela z miejsc, gdzie układ się rozjeżdża.
+
 ## 2026-10-18, Claude, F5-12: krąg, który ucichł, czyta okno od nowa
 
 - 2026-10-18 krąg rozjechał się po zmianie kluczy: telefon w tle nie przeszedł na nowy kanał, a po otwarciu aplikacji od razu dogonił resztę (świeża strona czyta całe okno jeszcze raz).

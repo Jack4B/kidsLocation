@@ -836,7 +836,7 @@ export const pl = {
   "Map style": "Styl mapy",
   "Message": "Napisz",
   "My position": "Moja pozycja",
-  "Neighborhood, about 1 km": "Okolica, około 1 km",
+  "Neighborhood, about 1 km": "Okolica, około 1\u00a0km",
   "no alerts": "bez powiadomień",
   "No signal": "Brak sygnału",
   "not connected": "nie działa",

@@ -31,9 +31,9 @@ const here = { lat: 40.7794, lon: -73.9632 };
 const rec = { ts: now, lat: 40.7902, lon: -73.9632 };
 const line = () => memberSubLine(rec, now, here, null, "live");
 
-test("Auto at boot follows the region in the phone's language", () => {
+test("Auto at boot in the Polish app means kilometers, whatever the phone's region", () => {
   assert.equal(internals.state.settings.units, "auto");
-  assert.match(line(), / 0\.7 mi$/);
+  assert.match(line(), / 1\.2 km$/);
 });
 
 test("Kilometers and Miles apply the moment they are chosen", async () => {
