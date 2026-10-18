@@ -154,7 +154,7 @@ import { createFixGate } from "./fixgate.js";
 import { parseHealth, shareProblems, sentNote, noteAfter, sendErrorKind, shareReport } from "./sharehealth.js";
 import { VERSION } from "./version.js";
 import { createDemo, demoPlaces, DEMO_CENTER } from "./demo.js";
-import { t, translateDom, loadLocale, setLocale, resolveLocale, LOCALE_CHOICES } from "./i18n.js";
+import { t, translateDom, loadLocale, setLocale, resolveLocale, currentLocale, LOCALE_CHOICES } from "./i18n.js";
 
 // Error collector so automated checks can read back anything that went wrong.
 window.__starlingErrors = [];
@@ -5915,8 +5915,11 @@ function dataExportJson() {
   return JSON.stringify(out, null, 2);
 }
 
+// Automatic units follow the app's language, not the phone's: a Polish app
+// on a phone set to US English still means meters. Other languages keep the
+// phone's region, which is how the upstream app decided.
 function applyUnits() {
-  setUnits(resolveUnits(state.settings.units, navigator.language));
+  setUnits(resolveUnits(state.settings.units, currentLocale() === "pl" ? "pl-PL" : navigator.language));
 }
 
 async function onSettingChange(key, value) {
@@ -5990,6 +5993,7 @@ async function onSettingChange(key, value) {
       const code = resolveLocale(value);
       await loadLocale(code).catch((e) => window.__starlingErrors.push(`locale: ${String(e)}`));
       setLocale(code);
+      applyUnits();
       translateDom();
       ui.toast(t("Language saved. Reopen settings to see them translated too."));
     }

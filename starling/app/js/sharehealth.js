@@ -143,7 +143,7 @@ function exitLines(h) {
 
 export function shareReport({ h, page, now }) {
   const p = page || {};
-  const lines = ["Starling sharing report"];
+  const lines = ["Blisko sharing report"];
   lines.push(`Made: ${new Date(now).toISOString().slice(0, 16)}Z`);
   lines.push(`App: ${version(h?.app ?? p.version)} (page ${version(p.version)})`);
   if (h) {
