@@ -456,6 +456,14 @@ export function createPoller({ channelId, roster, ratchet, onChange, onStatus, o
       onStatus?.("idle");
     },
     pollNow: () => poll(),
+    // Read the whole kept window again, as a fresh page would. The caller
+    // clears the roster first, so a control message seen and lost once
+    // (a re-key whose handling died with a frozen page) is handed over again.
+    rewind() {
+      since = ratchet ? windowStart(ratchet) : 0;
+      seen.clear();
+      return poll();
+    },
     // A post just went out from a hidden page, so the phone is awake and the connection is warm:
     // listen in the same wake unless a poll is already due about now. Resolves when it settles,
     // so the caller can keep the wake lock until then.
