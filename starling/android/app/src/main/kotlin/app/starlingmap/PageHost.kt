@@ -571,4 +571,16 @@ object PageHost {
         // The resume switches only make sense with this one on.
         if (!on) ShareResume.autoOff(ctx)
     }
+
+    // Child mode: the page holds the PIN, this only hides Stop on the notification.
+    fun shareGuard(ctx: Context): Boolean =
+        ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+            .getBoolean(MainActivity.PREF_SHARE_GUARD, false)
+
+    fun setShareGuard(ctx: Context, on: Boolean) {
+        ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(MainActivity.PREF_SHARE_GUARD, on)
+            .apply()
+        LocationService.refreshNotification()
+    }
 }

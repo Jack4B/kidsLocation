@@ -56,6 +56,7 @@ class MainActivity : FragmentActivity() {
         const val PREF_STOP_ROUTE = "stop_route"
         const val PREF_STOP_TS = "stop_ts"
         const val PREF_KEEP_SHARING = "keep_sharing"
+        const val PREF_SHARE_GUARD = "share_guard"
         const val PREF_SHARE_CLOCK = "share_clock"
         const val PREF_SHARE_CHECKIN = "share_checkin"
         // --bg of each theme in css/tokens.css.
