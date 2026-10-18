@@ -6,6 +6,13 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F5-13: powiadomienia mówią, kto i co
+
+- Prośba właściciela: treść czatu i konkretne zdarzenia w powiadomieniach zamiast „Otwórz Blisko, żeby zobaczyć, co się stało”.
+- Domyślnie włączone: szczegóły zdarzeń, także na zablokowanym ekranie, oraz nadawca i treść wiadomości czatu. Telefony z zapisanymi starymi ustawieniami dostają to raz (`wordyDefault`); każdą opcję można wyłączyć w ustawieniach.
+- Przy włączonych szczegółach przez `notifyDetail` idą wszystkie zdarzenia kręgu: miejsca, bateria, check-in, prośby, SOS (SOS zostaje na kanale alarmowym z dzwonkiem). Dotknięcie otwiera tę osobę.
+- `tools/check-notification-privacy.sh` dalej przechodzi: bez zgody na zablokowany ekran nic z treści nie trafia do powiadomienia.
+
 ## 2026-10-18, Claude, F2-11: metry w polskiej aplikacji, raport jako Blisko
 
 - Jednostki „Automatycznie” idą za językiem aplikacji: polska aplikacja pokazuje metry i kilometry, nawet gdy telefon ma język angielski (USA). Wcześniej telefony z angielskim pokazywały stopy i mile.
