@@ -153,6 +153,7 @@ import { haversineMeters, coarsePos, hueFromMemberId, fmtRelTime, fmtClock, reso
 import { createFixGate } from "./fixgate.js";
 import { parseHealth, shareProblems, sentNote, noteAfter, sendErrorKind, shareReport } from "./sharehealth.js";
 import { VERSION } from "./version.js";
+import { makeGuard, sanitizeGuard, checkPin, waitLeft } from "./shareguard.js";
 import { createDemo, demoPlaces, DEMO_CENTER } from "./demo.js";
 import { t, translateDom, loadLocale, setLocale, resolveLocale, currentLocale, LOCALE_CHOICES } from "./i18n.js";
 
@@ -5638,7 +5639,8 @@ const switchCircle = async (i) => {
   return withCircleGuard(() => doSwitchCircle(i));
 };
 
-const leaveCircle = () =>
+const leaveCircle = async () =>
+  (await askGuardPin(t("Leave this circle"))) &&
   withCircleGuard(async () => {
     if (!shareCapable() || state.demo || state.locked || !state.gen) return false;
     if (state.sharing) await awaitBye(await setSharing(false));
@@ -5869,6 +5871,13 @@ async function openSettings(focus = null) {
       demo: state.demo,
       tor,
       keepSharing,
+      guard: state.demo
+        ? null
+        : {
+            enabled: () => !!shareGuard,
+            enable: (pin) => setShareGuard(pin, true),
+            disable: (pin) => setShareGuard(pin, false),
+          },
       shareClock,
       shareCheckin,
       still,
@@ -6208,7 +6217,75 @@ async function measureClockSkew() {
 // true.
 // A Stop from the notification stays: someone tapping it is worth knowing
 // about however many shares later.
-function onShareToggle() {
+// Child mode: the record of the PIN that turning sharing off asks for.
+let shareGuard = null;
+
+async function loadShareGuard() {
+  try {
+    shareGuard = sanitizeGuard(await dbGet("shareGuard"));
+  } catch {
+    shareGuard = null;
+  }
+  try {
+    native()?.setShareGuard?.(!!shareGuard);
+  } catch {
+    // older wrapper
+  }
+}
+
+const waitText = (ms) => t("Too many wrong tries. Try again in {n} min.", { n: Math.max(1, Math.ceil(ms / 60000)) });
+
+// Resolves true when there is no guard, or the parent typed the right PIN.
+function askGuardPin(title) {
+  if (!shareGuard || state.demo) return Promise.resolve(true);
+  const wait = waitLeft(shareGuard);
+  if (wait > 0) {
+    ui.toast(waitText(wait), "warn");
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    ui.openPasscodeSheet({
+      title,
+      intro: t("Child mode is on. Enter the parent PIN."),
+      cta: t("Confirm"),
+      wrong: t("Wrong PIN."),
+      onClose: (ok) => resolve(!!ok),
+      onSubmit: async (pin) => {
+        const r = await checkPin(shareGuard, pin);
+        shareGuard = r.guard;
+        await dbSet("shareGuard", shareGuard).catch(() => {});
+        if (!r.ok && r.wait) ui.toast(waitText(r.wait), "warn");
+        return r.ok;
+      },
+    });
+  });
+}
+
+async function setShareGuard(pin, on) {
+  if (on) {
+    shareGuard = await makeGuard(pin);
+    await dbSet("shareGuard", shareGuard);
+  } else {
+    const r = await checkPin(shareGuard, pin);
+    shareGuard = r.guard;
+    if (!r.ok) {
+      await dbSet("shareGuard", shareGuard).catch(() => {});
+      if (r.wait) ui.toast(waitText(r.wait), "warn");
+      return false;
+    }
+    shareGuard = null;
+    await dbDel("shareGuard");
+  }
+  try {
+    native()?.setShareGuard?.(on);
+  } catch {
+    // older wrapper
+  }
+  return true;
+}
+
+async function onShareToggle() {
+  if (state.sharing && shareGuard && !state.demo && !(await askGuardPin(t("Stop sharing")))) return;
   if (!state.sharing && state.stopRecord && state.stopRecord.route !== "notif") {
     state.stopRecord = null;
     native()?.clearStopRecord?.();
@@ -8555,6 +8632,7 @@ async function boot() {
       state.settings = merged;
     }
     if (circleName) state.circleName = circleName;
+    await loadShareGuard();
     state.circleShare = packShare(share);
     if (typeof relay === "string") state.relay = relay;
     state.installDismissed = !!noInstall;

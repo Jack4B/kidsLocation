@@ -334,6 +334,12 @@ class StarlingBridge(private val app: Context) {
     fun setKeepSharing(on: Boolean) = PageHost.setKeepSharing(app, on)
 
     @JavascriptInterface
+    fun shareGuard(): Boolean = PageHost.shareGuard(app)
+
+    @JavascriptInterface
+    fun setShareGuard(on: Boolean) = PageHost.setShareGuard(app, on)
+
+    @JavascriptInterface
     fun shareClock(): Boolean = LocationService.clockShown(app)
 
     @JavascriptInterface
