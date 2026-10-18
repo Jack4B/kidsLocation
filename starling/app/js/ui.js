@@ -2572,6 +2572,44 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, guard =
     });
     guardRow.dataset.testid = "settings-child-mode";
     gShare.append(guardRow);
+    // Only a device owner app can block the location switch and Force stop.
+    const lk = guard.lock?.();
+    if (lk) {
+      const lockNote = el("p", "field-note", "");
+      lockNote.dataset.testid = "settings-child-lock";
+      lockNote.textContent = t(
+        !lk.owner
+          ? "Full protection is off. To block turning location off, Force stop and uninstalling, set Blisko as device owner over USB (see the family guide)."
+          : lk.applied
+            ? "Full protection is on: location stays on, and Blisko cannot be force-stopped, cleared or uninstalled."
+            : "Blisko is device owner. Turn child mode on to lock location and the app.",
+      );
+      gShare.append(lockNote);
+      if (lk.owner) {
+        const rel = btn("btn btn-secondary", "Remove device owner");
+        rel.dataset.testid = "settings-child-release";
+        rel.addEventListener("click", () =>
+          openPasscodeSheet({
+            title: "Remove device owner",
+            intro: guard.enabled()
+              ? "Enter the parent PIN. Blisko lifts every lock and stops being device owner; setting it up again needs the USB step."
+              : "Blisko lifts every lock and stops being device owner; setting it up again needs the USB step. Type 0000 to confirm.",
+            cta: "Remove device owner",
+            wrong: "Wrong PIN.",
+            onSubmit: async (pin) => {
+              if (!guard.enabled() && pin !== "0000") return false;
+              const ok = await guard.release(pin);
+              if (ok) {
+                toast("Blisko is no longer device owner.");
+                ov.close();
+              }
+              return ok;
+            },
+          }),
+        );
+        gShare.append(rel);
+      }
+    }
   }
 
   // Repainted on refresh: the grant and notification settings change in system screens.

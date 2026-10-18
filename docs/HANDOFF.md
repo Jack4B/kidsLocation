@@ -6,6 +6,13 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F5-16: Blisko jako administrator urządzenia
+
+- Zgoda właściciela 2026-10-18 (karta decyzji „Tak, rób”).
+- `ChildLock.kt` + `AdminReceiver`: gdy Blisko jest device owner, włączenie trybu dziecka nakłada ograniczenia (lokalizacja, zarządzanie aplikacjami, tryb awaryjny, reset fabryczny, tryb samolotowy), blokuje odinstalowanie i przyznaje na stałe zgody na lokalizację i powiadomienia; wyłączenie trybu zdejmuje je. „Usuń administratora urządzenia” wymaga PIN-u i woła `clearDeviceOwnerApp`.
+- Ustawienie przez `adb shell dpm set-device-owner app.kidslocation/app.starlingmap.AdminReceiver`, opis w `docs/OCHRONA-TELEFONU-DZIECKA.md`.
+- Nie sprawdzone na telefonie: zachowanie HyperOS przy ograniczeniach (kafelek lokalizacji, kafelek trybu samolotowego) i czy przyznanie zgody na lokalizację w tle przez device owner przechodzi na Androidzie 14.
+
 ## 2026-10-18, Claude, F5-3, F5-4, F5-5, F3-8: kopia relaya, instrukcja, upstream, protokół
 
 - Zgoda właściciela 2026-10-18 („Rób wszystko, masz moje zgody”) obejmuje dopisek w `PROTOCOL.md`.
