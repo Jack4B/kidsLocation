@@ -110,7 +110,7 @@ test("the clock on the sharing notification is off unless turned on, and never o
 test("a share paused by location off offers the switch, behind the unlock, and only in the private version", () => {
   const svc = kt("LocationService.kt");
   const build = fn(svc, "buildNotification");
-  assert.match(build, /\.addAction\(stopAction\)\s*(?:\.apply \{ if \(checkin != null\) addAction\(checkin\) \}\s*)?\.apply \{ if \(locationOff\) addAction\(locationOnAction\(\)\) \}/);
+  assert.match(build, /\.apply \{ if \(!PageHost\.shareGuard\(this@LocationService\)\) addAction\(stopAction\) \}\s*(?:\.apply \{ if \(checkin != null\) addAction\(checkin\) \}\s*)?\.apply \{ if \(locationOff\) addAction\(locationOnAction\(\)\) \}/);
   assert.equal(build.match(/addAction\(/g).length, 3);
   const pub = build.slice(build.indexOf("val publicVersion"), build.indexOf(".build()", build.indexOf("val publicVersion")));
   assert.doesNotMatch(pub, /addAction/);
@@ -156,7 +156,7 @@ test("the Check in action asks for the unlock: the flag on Android 12 and up, an
   assert.doesNotMatch(rest, /PendingIntent\.get(?:Service|Activity)\(\s*this,\s*5,/, "its request code is its own");
   const build = fn(svc, "buildNotification");
   assert.match(build, /val checkin = if \(checkinShown\(this\)\) checkinAction\(\) else null/);
-  assert.match(build, /\.addAction\(stopAction\)\s*\.apply \{ if \(checkin != null\) addAction\(checkin\) \}/, "after Stop");
+  assert.match(build, /\.apply \{ if \(!PageHost\.shareGuard\(this@LocationService\)\) addAction\(stopAction\) \}\s*\.apply \{ if \(checkin != null\) addAction\(checkin\) \}/, "after Stop");
 });
 
 test("the Check in activity is private, shows nothing, never shows over the lock screen and only sends the check-in", () => {
@@ -233,4 +233,8 @@ test("the bridge exposes the check-in switch and its result, and every locale ha
       assert.match(xml, new RegExp(`<string name="${key}">[^<]+</string>`), `${dir} has ${key}`);
     }
   }
+});
+
+test("child mode drops Stop from the notification and ignores a Stop already posted", () => {
+  assert.match(kt("LocationService.kt"), /ACTION_STOP && PageHost\.shareGuard\(this\)\) \{\s*if \(!running\) stopSelf\(\)\s*return START_NOT_STICKY/);
 });

@@ -2289,7 +2289,7 @@ export function openPasscodeSheet({ title, intro, cta, confirm = false, current 
   return ov;
 }
 
-export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoResume, shareClock, shareCheckin, still, background, forward, lock, lockActions, onChange, onMembers, onInvite, onPlaces, onPanic, onLeave, onExport, onClose, focus = null }) {
+export function openSettingsSheet({ api, values, demo, tor, keepSharing, guard = null, autoResume, shareClock, shareCheckin, still, background, forward, lock, lockActions, onChange, onMembers, onInvite, onPlaces, onPanic, onLeave, onExport, onClose, focus = null }) {
   const ov = openOverlay({ title: "Settings", testid: "settings-sheet", className: "ov-settings", onClose });
   const b = ov.body;
 
@@ -2539,7 +2539,39 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
       onChange: (v) => onChange("keepSharing", v),
     });
     row.dataset.testid = "settings-keep-sharing";
+    // Child mode keeps it on: turning it off would let a swipe end the share.
+    if (guard?.enabled() && keepSharing.enabled) row.setDisabled(true);
     gShare.append(row);
+  }
+
+  if (guard) {
+    const guardRow = switchRow({
+      label: "Child mode",
+      note: "Turning sharing off, or leaving the circle, asks for a parent PIN, and the Stop button leaves the sharing notification. It stops accidents, not a determined person: Android settings can still turn location off, and then the circle sees how old the last position is.",
+      value: guard.enabled(),
+      onChange: (on) => {
+        const done = (ok) => {
+          guardRow.setValue(guard.enabled());
+          if (ok) toast(guard.enabled() ? "Child mode is on." : "Child mode is off.");
+        };
+        openPasscodeSheet({
+          title: on ? "Set a parent PIN" : "Turn off child mode",
+          intro: on
+            ? "4 to 8 digits. Keep it from the child. If you forget it, the app has to be erased and rejoined from an invite."
+            : "Enter the parent PIN.",
+          cta: on ? "Turn on child mode" : "Turn off child mode",
+          confirm: on,
+          wrong: on ? "Use 4 to 8 digits." : "Wrong PIN.",
+          onClose: done,
+          onSubmit: async (pin) => {
+            if (!/^\d{4,8}$/.test(pin)) return false;
+            return (await (on ? guard.enable(pin) : guard.disable(pin))) !== false;
+          },
+        });
+      },
+    });
+    guardRow.dataset.testid = "settings-child-mode";
+    gShare.append(guardRow);
   }
 
   // Repainted on refresh: the grant and notification settings change in system screens.
@@ -2580,7 +2612,7 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, autoRes
       for (const which of ["boot", "update"]) {
         rows[which].setValue(st[which]);
         // A switch that is on can always be turned off.
-        rows[which].setDisabled(note.disabled && !st[which]);
+        rows[which].setDisabled((note.disabled && !st[which]) || (!!guard?.enabled() && st[which]));
       }
       const kids = note.lines.map((line) => el("p", "field-note", line));
       if (note.button === "notifications") {

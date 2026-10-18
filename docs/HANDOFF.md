@@ -6,6 +6,14 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F5-14: tryb dziecka
+
+- Prośba właściciela: córka (9 lat) nie może przypadkiem wyłączyć udostępniania.
+- Ustawienia, Udostępnianie, „Tryb dziecka”: PIN rodzica (4 do 8 cyfr, PBKDF2 w `app/js/shareguard.js`, w bazie tylko sól i skrót). Wyłączenie udostępniania, wyjście z kręgu i wyłączenie trybu wymagają PIN-u. Po trzech błędach rośnie czas oczekiwania (od 30 s do 15 min).
+- Android: przy włączonym trybie z powiadomienia znika „Zatrzymaj”, a już wysłane polecenie Stop jest ignorowane (`PageHost.shareGuard`). Przełączniki „Udostępniaj po zamknięciu aplikacji” i wznawiania po restarcie są zablokowane, gdy są włączone.
+- Uczciwie w opisie: ustawienia Androida nadal pozwalają wyłączyć lokalizację albo wymusić zatrzymanie; krąg widzi wtedy wiek ostatniej pozycji. Zapomniany PIN: wyczyszczenie aplikacji i ponowne dołączenie.
+- Testy: `test/shareguard.test.mjs`, nowy test źródła powiadomienia, `test/e2e_child_mode.mjs` (ręcznie, przechodzi lokalnie).
+
 ## 2026-10-18, Claude, F6-8: miejsca od razu dla nowych osób, test e2e
 
 - `test/e2e_shared_places.mjs` (Playwright, dwa telefony, uruchamiany ręcznie): A dodaje miejsce, B je dostaje, B zmienia nazwę i promień, A to dostaje, A usuwa, B traci; feed relaya nie zawiera nazwy. Przechodzi lokalnie.

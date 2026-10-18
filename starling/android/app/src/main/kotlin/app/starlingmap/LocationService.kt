@@ -365,6 +365,11 @@ class LocationService : Service(), LocationListener {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A Stop posted before child mode came on would still end the share.
+        if (intent?.action == ACTION_STOP && PageHost.shareGuard(this)) {
+            if (!running) stopSelf()
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             // A user action, not a failure: the page turns sharing off cleanly.
             stopAsked = true
@@ -960,7 +965,7 @@ class LocationService : Service(), LocationListener {
             .setOnlyAlertOnce(true)
             .setVisibility(Notification.VISIBILITY_PRIVATE)
             .setPublicVersion(publicVersion)
-            .addAction(stopAction)
+            .apply { if (!PageHost.shareGuard(this@LocationService)) addAction(stopAction) }
             .apply { if (checkin != null) addAction(checkin) }
             .apply { if (locationOff) addAction(locationOnAction()) }
             .apply {
