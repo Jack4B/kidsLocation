@@ -107,7 +107,7 @@ import {
   bioAvailable,
   zero,
 } from "./lock.js";
-import { createPlaceTracker, sanitizePlaces, newPlaceId, fenceSnap, announces, DEFAULT_RADIUS } from "./places.js";
+import { createPlaceTracker, sanitizePlaces, newPlaceId, fenceSnap, announces, DEFAULT_RADIUS, ownWrites, placeFields, tombFields, readPlaceMsg, applyPlaceMsg, nextWrite, sanitizeTombs, PLACE_RESEND_MS } from "./places.js";
 import { ASK_GAP_MS, ASK_WINDOW_MS, DUE_GRACE_MS, DUE_WARN_MS, OK_WINDOW_MS, overdue, storedTimer, warnDue } from "./checkin.js";
 import { debugHooks, apiUrl, customRelayInUse, getDefaultRelay, isWrapped, isBundled, isIOSWrapped, native, pageShown, relayConfigured, shareUrlBase, normalizeRelay, normalizeForward, normalizeForwardTid, setApiBase, shareCapable } from "./env.js";
 import {
@@ -2440,6 +2440,9 @@ function setupNet() {
   // Whatever the old sender still owed dies with it: a queued retry must
   // not cross into the channel this setup is arming.
   outbox.clear();
+  // Shared places wait for a sender like everything else; the resend check
+  // runs once the new channel has had a minute to settle.
+  setTimeout(() => resendPlacesIfDue().catch(() => {}), 60_000);
   const gen = state.gen;
   roster = createRoster({
     channelId: gen.channelId,
@@ -2449,6 +2452,7 @@ function setupNet() {
     onControl,
     onKeyChange,
     onChat: (from, obj, e, ts) => chat.receive(from, obj, e, ts),
+    onPlace: (from, obj) => onPlaceMsg(from, obj),
   });
   let lastTsCache = null;
   const seedLastTs = (v) => {
@@ -3175,6 +3179,7 @@ async function loadPlaces() {
     state.places = sanitizePlaces(list);
     if (await dbGet("vaultPlaces")) await dbDel("vaultPlaces");
   }
+  placeTombs = sanitizeTombs(await dbGet("placeTombs").catch(() => null));
   placeTracker.setPlaces(state.places);
   mapView?.setPlaces(state.places);
 }
@@ -3185,19 +3190,141 @@ async function savePlaces() {
   mapView?.setPlaces(state.places);
   try {
     await writePlacesAtRest();
+    // Ids and times only: a tombstone says nothing about where a place was.
+    await dbSet("placeTombs", placeTombs);
   } catch (e) {
     window.__starlingErrors.push(`places: ${String(e)}`);
   }
   render();
 }
 
-function addPlace(name, lat, lon) {
-  state.places = [
-    ...state.places,
-    { id: newPlaceId(), name, lat, lon, radius: DEFAULT_RADIUS },
-  ];
+// ------------------------------------------------ places shared with the circle
+// (places.js and docs/PLACES.md). Removals the circle must not undo by a
+// late message, and the ids of this phone's own writes still to go out.
+let placeTombs = [];
+const placeOutbox = new Set();
+let placeFlushTimer = 0;
+let placeFlushing = false;
+const PLACE_RETRY_MS = 60_000;
+
+const placeSelf = () => (state.demo || !state.identity ? null : state.identity.memberId);
+const newShare = (held) => ({ w: nextWrite(held), by: placeSelf(), c: placeSelf() });
+
+function onPlaceMsg(from, obj) {
+  const self = placeSelf();
+  if (!self || state.locked) return;
+  const r = applyPlaceMsg(state.places, placeTombs, { from, msg: readPlaceMsg(obj), self });
+  if (!r.changed) return;
+  state.places = r.places;
+  placeTombs = r.tombs;
   return savePlaces();
 }
+
+function queuePlaceSend(id) {
+  placeOutbox.add(id);
+  flushPlaces();
+}
+
+async function flushPlaces() {
+  if (placeFlushing) return;
+  clearTimeout(placeFlushTimer);
+  const self = placeSelf();
+  if (!self || state.locked || !sender) {
+    if (placeOutbox.size) placeFlushTimer = setTimeout(flushPlaces, PLACE_RETRY_MS);
+    return;
+  }
+  placeFlushing = true;
+  try {
+    for (const id of [...placeOutbox]) {
+      const place = ownWrites(state.places, self).find((p) => p.id === id);
+      const tomb = place ? null : placeTombs.find((x) => x.id === id && x.c === self && x.by === self);
+      if (place || tomb) await sender.send(place ? placeFields(place) : tombFields(tomb));
+      placeOutbox.delete(id);
+    }
+  } catch {
+    placeFlushTimer = setTimeout(flushPlaces, PLACE_RETRY_MS);
+  } finally {
+    placeFlushing = false;
+  }
+}
+
+// The relay forgets a message after a day, and a phone that was off longer,
+// or joined later, would never hear of a place. Every member re-sends the
+// writes that are theirs, a few times a day, never more than ten or so posts.
+async function resendPlacesIfDue(now = Date.now()) {
+  const self = placeSelf();
+  if (!self) return;
+  const last = Number(await dbGet("placesResentAt").catch(() => 0)) || 0;
+  if (now - last < PLACE_RESEND_MS) return;
+  const ids = [
+    ...ownWrites(state.places, self).map((p) => p.id),
+    ...placeTombs.filter((x) => x.c === self && x.by === self).map((x) => x.id),
+  ];
+  await dbSet("placesResentAt", now).catch(() => {});
+  for (const id of ids) placeOutbox.add(id);
+  flushPlaces();
+}
+setInterval(() => resendPlacesIfDue().catch(() => {}), 30 * 60 * 1000);
+
+function addPlace(name, lat, lon) {
+  const id = newPlaceId();
+  const self = placeSelf();
+  state.places = [
+    ...state.places,
+    { id, name, lat, lon, radius: DEFAULT_RADIUS, ...(self ? { sh: newShare(null) } : {}) },
+  ];
+  if (self) queuePlaceSend(id);
+  return savePlaces();
+}
+
+// A change to a place's name, spot or radius; a shared one goes to the circle.
+function editPlace(id, patch) {
+  const self = placeSelf();
+  let send = false;
+  state.places = state.places.map((p) => {
+    if (p.id !== id) return p;
+    if (p.sh && self && p.sh.c === self) {
+      send = true;
+      return { ...p, ...patch, sh: newShare(p.sh) };
+    }
+    return { ...p, ...patch };
+  });
+  if (send) queuePlaceSend(id);
+  return savePlaces();
+}
+
+// Removing a shared place removes it for the whole circle; `keep` turns it
+// back into a private place on this phone instead.
+function unsharePlace(id, keep) {
+  const self = placeSelf();
+  const p = state.places.find((x) => x.id === id);
+  if (!p) return savePlaces();
+  if (p.sh && self && p.sh.c === self) {
+    placeTombs = [...placeTombs.filter((x) => x.id !== id), { id, w: nextWrite(p.sh), by: self, c: self, at: Date.now() }];
+    queuePlaceSend(id);
+  }
+  if (keep) {
+    const { sh: _gone, ...rest } = p;
+    state.places = state.places.map((x) => (x.id === id ? rest : x));
+  } else {
+    state.places = state.places.filter((x) => x.id !== id);
+  }
+  return savePlaces();
+}
+
+function sharePlace(id) {
+  const self = placeSelf();
+  if (!self) return savePlaces();
+  state.places = state.places.map((p) => (p.id === id && !p.sh ? { ...p, sh: newShare(null) } : p));
+  placeTombs = placeTombs.filter((x) => x.id !== id);
+  queuePlaceSend(id);
+  return savePlaces();
+}
+
+const placeSaved = (name) =>
+  placeSelf()
+    ? t("{name} saved and shared with your circle.", { name })
+    : t("{name} saved. Only this phone knows it exists.", { name });
 
 // ------------------------------------------------------------------ chat
 
@@ -7556,6 +7683,7 @@ function openPlaces({ page = false, onClosed = null } = {}) {
         onFence: nope,
         onAlerts: nope,
         onRemove: nope,
+        onShare: nope,
       }),
     );
   }
@@ -7565,7 +7693,7 @@ function openPlaces({ page = false, onClosed = null } = {}) {
   return keepLive((done) =>
     ui.openPlacesSheet({
       page,
-      api: { places: () => state.places, here: whoIsAt },
+      api: { places: () => state.places, here: whoIsAt, writer: placeWriter },
       onClose: () => {
         done();
         onClosed?.();
@@ -7576,18 +7704,13 @@ function openPlaces({ page = false, onClosed = null } = {}) {
           return false;
         }
         await addPlace(name, state.me.lat, state.me.lon);
-        ui.toast(t("{name} saved. Only this phone knows it exists.", { name }));
+        ui.toast(placeSaved(name));
         return true;
       },
       onPick: startPlacePick,
-      onRename: async (id, name) => {
-        state.places = state.places.map((p) => (p.id === id ? { ...p, name } : p));
-        await savePlaces();
-      },
-      onRadius: async (id, radius) => {
-        state.places = state.places.map((p) => (p.id === id ? { ...p, radius } : p));
-        await savePlaces();
-      },
+      onRename: (id, name) => editPlace(id, { name }),
+      onRadius: (id, radius) => editPlace(id, { radius }),
+      onShare: (id, on) => (on ? sharePlace(id) : unsharePlace(id, true)),
       onFence: async (id, on) => {
         state.places = state.places.map((p) => (p.id === id ? { ...p, fence: !!on } : p));
         await savePlaces();
@@ -7596,12 +7719,16 @@ function openPlaces({ page = false, onClosed = null } = {}) {
         state.places = state.places.map((p) => (p.id === id ? { ...p, alerts } : p));
         await savePlaces();
       },
-      onRemove: async (id) => {
-        state.places = state.places.filter((p) => p.id !== id);
-        await savePlaces();
-      },
+      onRemove: (id) => unsharePlace(id, false),
     }),
   );
+}
+
+// Who last changed a shared place, as this phone names them; null for a private one.
+function placeWriter(id) {
+  const p = state.places.find((x) => x.id === id);
+  if (!p?.sh) return null;
+  return p.sh.by === state.identity?.memberId ? t("You") : memberName(p.sh.by);
 }
 
 // "Here now" is a claim about the present, so a dot that went quiet does not count.
@@ -7629,7 +7756,7 @@ function startPlacePick(name) {
     $("#banner-pick").hidden = true;
     if (state.locked || state.demo) return;
     await addPlace(name, lat, lon);
-    ui.toast(t("{name} saved. Only this phone knows it exists.", { name }));
+    ui.toast(placeSaved(name));
     reopenPlaces();
   });
 }

@@ -1899,14 +1899,14 @@ function alertWord(v) {
 // Places: the list of named spots with who is there now, each one opening in
 // place to its name, radius, alerts and privacy fence. `page` shows it as the
 // Places tab; `readOnly` is the demo's view of its own invented spots.
-export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFence, onAlerts, onRemove, onClose, page = false, readOnly = false }) {
+export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFence, onAlerts, onRemove, onShare, onClose, page = false, readOnly = false }) {
   const ov = openOverlay({ title: "Places", testid: "places-sheet", className: "ov-places", onClose, page });
   const b = ov.body;
 
   const note = el("div", "card-tint places-note");
   note.append(
     icon("lock", 18),
-    el("p", "places-note-text", "Places are stored only on this phone. The server and the rest of your circle do not know they exist."),
+    el("p", "places-note-text", "Shared places reach everyone in your circle, sealed like your position, so the server never learns their names or where they are. A place set to only on this phone stays here."),
   );
   b.append(note);
   if (readOnly) b.append(el("p", "field-note", "Exit the demo to edit your places."));
@@ -1973,6 +1973,10 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
         t("{radius} · {alerts}", { radius: fmtDistance(place.radius), alerts: alertWord(place.alerts ?? "both") }),
       ),
     );
+    const writer = api.writer?.(place.id);
+    text.append(
+      el("span", "place-sum-share", writer ? t("Shared, last changed by {name}", { name: writer }) : t("Only on this phone")),
+    );
     if (place.fence) {
       const fenceTag = el("span", "place-sum-fence");
       fenceTag.append(icon("shield", 16), el("span", "btn-label", "Privacy fence"));
@@ -2038,10 +2042,26 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
     fenceIn.addEventListener("change", () => onFence?.(place.id, fenceIn.checked));
     fence.append(fenceText, fenceIn);
 
+    const share = el("label", "switch-row place-share");
+    const shareText = el("span", "switch-text");
+    shareText.append(
+      el("span", "switch-label", "Share with the circle"),
+      el("p", "field-note", "Everyone in the circle sees it and gets its arrive and leave alerts. Turning this off removes it from the other phones and keeps it here."),
+    );
+    const shareIn = document.createElement("input");
+    shareIn.type = "checkbox";
+    shareIn.className = "place-share-check switch-input";
+    shareIn.setAttribute("role", "switch");
+    shareIn.checked = !!writer;
+    shareIn.disabled = readOnly || !onShare;
+    shareIn.setAttribute("aria-label", t("Share {name} with the circle", { name: place.name }));
+    shareIn.addEventListener("change", () => onShare?.(place.id, shareIn.checked));
+    share.append(shareText, shareIn);
+
     const rm = btn("btn-pill btn-pill-danger place-remove", null, t("Remove {name}", { name: place.name }));
     rm.append(icon("trash", 20), el("span", "btn-label", "Remove place"));
     rm.addEventListener("click", () => onRemove(place.id));
-    edit.append(nameField, radiusField, alertsField, fence, rm);
+    edit.append(nameField, radiusField, alertsField, share, fence, rm);
     row.append(sum, edit);
     return row;
   }
@@ -2064,7 +2084,7 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
 
   function rebuild() {
     const places = api.places();
-    const nextSig = JSON.stringify([openId, places.map((p) => [p.id, p.name, p.radius, !!p.fence, p.alerts ?? "both"])]);
+    const nextSig = JSON.stringify([openId, places.map((p) => [p.id, p.name, p.radius, !!p.fence, p.alerts ?? "both", api.writer?.(p.id) ?? null])]);
     if (nextSig === sig) return;
     sig = nextSig;
     hereEls.clear();
@@ -2075,7 +2095,7 @@ export function openPlacesSheet({ api, onAdd, onPick, onRename, onRadius, onFenc
     const count = el(
       "p",
       "field-note place-count",
-      t("{n} of {max} places. Arrive and leave alerts come only to this phone.", { n: places.length, max: MAX_PLACES }),
+      t("{n} of {max} places. New places are shared with your circle.", { n: places.length, max: MAX_PLACES }),
     );
     if (places.length >= MAX_PLACES) {
       addBox.append(el("p", "field-note", t("That is the lot: {n} places is the cap.", { n: MAX_PLACES })), count);

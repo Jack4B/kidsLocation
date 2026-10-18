@@ -1,8 +1,10 @@
-// Places: named spots like Home or School that live ONLY on this device.
-// Nothing here ever touches the wire. Positions already arrive encrypted from
-// circle members; this module just compares them against locally stored
-// circles of interest and reports enter/leave transitions. The relay never
-// learns that places exist, let alone where they are.
+// Places: named spots like Home or School. A place is either private (it
+// lives only on this device, the way every place did before) or shared with
+// the circle: then it travels as a sealed "place" message in the member's own
+// stream, exactly like a chat message, so the relay sees a padded ciphertext
+// it cannot tell from a position. Positions arrive encrypted from circle
+// members; this module compares them against the places and reports
+// enter/leave transitions. Spec of the shared format: docs/PLACES.md.
 //
 // Detection is deliberately conservative, because GPS jitter at a boundary
 // would otherwise flap "arrived" / "left" all afternoon:
@@ -59,8 +61,146 @@ export function validPlace(p) {
     Math.abs(p.lon) <= 180 &&
     PLACE_RADII.includes(p.radius) &&
     (p.fence === undefined || typeof p.fence === "boolean") &&
-    (p.alerts === undefined || PLACE_ALERTS.includes(p.alerts))
+    (p.alerts === undefined || PLACE_ALERTS.includes(p.alerts)) &&
+    (p.sh === undefined || validShare(p.sh))
   );
+}
+
+// ------------------------------------------------------------ shared places
+//
+// A shared place carries sh = { w, by, c }: w is the time of its last write,
+// by the member who wrote it, c this device's own member id in the circle it
+// belongs to. Fence and alerts stay local choices and never travel.
+//
+// Wire envelope, after the sender's v and ts:
+//   { t: "place", op: "set", id, w, n, la, lo, r }   add or change
+//   { t: "place", op: "del", id, w }                 remove
+// The newest write wins, ordered by (w, writer), so every phone reaches the
+// same list whatever order the messages arrive in. A removal leaves a
+// tombstone, so an older "set" served late cannot bring the place back.
+// Each member re-sends the writes that are theirs now and then, because the
+// relay keeps a message for 24 hours at most.
+
+const MEMBER_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const ID_RE = /^[0-9a-f]{8}$/;
+export const PLACE_RESEND_MS = 6 * 60 * 60 * 1000;
+export const TOMB_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
+const COORD_DP = 1e5;
+
+function validShare(sh) {
+  return (
+    typeof sh === "object" &&
+    sh !== null &&
+    Number.isSafeInteger(sh.w) &&
+    sh.w > 0 &&
+    typeof sh.by === "string" &&
+    MEMBER_RE.test(sh.by) &&
+    typeof sh.c === "string" &&
+    MEMBER_RE.test(sh.c)
+  );
+}
+
+export const isShared = (p) => !!p?.sh;
+// The places of one circle that this device should be sending: the ones
+// whose last write was its own.
+export const ownWrites = (places, self) => places.filter((p) => p.sh && p.sh.c === self && p.sh.by === self);
+
+const round = (x) => Math.round(x * COORD_DP) / COORD_DP;
+
+// The fields a shared place puts on the wire. About a meter of precision is
+// plenty for a 100 m circle and keeps the message short.
+export function placeFields(place) {
+  if (!place?.sh) throw new Error("place: not shared");
+  return {
+    t: "place",
+    op: "set",
+    id: place.id,
+    w: place.sh.w,
+    n: place.name,
+    la: round(place.lat),
+    lo: round(place.lon),
+    r: place.radius,
+  };
+}
+
+export const tombFields = (tomb) => ({ t: "place", op: "del", id: tomb.id, w: tomb.w });
+
+// A decrypted place message as a receiver may believe it, or null. The
+// roster has checked the signature, epoch and ts; this is shape only.
+export function readPlaceMsg(obj) {
+  if (!obj || obj.t !== "place") return null;
+  if (typeof obj.id !== "string" || !ID_RE.test(obj.id)) return null;
+  if (!Number.isSafeInteger(obj.w) || obj.w <= 0) return null;
+  if (obj.op === "del") return { op: "del", id: obj.id, w: obj.w };
+  if (obj.op !== "set") return null;
+  const name = typeof obj.n === "string" ? obj.n.trim().slice(0, MAX_NAME_LEN) : "";
+  const place = { id: obj.id, name, lat: obj.la, lon: obj.lo, radius: obj.r };
+  if (!validPlace(place)) return null;
+  return { op: "set", id: obj.id, w: obj.w, name, lat: obj.la, lon: obj.lo, radius: obj.r };
+}
+
+// Whether write a beats write b. Ties on time go to the larger member id,
+// an arbitrary rule every phone applies the same way.
+const newer = (aw, aby, bw, bby) => aw > bw || (aw === bw && aby > bby);
+
+// Fold one received message into this device's places and tombstones.
+// Pure: returns { places, tombs, changed }. `self` is this device's member
+// id in the circle the message came from.
+export function applyPlaceMsg(places, tombs, { from, msg, self, now = Date.now() }) {
+  const same = { places, tombs, changed: false };
+  if (!msg || typeof from !== "string" || !MEMBER_RE.test(from) || !MEMBER_RE.test(self || "")) return same;
+  const cur = places.find((p) => p.id === msg.id);
+  // A private place with the same id is this phone's own; nothing from outside touches it.
+  if (cur && !cur.sh) return same;
+  if (cur && cur.sh.c !== self) return same;
+  const tomb = tombs.find((x) => x.id === msg.id && x.c === self);
+  const held = cur ? cur.sh : tomb;
+  if (held && !newer(msg.w, from, held.w, held.by)) return same;
+  const restTombs = tombs.filter((x) => x !== tomb);
+  if (msg.op === "del") {
+    return {
+      places: places.filter((p) => p !== cur),
+      tombs: [...restTombs, { id: msg.id, w: msg.w, by: from, c: self, at: now }],
+      changed: true,
+    };
+  }
+  // A new place over the cap is not taken; the sender's phone shows it, this one cannot.
+  if (!cur && sanitizePlaces(places).length >= MAX_PLACES) return same;
+  const next = {
+    id: msg.id,
+    name: msg.name,
+    lat: msg.lat,
+    lon: msg.lon,
+    radius: msg.radius,
+    ...(cur?.fence !== undefined ? { fence: cur.fence } : {}),
+    ...(cur?.alerts !== undefined ? { alerts: cur.alerts } : {}),
+    sh: { w: msg.w, by: from, c: self },
+  };
+  return {
+    places: cur ? places.map((p) => (p === cur ? next : p)) : [...places, next],
+    tombs: restTombs,
+    changed: true,
+  };
+}
+
+// A write time for a local change that beats whatever the place held, even
+// with this phone's clock behind the writer's.
+export const nextWrite = (held, now = Date.now()) => Math.max(now, (held?.w ?? 0) + 1);
+
+export function sanitizeTombs(list, now = Date.now()) {
+  return (Array.isArray(list) ? list : []).filter(
+    (x) =>
+      x &&
+      typeof x.id === "string" &&
+      ID_RE.test(x.id) &&
+      Number.isSafeInteger(x.w) &&
+      typeof x.by === "string" &&
+      MEMBER_RE.test(x.by) &&
+      typeof x.c === "string" &&
+      MEMBER_RE.test(x.c) &&
+      Number.isFinite(x.at) &&
+      now - x.at < TOMB_KEEP_MS,
+  ).slice(-100);
 }
 
 // No choice stored means both ways, which is how every place behaved before.
