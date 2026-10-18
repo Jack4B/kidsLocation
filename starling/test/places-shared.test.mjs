@@ -161,3 +161,11 @@ test("main.js: places travel on the live sender and arrive through the roster", 
   // Places from before the update stay private until someone shares them.
   assert.match(main, /onShare: \(id, on\) => \(on \? sharePlace\(id\) : unsharePlace\(id, true\)\)/);
 });
+
+test("main.js: a newcomer gets the circle's places at once, not at the next six-hour resend", () => {
+  const main = readFileSync(new URL("../app/js/main.js", import.meta.url), "utf8");
+  const fn = main.slice(main.indexOf("function resendPlacesForNewcomers"), main.indexOf("function addPlace"));
+  assert.match(fn, /channel !== placePeers\.channel \|\| n > placePeers\.n/, "a bigger roster or a re-key for an admission");
+  assert.match(fn, /resendPlacesIfDue\(Date\.now\(\), true\)/);
+  assert.match(main, /onChange: \(\) => \{\s*checkAlerts\(\);\s*persistRatchet\(\);\s*resendPlacesForNewcomers\(\);/);
+});

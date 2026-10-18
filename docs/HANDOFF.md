@@ -6,6 +6,11 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-18, Claude, F6-8: miejsca od razu dla nowych osób, test e2e
+
+- `test/e2e_shared_places.mjs` (Playwright, dwa telefony, uruchamiany ręcznie): A dodaje miejsce, B je dostaje, B zmienia nazwę i promień, A to dostaje, A usuwa, B traci; feed relaya nie zawiera nazwy. Przechodzi lokalnie.
+- Nowa osoba w kręgu dostaje miejsca od razu: gdy roster urośnie albo kanał się zmieni (przyjęcie nowej osoby zmienia klucze), telefon wysyła swoje miejsca poza sześciogodzinnym rytmem.
+
 ## 2026-10-18, Claude, F5-13: powiadomienia mówią, kto i co
 
 - Prośba właściciela: treść czatu i konkretne zdarzenia w powiadomieniach zamiast „Otwórz Blisko, żeby zobaczyć, co się stało”.
