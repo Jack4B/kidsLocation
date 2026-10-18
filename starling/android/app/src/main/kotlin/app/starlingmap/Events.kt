@@ -63,7 +63,9 @@ object Events {
                 Detail(ctx.getString(R.string.app_name), ctx.getString(lockedRes), member, false, lockedRes))
             return
         }
-        show(ctx, R.string.app_name, R.string.notif_locked_text, tag, false, channelFor(kind),
+        // An SOS keeps its alarm channel and sound when it carries words too.
+        val urgent = kind == "sos"
+        show(ctx, R.string.app_name, if (urgent) R.string.notif_sos_text else R.string.notif_locked_text, tag, urgent, channelFor(kind),
             Detail(title, body, member, onLock, lockedRes))
     }
 

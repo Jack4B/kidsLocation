@@ -108,9 +108,9 @@ async function walkInAndOut({ bridge: wrapper, ...settings }) {
   return { calls, who };
 }
 
-test("the setting starts off, so place alerts stay generic and collapsed", async () => {
-  assert.equal(state.settings.detailAlerts, false);
-  assert.equal(state.settings.detailOnLock, false);
+test("Blisko starts with words in notices; turned off, place alerts stay generic and collapsed", async () => {
+  assert.equal(state.settings.detailAlerts, true);
+  assert.equal(state.settings.detailOnLock, true);
   const { calls } = await walkInAndOut({ detailAlerts: false });
   assert.deepEqual(calls.map((c) => [c.via, c.tag.startsWith("place-")]), [["kind", true], ["kind", true]]);
   assert.equal(calls[0].tag, calls[1].tag, "one id per member, as before");

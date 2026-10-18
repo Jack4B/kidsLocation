@@ -11,6 +11,13 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 - `test/e2e_shared_places.mjs` (Playwright, dwa telefony, uruchamiany ręcznie): A dodaje miejsce, B je dostaje, B zmienia nazwę i promień, A to dostaje, A usuwa, B traci; feed relaya nie zawiera nazwy. Przechodzi lokalnie.
 - Nowa osoba w kręgu dostaje miejsca od razu: gdy roster urośnie albo kanał się zmieni (przyjęcie nowej osoby zmienia klucze), telefon wysyła swoje miejsca poza sześciogodzinnym rytmem.
 
+## 2026-10-18, Claude, F5-13: powiadomienia mówią, kto i co
+
+- Prośba właściciela: treść czatu i konkretne zdarzenia w powiadomieniach zamiast „Otwórz Blisko, żeby zobaczyć, co się stało”.
+- Domyślnie włączone: szczegóły zdarzeń, także na zablokowanym ekranie, oraz nadawca i treść wiadomości czatu. Telefony z zapisanymi starymi ustawieniami dostają to raz (`wordyDefault`); każdą opcję można wyłączyć w ustawieniach.
+- Przy włączonych szczegółach przez `notifyDetail` idą wszystkie zdarzenia kręgu: miejsca, bateria, check-in, prośby, SOS (SOS zostaje na kanale alarmowym z dzwonkiem). Dotknięcie otwiera tę osobę.
+- `tools/check-notification-privacy.sh` dalej przechodzi: bez zgody na zablokowany ekran nic z treści nie trafia do powiadomienia.
+
 ## 2026-10-18, Claude, F2-11: metry w polskiej aplikacji, raport jako Blisko
 
 - Jednostki „Automatycznie” idą za językiem aplikacji: polska aplikacja pokazuje metry i kilometry, nawet gdy telefon ma język angielski (USA). Wcześniej telefony z angielskim pokazywały stopy i mile.

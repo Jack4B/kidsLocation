@@ -228,10 +228,12 @@ const state = {
     placeAlerts: true, // say when a member arrives at or leaves a saved place
     batAlerts: true, // say when a member's battery runs low
     speedAlertKmh: 0, // say when a member holds a speed over this (km/h); 0 is off
-    detailAlerts: false, // Android: one notification per place event, with name, place and time
-    detailOnLock: false, // Android: let those words show on a locked screen too
-    chatPreview: false, // Android: also put a message's text in its notification (needs chatOnLock)
-    chatOnLock: false, // Android: name the sender in a notification, which a locked screen shows too
+    // Blisko is a family app: a notice says who, where and what by default.
+    // Each of these can still be turned off in settings.
+    detailAlerts: true, // Android: event notifications name the person, the place and the time
+    detailOnLock: true, // Android: let those words show on a locked screen too
+    chatPreview: true, // Android: also put a message's text in its notification (needs chatOnLock)
+    chatOnLock: true, // Android: name the sender in a notification, which a locked screen shows too
     shareReminder: 0, // ms after a stop you chose before the phone says sharing is off; 0 is never
     units: "auto", // "metric", "imperial", or the region in the phone's language
   },
@@ -6121,6 +6123,15 @@ function mergeSavedSettings(base, saved) {
     merged.stillSave = true;
     merged.stillDefault = 1;
   }
+  // Notices with words became the default once; a phone that saved the old
+  // generic defaults gets the new ones a single time, and keeps any later choice.
+  if (saved.wordyDefault !== 1) {
+    merged.detailAlerts = true;
+    merged.detailOnLock = true;
+    merged.chatPreview = true;
+    merged.chatOnLock = true;
+    merged.wordyDefault = 1;
+  }
   return merged;
 }
 
@@ -7504,6 +7515,7 @@ const NOTIFY_KINDS = new Set(["sos", "arrive", "leave", "checkin", "battery", "o
 // to post through (no push tokens, by design), so the toast is the whole
 // story there. Never fires while the app is visibly on screen: the toast
 // already said it.
+const DETAIL_KINDS = new Set(["arrive", "leave", "checkin", "sos"]);
 function notifyEvent(title, body, tag, kind = "other", detail = null) {
   // The demo is a scripted story. Its fake SOS must never reach the phone's
   // real notification tray, where nothing marks it as fiction.
@@ -7513,8 +7525,11 @@ function notifyEvent(title, body, tag, kind = "other", detail = null) {
   if (!n?.notify) return;
   const urgent = kind === "sos";
   try {
-    if (detail && state.settings.detailAlerts === true && typeof n.notifyDetail === "function") {
-      n.notifyDetail(title, body, detail.tag, kind === "arrive" || kind === "leave" ? kind : "other", detail.memberId, state.settings.detailOnLock === true);
+    // With words allowed, every circle event says who and what: the person's
+    // name, the place, the battery level, the SOS. A tap opens that person.
+    if (state.settings.detailAlerts === true && typeof n.notifyDetail === "function") {
+      const member = detail?.memberId || /^(?:sos|ok|ask|due|bat|speed|place)-(.+)$/.exec(tag)?.[1] || "";
+      n.notifyDetail(title, body, detail?.tag || tag, DETAIL_KINDS.has(kind) ? kind : "other", member, state.settings.detailOnLock === true);
       return;
     }
     if (!urgent && typeof n.notifyKind === "function") n.notifyKind(title, body, tag, NOTIFY_KINDS.has(kind) ? kind : "other");
@@ -7895,8 +7910,7 @@ function checkAlerts() {
           navigator.vibrate?.(80);
           // The same moment as a line in the chat, on this phone only.
           if (!state.demo) chat.system({ from: rec.id, ev: ev.type, place: ev.placeName });
-          const wordy = state.settings.detailAlerts === true;
-          notifyEvent(msg, wordy ? fmtClock(now) : "", `place-${rec.id}`, ev.type, {
+          notifyEvent(msg, fmtClock(now), `place-${rec.id}`, ev.type, {
             tag: `p${now.toString(36)}${(placeSeq++).toString(36)}`,
             memberId: rec.id,
           });
@@ -8535,7 +8549,7 @@ async function boot() {
     if (profile) state.profile = profile;
     if (settings) {
       const merged = mergeSavedSettings(state.settings, settings);
-      if (merged.stillDefault !== settings.stillDefault) {
+      if (merged.stillDefault !== settings.stillDefault || merged.wordyDefault !== settings.wordyDefault) {
         dbSet("settings", merged).catch((e) => window.__starlingErrors.push(`still default: ${String(e)}`));
       }
       state.settings = merged;
