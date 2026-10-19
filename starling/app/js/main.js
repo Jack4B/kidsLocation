@@ -4397,8 +4397,9 @@ async function saveProfile(p) {
   await dbSet("profile", state.profile);
 }
 
-function promptCreate() {
+async function promptCreate() {
   if (!shareCapable() || state.locked) return;
+  if (shareGuard && !(await askGuardPin(t("New circle")))) return;
   if (!relayConfigured()) {
     promptStartRelay({ required: true, then: promptCreate });
     return;
@@ -4504,7 +4505,7 @@ function promptCreate() {
 // credential that bootstraps a pairwise channel; the circle's own keys are
 // replaced at the moment somebody accepts, which is what stops a joiner
 // reading the epoch they joined during.
-function promptJoin(invite) {
+async function promptJoin(invite) {
   if (!shareCapable() || state.locked) return;
   const verdict = joinPromptVerdict({ joining: state.joining, invite: state.invite, candidate: invite });
   if (verdict === "already-asked") {
@@ -4515,6 +4516,8 @@ function promptJoin(invite) {
     ui.toast("That is your own invite link.");
     return;
   }
+  // A link a child opens must not move the phone into another circle.
+  if (shareGuard && state.gen && !(await askGuardPin(t("Join with a link")))) return;
   const relayVerdict = joinRelayVerdict({
     inviteRelay: invite.relay,
     currentRelay: customRelayInUse(),
@@ -4659,7 +4662,8 @@ function joinFromScan(text, join = promptJoin) {
   return !!invite;
 }
 
-function promptPasteInvite() {
+async function promptPasteInvite() {
+  if (shareGuard && !(await askGuardPin(t("Join with a link")))) return;
   const ov = ui.openOverlay({ title: "Join with a link", testid: "paste-sheet" });
   ov.body.append(
     ui.el("p", "ov-note", "Paste the invite link someone sent you. The circle secret stays in the link fragment and never touches a server."),
@@ -5708,7 +5712,7 @@ const leaveCircle = async () =>
     return true;
   });
 
-function openCircles() {
+async function openCircles() {
   if (!shareCapable()) return;
   if (state.demo) {
     ui.toast("Exit the demo first.");
@@ -5716,6 +5720,7 @@ function openCircles() {
   }
   if (state.locked) return;
   if (!state.gen && !state.circles.length) return;
+  if (shareGuard && !(await askGuardPin(t("Your circles")))) return;
   ui.openCircleSheet({
     api,
     // With no active circle the sheet is a list of circles to go to, so the
@@ -5742,12 +5747,13 @@ function qrColors() {
 // The screen that turns trust on first use into a checked identity. It is
 // reachable from the map and from settings, and it follows live state while it
 // is open: keys can change under it.
-function openMembers() {
+async function openMembers() {
   if (state.demo) {
     ui.toast("Exit the demo to see your circle's keys.");
     return;
   }
   if (!state.gen || state.locked) return;
+  if (shareGuard && !(await askGuardPin(t("People and keys")))) return;
   keepLive((done) => ui.openMembersSheet({ api, onClose: done }));
 }
 
@@ -5784,6 +5790,9 @@ async function openInvite() {
 // `focus` opens Settings at one group: "lock", "keys", "rekey", "advanced" or "panic".
 async function openSettings(focus = null) {
   if (typeof focus !== "string") focus = null;
+  // Child mode keeps the keys, the relay, the wipe and the circle itself out
+  // of a child's reach: every one of them can drop the phone out of the circle.
+  if (shareGuard && !(await askGuardPin(t("Settings")))) return;
   const bioOk = await bioAvailable();
   const n = native();
   let tor = null;
@@ -6267,9 +6276,19 @@ async function releaseChildLock(pin) {
 
 const waitText = (ms) => t("Too many wrong tries. Try again in {n} min.", { n: Math.max(1, Math.ceil(ms / 60000)) });
 
+// One right PIN opens the guarded screens for a short while, so a parent
+// moving from settings to the circle list is not asked again. Leaving the app
+// ends it at once: the phone goes back to the child.
+const GUARD_GRACE_MS = 60 * 1000;
+let guardOpenUntil = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) guardOpenUntil = 0;
+});
+
 // Resolves true when there is no guard, or the parent typed the right PIN.
 function askGuardPin(title) {
   if (!shareGuard || state.demo) return Promise.resolve(true);
+  if (Date.now() < guardOpenUntil) return Promise.resolve(true);
   const wait = waitLeft(shareGuard);
   if (wait > 0) {
     ui.toast(waitText(wait), "warn");
@@ -6287,6 +6306,7 @@ function askGuardPin(title) {
         shareGuard = r.guard;
         await dbSet("shareGuard", shareGuard).catch(() => {});
         if (!r.ok && r.wait) ui.toast(waitText(r.wait), "warn");
+        if (r.ok) guardOpenUntil = Date.now() + GUARD_GRACE_MS;
         return r.ok;
       },
     });
@@ -6306,6 +6326,7 @@ async function setShareGuard(pin, on) {
       return false;
     }
     shareGuard = null;
+    guardOpenUntil = 0;
     await dbDel("shareGuard");
   }
   try {
@@ -7065,6 +7086,7 @@ function buildShareReport() {
       lastErrAt: shareStats.lastErrAt,
       fixes: fixGate.stats(),
       customRelay: !!state.relay,
+      childMode: !!shareGuard,
       still: state.settings.stillSave !== true ? "off" : state.settings.steady ? "steady" : state.sosActive ? "sos" : "on",
     },
     now: Date.now(),

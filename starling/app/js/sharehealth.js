@@ -176,6 +176,7 @@ export function shareReport({ h, page, now }) {
     lines.push(`Tor: ${yn(h.tor)}`);
   }
   lines.push(`Relay: ${p.customRelay ? "custom" : "default"}`);
+  if ("childMode" in p) lines.push(`Child mode: ${yn(p.childMode)}`);
   lines.push("");
   if (h) {
     lines.push(`Share service: ${h.service ? `running for ${span(h.sharingMs)}` : "not running"}`);

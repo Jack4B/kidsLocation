@@ -6,6 +6,15 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-19, Claude, F5-18: tryb dziecka chowa ustawienia i krąg
+
+- Zgłoszenie właściciela 2026-10-19: córka sama zmienia ustawienia i wypada z kręgu; raport z 17:07Z pokazuje udostępnianie wyłączone bez zapisanego powodu.
+- W trybie dziecka PIN rodzica jest teraz potrzebny przed: ustawieniami (klucze, relay, Tor, blokada, wymazanie, opuszczenie kręgu, eksport), listą kręgów (przełączanie), osobami i kluczami (usuwanie, ponowne klucze), nowym kręgiem, dołączaniem przez wklejony link i otwarciem linku zaproszenia, gdy telefon jest już w kręgu.
+- Dobry PIN otwiera te ekrany na 60 s; wyjście z aplikacji zamyka je od razu.
+- Raport udostępniania ma linię „Child mode: yes/no”.
+- Sprawdzone: testy jednostkowe (nowy `test/child-mode-guards-source.test.mjs`), `test/e2e_child_mode.mjs` z nowymi krokami dla ustawień, `check-clean.sh`. Service worker v59.
+- Nie sprawdzone na telefonie. Bez administratora urządzenia córka nadal może wyłączyć lokalizację w Androidzie lub wyczyścić dane aplikacji.
+
 ## 2026-10-18, Claude, F5-16: Blisko jako administrator urządzenia
 
 - Zgoda właściciela 2026-10-18 (karta decyzji „Tak, rób”).
