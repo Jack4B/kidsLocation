@@ -138,6 +138,23 @@ try {
   await sleep(500);
   check("after a reload the PIN is still asked, and closing it keeps sharing", (await a.state())?.sharing === true);
 
+  await a.page.evaluate(() => {
+    window.__starlingInternals.openSettings();
+  });
+  await waitFor(() => a.page.evaluate(() => !!document.querySelector('[data-testid="passcode-sheet"]')), "PIN asked for settings");
+  check("settings ask for the PIN first", !(await a.page.evaluate(() => document.querySelector('[data-testid="settings-child-mode"]'))));
+  await a.page.keyboard.press("Escape");
+  await sleep(500);
+  check("closing the PIN keeps settings shut", !(await a.page.evaluate(() => document.querySelector('[data-testid="settings-child-mode"]'))));
+  await a.page.evaluate(() => {
+    window.__starlingInternals.openSettings();
+  });
+  await waitFor(() => a.page.evaluate(() => !!document.querySelector('[data-testid="passcode-sheet"]')), "PIN asked again");
+  await a.page.fill('[data-testid="passcode-input"]', "2468");
+  await a.click("passcode-save");
+  await waitFor(() => a.page.evaluate(() => !!document.querySelector('[data-testid="settings-child-mode"]')), "settings after the right PIN");
+  check("the right PIN opens settings", true);
+
   const errs = await a.page.evaluate(() => window.__starlingErrors || []);
   check("no app errors", errs.length === 0 && a.errors.length === 0, JSON.stringify([...errs, ...a.errors]));
 } catch (e) {
