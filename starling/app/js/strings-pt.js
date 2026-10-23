@@ -969,4 +969,6 @@ export const pt = {
   "Without the app lock, messages on this phone are stored unencrypted.": "Without the app lock, messages on this phone are stored unencrypted.",
   "Write to your circle": "Write to your circle",
   "Yesterday": "Yesterday",
+  "Nobody in your circle has been seen for a while": "Nobody in your circle has been seen for a while",
+  "This phone may have missed new keys while it was switched off or stopped. If you cannot see anybody on the map, ask somebody in the circle for a fresh invite link.": "This phone may have missed new keys while it was switched off or stopped. If you cannot see anybody on the map, ask somebody in the circle for a fresh invite link.",
 };

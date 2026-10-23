@@ -943,4 +943,6 @@ export const pl = {
   "Without the app lock, messages on this phone are stored unencrypted.": "Bez blokady aplikacji wiadomości są zapisane na tym telefonie bez szyfrowania.",
   "Write to your circle": "Napisz do kręgu",
   "Yesterday": "Wczoraj",
+  "Nobody in your circle has been seen for a while": "Od dłuższego czasu nikogo z kręgu nie widać",
+  "This phone may have missed new keys while it was switched off or stopped. If you cannot see anybody on the map, ask somebody in the circle for a fresh invite link.": "Ten telefon mógł przegapić nowe klucze, gdy był wyłączony albo zatrzymany. Jeśli nikogo nie widzisz na mapie, poproś kogoś z kręgu o nowy link zaproszenia.",
 };

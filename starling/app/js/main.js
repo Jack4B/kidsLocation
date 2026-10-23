@@ -270,6 +270,7 @@ const state = {
   // cannot follow a re-key it cannot attribute, so it says so instead.
   joinIncomplete: null,
   missedRekey: false, // a re-key landed for a generation this device cannot reach
+  stranded: false, // nobody else posts on this generation: probably re-keyed without this phone
   // The ratchet destroyed itself: this device was off past the catch-up cap,
   // so it holds no key this circle still uses and cannot be given one.
   chainDestroyed: false,
@@ -1361,6 +1362,15 @@ function alertItems() {
       kind: "warn",
       title: t("Your circle moved on without this phone"),
       text: t("New keys were made while this device could not be reached, and they cannot be worked out from the old ones. Nothing you send now arrives. Ask somebody in the circle for a fresh invite link."),
+    });
+  }
+
+  if (state.stranded && !state.missedRekey) {
+    items.push({
+      id: "stranded",
+      kind: "warn",
+      title: t("Nobody in your circle has been seen for a while"),
+      text: t("This phone may have missed new keys while it was switched off or stopped. If you cannot see anybody on the map, ask somebody in the circle for a fresh invite link."),
     });
   }
 
@@ -2483,6 +2493,8 @@ function setupNet() {
     sendWhenReady = false;
     Promise.resolve().then(() => sendLoc(true));
   }
+  netStartedAt = Date.now();
+  pollOkAt = 0;
   poller = createPoller({
     channelId: gen.channelId,
     roster,
@@ -2498,6 +2510,7 @@ function setupNet() {
     },
     onStatus: (s) => {
       state.netStatus = s;
+      if (s === "ok") pollOkAt = Date.now();
       if (state.screen === "map") renderChrome();
     },
     onRetired: onRelayRetired,
@@ -2748,10 +2761,47 @@ function rekeyDue(now = Date.now()) {
   return now - state.gen.at > REKEY_INTERVAL_MS + jitter;
 }
 
+// A phone that slept through somebody else's re-key still sits on the old
+// generation, and its own daily timer is already overdue the moment it wakes.
+// Re-keying then forks the circle for good: the others left that channel hours
+// ago and never read it again. So only a phone that has read the channel since
+// it woke, and has seen another member post on this generation lately, may
+// rotate. A phone that sees nobody leaves the job to one that does, and reads
+// the pending re-key instead if it is still on the relay.
+const REKEY_LIVE_MS = 60 * 60 * 1000;
+let netStartedAt = 0;
+let pollOkAt = 0;
+
+function newestOtherPost() {
+  if (!roster || !state.identity) return 0;
+  return Math.max(0, ...roster.list().filter((r) => r.id !== state.identity.memberId).map((r) => r.ts || 0));
+}
+
+function circleLiveHere(now = Date.now()) {
+  return pollOkAt > netStartedAt && now - newestOtherPost() < REKEY_LIVE_MS;
+}
+
+// Left behind, most likely: the generation is older than any re-key interval,
+// this phone has been reading its channel without trouble for a good while,
+// and nobody else has posted on it. Phones in still mode post every five
+// minutes, so a circle this quiet is almost always on other keys.
+const STRANDED_AFTER_MS = 30 * 60 * 1000;
+function strandedNow(now = Date.now()) {
+  if (!state.gen?.at || !state.identity || state.demo || state.locked || !poller) return false;
+  if (state.pinned.size < 2 || now - state.gen.at < REKEY_INTERVAL_MS) return false;
+  if (now - netStartedAt < STRANDED_AFTER_MS || now - pollOkAt > 2 * 60 * 1000) return false;
+  return now - newestOtherPost() > STRANDED_AFTER_MS;
+}
+
 function startRekeyTimer() {
   clearInterval(rekeyTimer);
   rekeyTimer = setInterval(() => {
-    if (!rekeyDue() || circleBusy || state.locked || state.demo || !sender) return;
+    const stranded = strandedNow();
+    if (stranded !== state.stranded) {
+      state.stranded = stranded;
+      render();
+    }
+    if (!rekeyDue() || !circleLiveHere() || circleBusy || state.locked || state.demo || !sender) return;
     withCircleGuard(() => doRekey({ reason: "daily" })).catch(() => {});
   }, 60000);
 }

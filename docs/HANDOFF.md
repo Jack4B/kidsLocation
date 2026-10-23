@@ -6,6 +6,15 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-23, Claude, F5-19: krąg nie rozjeżdża się po uśpieniu telefonu
+
+- Zgłoszenie 2026-10-23: telefon córki po dobie bez procesu (OneKeyClean, mało pamięci) wysyła pozycje, ale nikogo nie widzi; telefon właściciela działa.
+- Przyczyna (z kodu): codzienna zmiana kluczy. Telefon, który przespał cudzą zmianę, budzi się ze swoim licznikiem już po terminie i robi własną zmianę na starym kanale. Pozostali dawno z niego wyszli, więc krąg rozpada się na dwa. Gdy uśpienie trwa ponad dobę, opakowanie klucza wygasa na relayu (TTL 24 h w `wire.js`, zamrożony) i telefon nie ma jak dogonić kręgu.
+- Zmiana: dzienna zmiana kluczy tylko wtedy, gdy telefon od wybudzenia odebrał poprawną odpowiedź relaya i widział w ostatniej godzinie wpis innego członka na tej generacji. Telefon, który nikogo nie widzi, nie zmienia kluczy, tylko czeka na cudzą zmianę z relaya.
+- Nowe ostrzeżenie: gdy generacja ma ponad dobę, odczyt działa od 30 minut, a nikt inny nic nie wysłał przez 30 minut, mapa mówi, że telefon mógł przegapić klucze, i radzi nowe zaproszenie.
+- Nie zrobiono: automatyczny powrót telefonu uśpionego dłużej niż TTL; wymagałby trzymania starych kluczy albo zmiany protokołu.
+- Sprawdzone: testy jednostkowe (nowy `test/rekey-liveness-source.test.mjs`), `check-clean.sh`. Service worker v60. Nie sprawdzone na dwóch telefonach.
+
 ## 2026-10-19, Claude, F5-18: tryb dziecka chowa ustawienia i krąg
 
 - Zgłoszenie właściciela 2026-10-19: córka sama zmienia ustawienia i wypada z kręgu; raport z 17:07Z pokazuje udostępnianie wyłączone bez zapisanego powodu.
