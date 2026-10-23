@@ -98,10 +98,20 @@ function rateLimited(ns, key, limit, now) {
   return limited;
 }
 
+// How long the relay keeps what it stores. TTL_MS by default; a deployment
+// may keep it longer with RETENTION_MS, so a phone that was off for days can
+// still read the re-key it slept through. Never shorter than TTL_MS and never
+// past the ratchet's 30 day catch-up, beyond which nothing could be read.
+const MAX_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+export function retentionMs(env) {
+  const v = Number(env?.RETENTION_MS);
+  return Number.isFinite(v) && v > TTL_MS ? Math.min(v, MAX_RETENTION_MS) : TTL_MS;
+}
+
 // Deterministic TTL sweep, run on every feed request.
 const sweepStmts = (env, now) => [
-  env.DB.prepare("DELETE FROM points_v3 WHERE srv < ?").bind(now - TTL_MS),
-  env.DB.prepare("DELETE FROM members_v3 WHERE srv < ?").bind(now - TTL_MS),
+  env.DB.prepare("DELETE FROM points_v3 WHERE srv < ?").bind(now - retentionMs(env)),
+  env.DB.prepare("DELETE FROM members_v3 WHERE srv < ?").bind(now - retentionMs(env)),
 ];
 
 // Origins allowed to write. The wrappers serve the same app from bundled

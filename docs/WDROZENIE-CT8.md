@@ -96,6 +96,12 @@ liście zweryfikowanych linków. Jeśli nie jest, linki otworzą się w przeglą
 z instrukcją, a dołączenie dalej działa przez skan kodu QR albo wklejenie linku w
 aplikacji.
 
+## Jak długo relay trzyma dane
+
+Relay na CT8 trzyma zaszyfrowane wiadomości 7 dni (domyślnie w `relay/server.mjs`, zmienna `RETENTION_MS`). Dzięki temu telefon, który był wyłączony albo ubity przez system nawet kilka dni, po włączeniu sam odczyta zmianę kluczy i wróci do kręgu bez nowego zaproszenia. Górna granica to 30 dni; `RETENTION_MS=0` przywraca 24 godziny.
+
+Koszt: zaszyfrowane dane i link zaproszenia, gdyby wyciekł, są na serwerze dłużej. Relay nadal nie widzi treści ani kluczy.
+
 ## Kopia zapasowa bazy relaya
 
 Baza (`~/starling/relay/data/starling.db`) trzyma tylko zaszyfrowane paczki i klucze publiczne.
