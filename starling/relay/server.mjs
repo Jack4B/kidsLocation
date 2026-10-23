@@ -3,9 +3,8 @@ import http from "node:http";
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import worker from "./src/index.js";
+import worker, { retentionMs } from "./src/index.js";
 import { makeD1 } from "./d1sqlite.mjs";
-import { TTL_MS } from "../app/js/wire.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,8 +12,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const MAX_RAW_BODY = 65536;
 
 const sweepStmts = (env, now) => [
-  env.DB.prepare("DELETE FROM points_v3 WHERE srv < ?").bind(now - TTL_MS),
-  env.DB.prepare("DELETE FROM members_v3 WHERE srv < ?").bind(now - TTL_MS),
+  env.DB.prepare("DELETE FROM points_v3 WHERE srv < ?").bind(now - retentionMs(env)),
+  env.DB.prepare("DELETE FROM members_v3 WHERE srv < ?").bind(now - retentionMs(env)),
 ];
 
 // A self-host has no cron trigger, so an idle channel needs this to expire; a busy one sweeps on its own traffic.
@@ -213,6 +212,10 @@ async function main() {
       RATE_GET_MIN: process.env.RATE_GET_MIN,
       ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
       TRIM_EVERY: process.env.TRIM_EVERY,
+      // A self-hosted family relay keeps a week by default, so a phone that
+      // was off for days catches up with the circle instead of needing a new
+      // invite. RETENTION_MS=0 goes back to the 24 hour TTL.
+      RETENTION_MS: process.env.RETENTION_MS ?? String(7 * 24 * 60 * 60 * 1000),
       // The app build this relay is the link host for (assetlinks.json and
       // the invite landing page). Unset keeps the upstream app's statement.
       ANDROID_PACKAGE: process.env.ANDROID_PACKAGE,

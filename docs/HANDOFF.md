@@ -6,6 +6,15 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-23, Claude, F5-20: relay trzyma dane 7 dni
+
+- Właściciel 2026-10-23: telefon po awarii ma sam dociągać nowe klucze, bez zakładania kręgu od nowa.
+- Ustalone z kodu: telefon po wybudzeniu czyta zaległości z relaya, zanim usunie stare klucze (`holdTrimForBacklog`), a zapadka dogania do 30 dni (`MAX_CATCHUP_EPOCHS`). Jedynym ograniczeniem było sprzątanie relaya po 24 h.
+- `relay/src/index.js`: `retentionMs(env)` (TTL_MS, chyba że `RETENTION_MS` dłuższe, maks. 30 dni). `relay/server.mjs` domyślnie 7 dni. Cloudflare bez zmiennej zostaje przy 24 h. `wire.js` nietknięty.
+- Właściciel musi uruchomić `aktualizuj-relay.sh` na CT8.
+- Nie zrobiono: automatyczne ponowne przyjęcie telefonu wyłączonego dłużej niż retencja (nowy typ wiadomości w protokole, osobna decyzja).
+- Sprawdzone: testy jednostkowe (nowy `test/relay-retention.test.mjs`), `check-clean.sh`.
+
 ## 2026-10-23, Claude, F5-19: krąg nie rozjeżdża się po uśpieniu telefonu
 
 - Zgłoszenie 2026-10-23: telefon córki po dobie bez procesu (OneKeyClean, mało pamięci) wysyła pozycje, ale nikogo nie widzi; telefon właściciela działa.
