@@ -6390,6 +6390,7 @@ async function setShareGuard(pin, on) {
 
 async function onShareToggle() {
   if (state.sharing && shareGuard && !state.demo && !(await askGuardPin(t("Stop sharing")))) return;
+  if (state.sharing && !shareGuard && !state.demo && !(await ui.confirmStopSharing())) return;
   if (!state.sharing && state.stopRecord && state.stopRecord.route !== "notif") {
     state.stopRecord = null;
     native()?.clearStopRecord?.();

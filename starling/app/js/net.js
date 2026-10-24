@@ -39,6 +39,8 @@ const BG_POLL_MS = 30000;
 // still hears an SOS from the circle promptly.
 const BG_STILL_POLL_MS = 60000;
 const BACKOFF_MAX_MS = 120000;
+// Longest a feed request may take before it is abandoned and retried.
+const POLL_TIMEOUT_MS = 25000;
 
 // The next-poll delay as a pure decision, exported so a test can pin the
 // actual cadence numbers instead of only observing that polling happens.
@@ -350,6 +352,9 @@ export function createPoller({ channelId, roster, ratchet, onChange, onStatus, o
   let failures = 0;
   let running = false;
   let lastPollAt = 0;
+  let pollCtl = null;
+  let fetching = false;
+  let pollId = 0;
   const seen = new Set();
   const SEEN_CAP = 4096;
 
@@ -374,12 +379,28 @@ export function createPoller({ channelId, roster, ratchet, onChange, onStatus, o
   const cadence = () => pollDelay(!pageShown(), bgCapable, isStill());
 
   async function poll() {
-    if (!running || inFlight) return;
+    if (!running) return;
+    // A fetch that never settles (a connection that died while the page was
+    // frozen) used to hold inFlight forever: every later poll returned at
+    // once, the map showed nobody and nothing said so until the app was
+    // killed. A poll past its time is abandoned and a fresh one goes out.
+    // Only the network part is abandoned: a poll that is busy reading a long
+    // backlog must finish, or the same control message would be handled twice.
+    if (inFlight) {
+      if (!fetching || Date.now() - lastPollAt < POLL_TIMEOUT_MS) return;
+      pollCtl?.abort();
+    }
     if (document.visibilityState === "hidden" && !bgCapable) return;
+    const id = ++pollId;
+    const ctl = new AbortController();
+    pollCtl = ctl;
+    const timeout = setTimeout(() => ctl.abort(), POLL_TIMEOUT_MS);
     inFlight = true;
+    fetching = true;
     lastPollAt = Date.now();
     try {
-      const res = await fetch(apiUrl(`/api/v2/f/${channelId}?since=${since}`), { cache: "no-store" });
+      const res = await fetch(apiUrl(`/api/v2/f/${channelId}?since=${since}`), { cache: "no-store", signal: ctl.signal });
+      if (id !== pollId) return;
       // The relay retires a protocol version by answering 410 rather than by
       // going quiet, so an out-of-date client says so instead of syncing into
       // an empty channel nobody else is on.
@@ -391,6 +412,9 @@ export function createPoller({ channelId, roster, ratchet, onChange, onStatus, o
       }
       if (!res.ok) throw new Error(`poll ${res.status}`);
       const data = await res.json();
+      clearTimeout(timeout);
+      if (id !== pollId) return;
+      fetching = false;
       const fresh = (data.members || []).map((entry) => ({
         ...entry,
         points: (entry.points || []).filter((p) => !seen.has(`${entry.m}|${p.e}|${p.ts}|${p.n}`)),
@@ -423,12 +447,18 @@ export function createPoller({ channelId, roster, ratchet, onChange, onStatus, o
       onChange?.();
       schedule(cadence());
     } catch {
+      if (id !== pollId || !running) return;
       failures += 1;
       if (failures >= 2) onStatus?.("reconnecting");
       const backoff = Math.min(POLL_MS * 2 ** (failures - 1), BACKOFF_MAX_MS);
       schedule(backoff * (0.8 + Math.random() * 0.4));
     } finally {
-      inFlight = false;
+      clearTimeout(timeout);
+      if (id === pollId) {
+        inFlight = false;
+        fetching = false;
+        pollCtl = null;
+      }
     }
   }
 
@@ -452,6 +482,7 @@ export function createPoller({ channelId, roster, ratchet, onChange, onStatus, o
     stop() {
       running = false;
       clearTimeout(timer);
+      pollCtl?.abort();
       document.removeEventListener("visibilitychange", onVisibility);
       onStatus?.("idle");
     },

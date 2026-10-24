@@ -6,6 +6,17 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-24, Claude, F5-21: mapa pusta po otwarciu, prostsze ustawienia, pytanie przed Stop
+
+- Zgłoszenie 2026-10-24: po otwarciu aplikacji, która długo działała w tle, mapa była pusta; wymuszenie zatrzymania pomagało.
+- Przyczyna (z kodu): poller nie miał limitu czasu. Zapytanie, które zawisło (połączenie zerwane, gdy strona była zamrożona), trzymało `inFlight` na zawsze i każde kolejne pobranie od razu się kończyło; wysyłanie działało, bo nadawca ma swój limit 20 s.
+- `net.js`: zapytanie do relaya przerywane po 25 s; zaległe zapytanie jest porzucane i idzie nowe. Porzucana jest tylko część sieciowa, nigdy odczyt zaległości, żeby wiadomość kontrolna nie została obsłużona dwa razy (test).
+- Ustawienia: klucze, blokada aplikacji, relay i Tor, eksport i strefa niebezpieczna schowane pod „Pokaż ustawienia zaawansowane”; skróty z ekranu kręgu rozwijają je same. Osoby i klucze: lista osób na górze, numery bezpieczeństwa pod „Pokaż numery bezpieczeństwa”.
+- Wyłączenie udostępniania pyta „Wyłączyć udostępnianie?” (w trybie dziecka zamiast tego PIN).
+- Tekst o relayu: „usuwa je najpóźniej po tygodniu” (pl; inne języki mają stare tłumaczenie).
+- Sprawdzone: testy jednostkowe 1255/0, `e2e_child_mode.mjs` 2 z 3 uruchomień zielone; raz pojawił się błąd mapy „Invalid LatLng (NaN, NaN)”, przyczyna nieustalona, na main 1 uruchomienie zielone. Do zbadania.
+- Service worker v61.
+
 ## 2026-10-23, Claude, F5-20: relay trzyma dane 7 dni
 
 - Właściciel 2026-10-23: telefon po awarii ma sam dociągać nowe klucze, bez zakładania kręgu od nowa.

@@ -926,12 +926,10 @@ export function openMembersSheet({ api, onClose }) {
     className: "ov-members",
     onClose,
   });
-  ov.body.append(
-    el(
-      "p",
-      "ov-note",
-      "Starling trusts whoever first answers with keys that match their member id. Reading these numbers out to each other is what turns that into knowing who is on your map.",
-    ),
+  const intro = el(
+    "p",
+    "ov-note",
+    "Starling trusts whoever first answers with keys that match their member id. Reading these numbers out to each other is what turns that into knowing who is on your map.",
   );
 
   const you = el("section", "mem-you");
@@ -989,7 +987,19 @@ export function openMembersSheet({ api, onClose }) {
   const list = el("div", "mem-list");
   const empty = el("p", "ov-note", "Nobody else is in this circle yet. Invite someone from the map.");
   empty.hidden = true;
-  ov.body.append(you, ledger, list, empty);
+  // The people come first. The numbers, the QR codes and the ledger are for
+  // checking keys in person, which most people never do, so they are folded.
+  const keysBox = el("div", "mem-keys");
+  keysBox.dataset.testid = "members-keys";
+  keysBox.hidden = true;
+  keysBox.append(intro, you, ledger);
+  const keysBtn = btn("btn btn-secondary btn-small", "Show safety numbers");
+  keysBtn.dataset.testid = "members-keys-toggle";
+  keysBtn.addEventListener("click", () => {
+    keysBox.hidden = !keysBox.hidden;
+    keysBtn.textContent = t(keysBox.hidden ? "Show safety numbers" : "Hide safety numbers");
+  });
+  ov.body.append(list, empty, keysBtn, keysBox);
 
   const rows = new Map();
   const numbers = new Map();
@@ -1797,6 +1807,34 @@ export function autoResumeNote(st) {
     lines.push(t("Route through Orbot is on, so a share that comes back sends nothing until Orbot connects. If it has not connected after 5 minutes, you get a notification with a tap to share again instead."));
   }
   return { disabled: false, button, lines };
+}
+
+// Turning sharing off is one tap on a big button, and nobody notices it has
+// stopped until somebody is missing from the map. So it asks first.
+export function confirmStopSharing() {
+  return new Promise((resolve) => {
+    let answered = false;
+    const answer = (yes) => {
+      answered = true;
+      resolve(yes);
+      ov.close();
+    };
+    const ov = openOverlay({
+      title: "Stop sharing?",
+      testid: "stop-share-sheet",
+      onClose: () => {
+        if (!answered) resolve(false);
+      },
+    });
+    ov.body.append(el("p", "ov-note", "Your circle will stop seeing where you are until you turn sharing on again."));
+    const go = btn("btn btn-danger", "Stop sharing");
+    go.dataset.testid = "stop-share-go";
+    go.addEventListener("click", () => answer(true));
+    const cancel = btn("btn btn-primary", "Keep sharing");
+    cancel.dataset.testid = "stop-share-cancel";
+    cancel.addEventListener("click", () => answer(false));
+    ov.body.append(cancel, go);
+  });
 }
 
 export function confirmTimerSwitch(circle) {
@@ -3255,10 +3293,41 @@ export function openSettingsSheet({ api, values, demo, tor, keepSharing, guard =
     upstream,
     credit,
     el("p", "ov-note", "Your positions are encrypted on this device with a key only your circle holds. There are no accounts, no phone numbers, and no server that can read where you are. Sharing is off until you turn it on, and stopping is one tap."),
-    el("p", "ov-note", "The relay that passes your updates along stores only encrypted data it cannot read, and deletes it after 24 hours. The protocol is open, so anyone can check these claims against the code."),
+    el("p", "ov-note", "The relay that passes your updates along stores only encrypted data it cannot read, and deletes it after a week at most. The protocol is open, so anyone can check these claims against the code."),
   );
 
+  // Keys, the relay, the app lock and the wipe are what most people never
+  // need, and a stray tap there can drop a phone out of its circle or stop it
+  // coming back after a restart. They sit behind one button, folded by default.
+  const ADVANCED = ["Keys and history", "App lock", "Advanced", "Your data", "Danger zone"];
+  const advBox = el("div", "set-advanced");
+  advBox.dataset.testid = "settings-advanced";
+  advBox.hidden = true;
+  for (const title of ADVANCED) {
+    const g = sections.get(title);
+    if (g) advBox.append(g);
+  }
+  const showAdvanced = () => {
+    advBox.hidden = false;
+    if (advBtn) advBtn.textContent = t("Hide advanced settings");
+  };
+  let advBtn = null;
+  if (advBox.children.length) {
+    advBtn = btn("btn btn-secondary", "Show advanced settings");
+    advBtn.dataset.testid = "settings-advanced-toggle";
+    advBtn.addEventListener("click", () => {
+      if (advBox.hidden) showAdvanced();
+      else {
+        advBox.hidden = true;
+        advBtn.textContent = t("Show advanced settings");
+      }
+    });
+    b.insertBefore(advBtn, gAbout);
+    b.insertBefore(advBox, gAbout);
+  }
+
   const FOCUS_GROUPS = { lock: "App lock", keys: "Keys and history", rekey: "Keys and history", advanced: "Advanced", panic: "Danger zone" };
+  if (ADVANCED.includes(FOCUS_GROUPS[focus])) showAdvanced();
   if (focus === "rekey") rekeyBtn?.click();
   if (focus === "panic") panicBtn.click();
   const focusGroup = sections.get(FOCUS_GROUPS[focus]);
