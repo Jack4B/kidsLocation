@@ -243,6 +243,8 @@ async function main() {
     // The other half of the rule, on the same page: a Stop the person pressed
     // is a decision, and reopening does not undo it.
     await c.evalJs(`document.querySelector('[data-testid="share-toggle"]').click()`);
+    await waitFor(() => c.evalJs(`!!document.querySelector('[data-testid="stop-share-go"]')`), "stop asks first");
+    await c.evalJs(`document.querySelector('[data-testid="stop-share-go"]').click()`);
     await waitFor(() => c.evalJs("window.__starlingState().sharing === false"), "sharing off");
     await c.evalJs(`document.querySelector('[data-testid="share-toggle"]').click()`);
     await waitFor(() => c.evalJs("window.__starlingState().sharing === true"), "sharing on again");

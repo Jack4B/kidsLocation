@@ -939,3 +939,73 @@ test("a post with no position leaves the position's own time alone", async () =>
   assert.equal(rec.posTs, t0, "but the position is as old as it was");
   assert.equal(rec.lat, 44.98);
 });
+
+test("a poll that never settles is abandoned, so the map does not stay empty until the app is killed", async () => {
+  const T = 3_000_000_000;
+  const calls = [];
+  let firstSignal = null;
+  const restore = stubGlobals(
+    [
+      (i) => {
+        firstSignal = calls[i].init.signal;
+        return new Promise(() => {}); // a connection that died while the page was frozen
+      },
+      { now: T + 200, members: [entry(A, [{ e: E0, ts: T, srv: T + 100, n: "an1", c: "ac1" }])] },
+    ],
+    calls,
+  );
+  const polls = [];
+  const events = [];
+  const roster = {
+    async ingest(entries) {
+      polls.push(entries.flatMap((e) => e.points.map((p) => `${e.m}|${p.n}`)));
+    },
+  };
+  const poller = createPoller({ channelId: CHANNEL, roster, onChange() {}, onStatus: (s) => events.push(s) });
+  const realNow = Date.now;
+  try {
+    poller.start();
+    await new Promise((r) => setTimeout(r, 20));
+    await poller.pollNow();
+    assert.equal(calls.length, 1, "a poll still within its time is not doubled");
+    Date.now = () => realNow() + 30_000;
+    await poller.pollNow();
+    assert.equal(calls.length, 2, "an overdue poll is replaced by a fresh one");
+    assert.equal(firstSignal.aborted, true, "the stuck request is aborted");
+    assert.deepEqual(polls, [[`${A}|an1`]]);
+    assert.ok(events.includes("ok"));
+  } finally {
+    Date.now = realNow;
+    poller.stop();
+    restore();
+  }
+});
+
+test("a poll still reading its backlog is never abandoned, so a control message is not handled twice", async () => {
+  const T = 3_000_000_000;
+  const calls = [];
+  const restore = stubGlobals([{ now: T + 200, members: [entry(A, [{ e: E0, ts: T, srv: T + 100, n: "an1", c: "ac1" }])] }], calls);
+  let release;
+  let ingests = 0;
+  const roster = {
+    ingest() {
+      ingests += 1;
+      return new Promise((r) => (release = r)); // a week of backlog being decrypted
+    },
+  };
+  const poller = createPoller({ channelId: CHANNEL, roster, onChange() {}, onStatus() {} });
+  const realNow = Date.now;
+  try {
+    poller.start();
+    await new Promise((r) => setTimeout(r, 20));
+    Date.now = () => realNow() + 60_000;
+    await Promise.race([poller.pollNow(), new Promise((r) => setTimeout(r, 20))]);
+    assert.equal(calls.length, 1, "no second request while the first is still being read");
+    assert.equal(ingests, 1);
+    release();
+  } finally {
+    Date.now = realNow;
+    poller.stop();
+    restore();
+  }
+});
