@@ -23,7 +23,14 @@ W Blisko, **Ustawienia, Udostępnianie**:
 W ustawieniach Androida, dla aplikacji Blisko:
 
 - Bateria: **Bez ograniczeń**.
-- Xiaomi i Poco: także **Autostart** włączony i kłódka na Blisko w ostatnich aplikacjach.
+- Xiaomi, Redmi i Poco: **Autostart** włączony, bateria **Bez ograniczeń**, lokalizacja
+  **Zezwalaj zawsze**. Kłódka na Blisko w ostatnich aplikacjach tylko wtedy, gdy telefon ją
+  ma (POCO X5 5G jej nie ma). Przyciski do tych ekranów są w Blisko: komunikat „Telefon
+  zamknął Blisko”, „Jak temu zapobiec”.
+- Xiaomi zamyka aplikacje sam (przy blokadzie ekranu, przesunięciu w ostatnich aplikacjach,
+  przycisku czyszczenia), nawet gdy wszystko powyżej jest włączone. **Nie zamykaj Blisko
+  z ostatnich aplikacji.** Po takim zamknięciu Blisko nic nie wysyła, dopóki ktoś go
+  nie otworzy; po otwarciu udostępnianie wraca samo.
 - Realme i Oppo: **Zezwalaj na działanie w tle** oraz **Autostart**.
 
 Raport udostępniania w ustawieniach pokazuje, czego brakuje.
@@ -46,7 +53,9 @@ Wspólne miejsca (Dom, Szkoła) i czat pojawią się u nowej osoby od razu po pr
 
 ## Gdy coś nie działa
 
-- Kogoś długo nie widać: niech otworzy Blisko. Aplikacja sama dogania krąg.
+- Kogoś długo nie widać (na mapie „Brak sygnału od N min”, po 20 minutach jedno
+  powiadomienie): jego telefon mógł zamknąć Blisko. Niech otworzy Blisko. Aplikacja sama
+  dogania krąg i wznawia udostępnianie.
 - Nadal nie widać: skopiuj na jego telefonie **raport udostępniania** (Ustawienia) i wyślij rodzicowi.
 - Krąg się rozjechał (ktoś widzi innych, a jego nie widzi nikt): na tym telefonie opuść krąg
   (w trybie dziecka potrzebny PIN) i dołącz ponownie z nowego zaproszenia.

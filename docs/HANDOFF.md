@@ -6,6 +6,24 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
+## 2026-10-25, Claude, F5-22: Xiaomi zamyka Blisko, udostępnianie wraca samo
+
+- Zgłoszenie: Xiaomi 22111317PG (Android 14, HyperOS), raport: „FORCE STOP stop app.kidslocation due to LockScreenClean” (REASON_USER_REQUESTED), wcześniej „SwipeUpClean”. Mimo Autostartu, „Bez ograniczeń”, lokalizacji „Zawsze” i wszystkich przełączników w aplikacji.
+- POCO X5 5G (najnowszy HyperOS) nie ma kłódki w ostatnich aplikacjach, więc nic na niej nie polega.
+- Ważne ograniczenie: wymuszone zatrzymanie kasuje alarmy i zadania, a Android nie budzi zatrzymanej aplikacji (bez boot, bez alarmu) do czasu, aż ktoś ją otworzy. Wykrycie i wznowienie działają więc przy następnym starcie procesu, w praktyce przy otwarciu. Pozostali widzą w tym czasie „Brak sygnału”.
+- 1: `SystemKill.kt` + `StarlingApp` (manifest): przy każdym starcie procesu czyta `ApplicationExitInfo`; powód 10 lub 13 z LockScreenClean/SwipeUpClean/OneKeyClean przy włączonym udostępnianiu (bez nowszego Stop od osoby) to nie zatrzymanie przez człowieka. Powiadomienie „Telefon zamknął Blisko”, wznowienie (`ShareResume.onKilled`), w raporcie „Zabite przez system Xiaomi: <powód>, <czas>, przerwa <min>”.
+- 2: brak pozycji od innej osoby przez ponad 20 min (`SILENT_MS`): na liście „Brak sygnału od N min”, jedno powiadomienie na przerwę. Bez zmian w protokole.
+- 3 i 8: alert „Telefon zamknął Blisko” u zabitej osoby i ekran „Jak temu zapobiec” (Autostart, bateria, ustawienia aplikacji, kłódka „jeśli telefon ją ma”); na Xiaomi otwiera się sam po wykryciu. Każdy przycisk z zapasowym ekranem ustawień aplikacji.
+- 4: nowa instalacja: „Udostępniaj po zamknięciu”, wznawianie po restarcie i po aktualizacji domyślnie włączone. Istniejąca instalacja (aktualizacja) zachowuje stan: `ShareResume.settleDefaults` raz zapisuje „wyłączone” dla przełącznika, którego nikt nie ruszał (recenzja [Forge] P1-2). Nowa instalacja rozpoznawana po `firstInstallTime == lastUpdateTime`. Wartość zapisana przez osobę zostaje zawsze (`ShareResume.settled`, testy JVM w `SettleDefaultsTest.kt`: świeża instalacja, aktualizacja bez wartości, aktualizacja z zapisaną wartością). Alarm i wykrycie wznawiają przy dowolnym z dwóch przełączników.
+- 5: brak uprawnienia w chwili wznowienia nie czyści już przełączników; wznowienie jest pomijane, a powód trafia do raportu („Last resume skipped”).
+- 6: blokada aplikacji nie blokuje włączenia wznawiania (opis mówi, że klucz zostaje zamknięty do odblokowania).
+- 7: `LocationService` zwraca `START_STICKY` dla działającego udostępniania; restart bez intencji idzie przez `ShareResume.onSticky`. W praktyce na Androidzie 12-14 start usługi z tła jest odrzucany (`ForegroundServiceStartNotAllowedException`), więc STICKY zwykle daje tylko powiadomienie „Dotknij, aby wznowić udostępnianie.” (`notif_resume_sticky_text`) i wpis w raporcie, a nie wznowienie (recenzja P2-1).
+- Odczyt `ApplicationExitInfo` idzie na `Dispatchers.IO` (P2-3; kotlinx-coroutines jest już w buildzie przez androidx lifecycle, bez nowej zależności). Linia „Zabite przez system Xiaomi” w raporcie jest po polsku, bo tak brzmiała specyfikacja, reszta raportu po angielsku (P2-4).
+- 9: raport: odmowy startu usługi w tle (`ForegroundServiceStartNotAllowedException`) i `isIgnoringBatteryOptimizations`.
+- Testy JVM (`testDebugUnitTest`) uruchamia CI, lokalnie brak Android SDK. Testy przed zmianą: 1289, 1255 zaliczone, 0 błędów, 34 pominięte. Po zmianie: 1298, 1264 zaliczone, 0 błędów, 34 pominięte (nowy `test/system-kill.test.mjs`, poprawione testy starego zachowania). `check-clean.sh` czysty. Service worker v62.
+- Nie sprawdzone na telefonie. Kotlin nie kompilowany lokalnie (brak Android SDK w sesji), kompiluje CI.
+- Następny krok: na Xiaomi włączyć udostępnianie, zablokować ekran, poczekać na LockScreenClean, otworzyć Blisko i sprawdzić raport.
+
 ## 2026-10-24, Claude, F5-21: mapa pusta po otwarciu, prostsze ustawienia, pytanie przed Stop
 
 - Zgłoszenie 2026-10-24: po otwarciu aplikacji, która długo działała w tle, mapa była pusta; wymuszenie zatrzymania pomagało.

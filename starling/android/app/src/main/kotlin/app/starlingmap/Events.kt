@@ -80,6 +80,10 @@ object Events {
     fun postShareResume(ctx: Context, @StringRes textRes: Int) =
         show(ctx, R.string.notif_swiped_title, textRes, ShareResume.TAG, false)
 
+    // A HyperOS cleaner force-stopped Blisko mid-share (SystemKill). Seen on the lock screen; the tap opens the help.
+    fun postKilled(ctx: Context) =
+        show(ctx, R.string.notif_killed_title, R.string.notif_killed_text, SystemKill.TAG, false)
+
     fun postShareResumed(ctx: Context, @StringRes textRes: Int) =
         show(ctx, R.string.notif_resumed_title, textRes, ShareResume.RESUMED_TAG, false)
 

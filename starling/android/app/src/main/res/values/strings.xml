@@ -24,7 +24,10 @@
     <string name="notif_remind_text">Otwórz Blisko, żeby znowu udostępniać.</string>
     <string name="notif_resume_boot_text">Telefon uruchomił się ponownie. Dotknij, żeby znowu udostępniać.</string>
     <string name="notif_resume_update_text">Blisko zostało zaktualizowane. Dotknij, żeby znowu udostępniać.</string>
+    <string name="notif_killed_title">Telefon zamknął Blisko</string>
+    <string name="notif_killed_text">Rodzina mogła cię nie widzieć. Nie zamykaj Blisko i otwórz pomoc w aplikacji.</string>
     <string name="notif_resume_killed_text">Telefon zatrzymał Blisko w tle. Dotknij, żeby znowu udostępniać.</string>
+    <string name="notif_resume_sticky_text">Dotknij, aby wznowić udostępnianie.</string>
     <string name="notif_title_resumed_boot">Znowu udostępniasz po ponownym uruchomieniu</string>
     <string name="notif_title_resumed_update">Znowu udostępniasz po aktualizacji</string>
     <string name="notif_waiting_orbot">Czekam na Orbota. Nic nie zostanie wysłane, dopóki Tor się nie połączy.</string>

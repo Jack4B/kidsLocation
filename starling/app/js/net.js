@@ -51,6 +51,10 @@ export function pollDelay(hidden, wrapped, still = false) {
 
 export const STALE_MS = 3 * 60 * 1000;
 
+// Past this, a sharer with no bye has most likely had the app closed under
+// them (HyperOS cleaners); the circle is told. Still mode posts every five minutes.
+export const SILENT_MS = 20 * 60 * 1000;
+
 // One of the four letters or nothing; a post without one clears it.
 export const actFrom = (obj) => (typeof obj?.act === "string" && ACTIVITIES.includes(obj.act) ? obj.act : null);
 
