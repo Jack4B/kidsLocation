@@ -6,7 +6,14 @@ pytania do właściciela. Drugi model zaczyna od zera, więc pisz konkretnie.
 
 ---
 
-## 2026-10-25, Claude, F5-22: Xiaomi zamyka Blisko, udostępnianie wraca samo
+## 2026-10-25, F5-22b: poprawki P2 po recenzji PR #39
+
+- Nagłówek F5-22 bez nazwy modelu.
+- `StarlingApp.appScope` (`SupervisorJob` + `Dispatchers.IO`) zamiast jednorazowego `CoroutineScope(Dispatchers.IO)`.
+- `notif_killed_title`, `notif_killed_text` i `notif_resume_sticky_text` przetłumaczone na de/es/fr/pt (wcześniej angielskie kopie). Test w `test/system-kill.test.mjs`.
+- Testy przed zmianą: 1298, 1264 zaliczone, 0 błędów, 34 pominięte. Po zmianie: 1299, 1265 zaliczone, 0 błędów, 34 pominięte. `check-clean.sh` czysty. Nie sprawdzone na telefonie.
+
+## 2026-10-25, F5-22: Xiaomi zamyka Blisko, udostępnianie wraca samo
 
 - Zgłoszenie: Xiaomi 22111317PG (Android 14, HyperOS), raport: „FORCE STOP stop app.kidslocation due to LockScreenClean” (REASON_USER_REQUESTED), wcześniej „SwipeUpClean”. Mimo Autostartu, „Bez ograniczeń”, lokalizacji „Zawsze” i wszystkich przełączników w aplikacji.
 - POCO X5 5G (najnowszy HyperOS) nie ma kłódki w ostatnich aplikacjach, więc nic na niej nie polega.

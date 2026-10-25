@@ -12,6 +12,7 @@ import android.os.Looper
 import android.provider.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -146,11 +147,16 @@ object SystemKill {
 
 // Every process start passes through here first.
 class StarlingApp : android.app.Application() {
+    companion object {
+        // One scope for the process's background work; a failed job never cancels the others.
+        val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Before any receiver reads a switch, so a short local write on the main thread.
         runCatching { ShareResume.settleDefaults(this) }
         // The exit history is an IPC call; it waits for nothing that comes after it.
-        CoroutineScope(Dispatchers.IO).launch { runCatching { SystemKill.onProcessStart(this@StarlingApp) } }
+        appScope.launch { runCatching { SystemKill.onProcessStart(this@StarlingApp) } }
     }
 }

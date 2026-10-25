@@ -24,7 +24,7 @@
     <string name="notif_resume_boot_text">Dein Telefon wurde neu gestartet. Tippe, um wieder zu teilen.</string>
     <string name="notif_resume_update_text">Blisko wurde aktualisiert. Tippe, um wieder zu teilen.</string>
     <string name="notif_resume_killed_text">Your phone stopped Blisko in the background. Tap to share again.</string>
-    <string name="notif_resume_sticky_text">Tap to resume sharing.</string>
+    <string name="notif_resume_sticky_text">Tippe, um das Teilen fortzusetzen.</string>
     <string name="notif_title_resumed_boot">Teilst wieder nach einem Neustart</string>
     <string name="notif_title_resumed_update">Teilst wieder nach einem Update</string>
     <string name="notif_waiting_orbot">Warte auf Orbot. Nichts wird gesendet, bis Tor verbunden ist.</string>
@@ -53,6 +53,6 @@
     <string name="android9_title">Dieses Handy läuft mit Android 9</string>
     <string name="android9_body">Googles letzte Sicherheitsupdates für Android 9 kamen im Januar 2022. Blisko funktioniert hier, aber seitdem gefundene Lücken in Android bleiben auf diesem Handy offen, und eine schädliche App oder Website könnte eine davon nutzen, um deinen Standort zu verfolgen.\n\nAndroid 9 kann den Standortzugriff auch nicht auf \"nur während der Nutzung\" beschränken, die Berechtigung gilt also immer. Blisko liest deinen Standort nur, während du es benutzt oder teilst.\n\nWenn du kannst, nimm ein neueres Handy.</string>
     <string name="notif_location_on">Standort einschalten</string>
-    <string name="notif_killed_title">The phone closed Blisko</string>
-    <string name="notif_killed_text">Your family may not have seen you. Keep Blisko open and see the help in the app.</string>
+    <string name="notif_killed_title">Dein Telefon hat Blisko geschlossen</string>
+    <string name="notif_killed_text">Deine Familie hat dich vielleicht nicht gesehen. Schließe Blisko nicht und öffne die Hilfe in der App.</string>
 </resources>

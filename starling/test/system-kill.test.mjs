@@ -44,7 +44,8 @@ test("point 1: a HyperOS cleaner's stop is told apart from a person's", () => {
 test("point 1: every process start reads the last exit once, and resumes only a share that was on", () => {
   const src = kt("SystemKill.kt");
   const app = src.slice(src.indexOf("class StarlingApp"));
-  assert.match(app, /CoroutineScope\(Dispatchers\.IO\)\.launch \{ runCatching \{ SystemKill\.onProcessStart\(this@StarlingApp\) \} \}/, "the exit history is read off the main thread");
+  assert.match(app, /val appScope = CoroutineScope\(SupervisorJob\(\) \+ Dispatchers\.IO\)/, "one shared scope for the process");
+  assert.match(app, /appScope\.launch \{ runCatching \{ SystemKill\.onProcessStart\(this@StarlingApp\) \} \}/, "the exit history is read off the main thread");
   const manifest = readFileSync(new URL("../android/app/src/main/AndroidManifest.xml", import.meta.url), "utf8");
   assert.match(manifest, /<application[^>]*android:name="\.StarlingApp"/);
   const start = code(fn(src, "onProcessStart"));
@@ -116,7 +117,7 @@ test("point 4: the on defaults reach a new install only, never an update", () =>
   assert.match(sr, /DEFAULT_KEYS\.associateWith \{ saved\[it\] \?: fresh \}/, "the rule the Kotlin unit test (SettleDefaultsTest) pins");
   assert.match(sr, /PREF_DEFAULTS = "defaults_settled"/);
   const app = kt("SystemKill.kt").slice(kt("SystemKill.kt").indexOf("class StarlingApp"));
-  assert.ok(app.indexOf("settleDefaults") >= 0 && app.indexOf("settleDefaults") < app.indexOf("Dispatchers.IO"), "settled first, on the main thread, before any receiver");
+  assert.ok(app.indexOf("settleDefaults") >= 0 && app.indexOf("settleDefaults") < app.indexOf("appScope.launch"), "settled first, on the main thread, before any receiver");
 });
 
 test("a cleaner's kill and a restart's broadcast never start the share twice", () => {
@@ -167,4 +168,15 @@ test("points 2, 3, 6, 8: the page side", () => {
   assert.match(help, /com\.miui\.permcenter\.autostart\.AutoStartManagementActivity/);
   assert.match(help, /com\.miui\.powerkeeper\.ui\.HiddenAppsConfigActivity/);
   assert.match(help, /ACTION_APPLICATION_DETAILS_SETTINGS/, "falls back to the app's own settings");
+});
+
+test("the new notifications speak every language, not English copies", () => {
+  for (const l of ["de", "es", "fr", "pt"]) {
+    const x = readFileSync(new URL(`../android/app/src/main/res/values-${l}/strings.xml`, import.meta.url), "utf8");
+    for (const name of ["notif_killed_title", "notif_killed_text", "notif_resume_sticky_text"]) {
+      const v = x.match(new RegExp(`name="${name}">([^<]*)<`))?.[1];
+      assert.ok(v, `${l} ${name}`);
+      assert.doesNotMatch(v, /^(The phone|Your family|Tap to)/, `${l} ${name} is translated`);
+    }
+  }
 });
