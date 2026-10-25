@@ -19,7 +19,7 @@ To repozytorium trzyma też plan, decyzje, zasady pracy modeli i dziennik przeka
 | Kto | Co przeczytać |
 |---|---|
 | Każdy model | `AGENTS.md`, potem `docs/PLAN.md`, `docs/ARCHITEKTURA.md`, `docs/DECYZJE.md` |
-| Claude | dodatkowo `CLAUDE.md` |
+| Claude | dodatkowo `CLAUDE.md` (stack, workflow z recenzją [Forge], podpis, versionCode) |
 | Gemini | dodatkowo `GEMINI.md` |
 | Grok | dodatkowo `GROK.md` (na razie nie bierze udziału w pracy) |
 | Właściciel | `docs/PODPIS-APK.md` (instalacja i aktualizacje APK), `docs/WDROZENIE-CT8.md` (serwer), `docs/PODLACZENIE-AGENTOW.md` |

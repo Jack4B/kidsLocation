@@ -84,8 +84,8 @@ jedzie), czat. Poza zakresem: wykrywanie wypadków, raporty jazdy, rankingi, rek
 
 ## D6. Język
 
-Status: **proponowana**. Aplikacja w całości po polsku (F2-6). Dokumenty projektu po polsku,
-kod i commity po angielsku.
+Status: **proponowana**. Aplikacja w całości po polsku (F2-6). Dokumentacja, opisy PR, commity
+i komentarze po polsku. Identyfikatory w kodzie po angielsku (zgodność z upstreamem Starlinga).
 
 ## D7. Wspólne miejsca w kręgu
 
@@ -105,4 +105,18 @@ Pytania do właściciela (w nawiasie rekomendacja):
    dotknięciem)
 4. Czy alert „Kuba dotarł do Szkoły” ma przychodzić każdemu w kręgu? (tak, z tymi samymi
    zasadami prywatności powiadomień co dziś)
+
+## D8. versionCode po przekroczeniu 1000 buildów
+
+Status: **otwarta, ryzyko**. Zgłoszone przez właściciela 2026-10-25.
+
+Fakty: `versionCode = 2100 * 1000 + FAMILY_BUILD`, a `FAMILY_BUILD` to `github.run_number`
+(`starling/android/app/build.gradle.kts`, `.github/workflows/aplikacja.yml`). Gdy `run_number`
+dojdzie do 1000, dolna część zaczyna nachodzić na górną (część upstreamu): build 1000 na 2100
+daje ten sam numer co build 0 na 2101. Dopóki `run_number` rośnie, a górna część nigdy nie
+maleje, numery nadal rosną i APK się zainstaluje, ale z numeru nie da się już odczytać wersji
+upstreamu. Gorzej, jeśli licznik kiedyś się wyzeruje (nowe repo albo nowy workflow): wtedy numer
+spadnie i Android odmówi aktualizacji.
+
+Do rozstrzygnięcia przed około 1000. uruchomieniem workflow: szerszy mnożnik albo osobny licznik.
 
