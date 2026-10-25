@@ -141,6 +141,33 @@ function exitLines(h) {
   return lines;
 }
 
+const CLEANERS = new Set(["LockScreenClean", "SwipeUpClean", "OneKeyClean"]);
+const SKIP_WORDS = { keepSharing: "keep sharing off", background: "no location all the time", notifications: "notifications off" };
+
+// What the vendor killer and Android's background rules did to the last share.
+export function killLines(h) {
+  const lines = [];
+  const k = h.systemKill;
+  if (k && typeof k === "object" && CLEANERS.has(k.why) && Number.isFinite(k.at) && k.at > 0) {
+    const when = new Date(k.at).toISOString().slice(0, 16).replace("T", " ");
+    const gap = Math.max(0, Math.round((Number(k.gapMs) || 0) / 60000));
+    lines.push(`Zabite przez system Xiaomi: ${k.why}, ${when}Z, przerwa ${gap} min`);
+  }
+  if (h.fgsDenied && typeof h.fgsDenied === "object") {
+    const n = Number.isSafeInteger(h.fgsDenied.count) ? h.fgsDenied.count : 0;
+    lines.push(
+      n > 0
+        ? `Background service start refused: ${n} times, last ${age(h.fgsDenied.agoMs)}`
+        : "Background service start refused: never",
+    );
+  }
+  if (h.resumeSkip && typeof h.resumeSkip === "object" && Object.hasOwn(SKIP_WORDS, h.resumeSkip.why)) {
+    lines.push(`Last resume skipped: ${SKIP_WORDS[h.resumeSkip.why]}, ${age(h.resumeSkip.agoMs)}`);
+  }
+  if (typeof h.batteryIgnoring === "boolean") lines.push(`Battery optimization ignored: ${yn(h.batteryIgnoring)}`);
+  return lines;
+}
+
 export function shareReport({ h, page, now }) {
   const p = page || {};
   const lines = ["Blisko sharing report"];
@@ -191,6 +218,7 @@ export function shareReport({ h, page, now }) {
     lines.push(`Page frozen during shares: ${num(h.freezes)} times, woken ${num(h.nudges)} times, last answered ${age(h.lastPulseMs)}`);
     if (h.holderFailed) lines.push("Could not hold the page after the app closed");
     lines.push(...exitLines(h));
+    lines.push(...killLines(h));
   }
   lines.push(`Posts this share: ${num(p.ok ?? 0)} sent, ${num(p.failed ?? 0)} failed`);
   const f = p.fixes || {};

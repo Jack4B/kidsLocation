@@ -560,9 +560,10 @@ object PageHost {
     fun shouldKeepAlive(ctx: Context): Boolean =
         LocationService.running && keepSharing(ctx)
 
+    // On for a new install, like the resume switches (ShareResume.settleDefaults).
     fun keepSharing(ctx: Context): Boolean =
         ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
-            .getBoolean(MainActivity.PREF_KEEP_SHARING, false)
+            .getBoolean(MainActivity.PREF_KEEP_SHARING, true)
 
     fun setKeepSharing(ctx: Context, on: Boolean) {
         ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE).edit()

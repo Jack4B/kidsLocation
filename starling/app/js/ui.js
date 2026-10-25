@@ -11,7 +11,7 @@ import { t, currentLocale, LOCALE_CHOICES, BRAND } from "./i18n.js";
 import { isBundled, native, pageShown } from "./env.js";
 import { PLACE_RADII, MAX_PLACES, MAX_NAME_LEN, EXIT_FACTOR, EXIT_PAD_M } from "./places.js";
 import { DEFAULT_TIMER_MIN, TIMER_CHOICES_MIN } from "./checkin.js";
-import { staleAfter } from "./net.js";
+import { staleAfter, SILENT_MS } from "./net.js";
 import { VERSION } from "./version.js";
 
 const AUTHOR = { name: "Munzzyy", url: "https://github.com/munzzyy" };
@@ -1779,9 +1779,6 @@ export function confirmBackgroundLocation({ mode, label }) {
 
 export function autoResumeNote(st) {
   const blocked = (line, button = null) => ({ disabled: true, button, lines: [line] });
-  if (st.lock) {
-    return blocked(t("Off while the app lock is on. After a restart or an update your passcode seals the circle key, so nothing can share until you unlock Starling. You get a notification with a tap to share again instead."));
-  }
   if (!st.keepSharing) {
     return blocked(t("These need Keep sharing when the app is closed, because a share that comes back runs with the app closed."));
   }
@@ -1803,10 +1800,43 @@ export function autoResumeNote(st) {
     button = "app";
   }
   lines.push(t("A share that comes back this way shows the sharing notification and an alert that it came back. It never brings back a share you stopped, a timed share that ran out, or anything after a panic wipe."));
+  if (st.lock) {
+    lines.push(t("The app lock is on, so the circle key stays sealed until you unlock Blisko. A share that comes back then shows a notification with a tap to share again."));
+  }
   if (st.tor) {
     lines.push(t("Route through Orbot is on, so a share that comes back sends nothing until Orbot connects. If it has not connected after 5 minutes, you get a notification with a tap to share again instead."));
   }
   return { disabled: false, button, lines };
+}
+
+// After a HyperOS cleaner force-stopped Blisko mid-share. Every vendor screen
+// can be missing on some build; the wrapper falls back to the app's settings.
+export function openKillHelpSheet({ canOpen, onOpen, onClose }) {
+  const ov = openOverlay({ title: "Keep your phone from closing Blisko", testid: "kill-help-sheet", onClose });
+  ov.body.append(
+    el("p", "ov-note", "Xiaomi, Redmi and POCO phones close apps to save battery, even with every setting on. Your family then stops seeing you until you open Blisko again. Set these:"),
+  );
+  const step = (text, label, which) => {
+    const box = el("div", "set-background");
+    box.append(el("p", "field-note", text));
+    if (canOpen && label) {
+      const b = btn("btn btn-secondary", label);
+      b.dataset.testid = `kill-help-${which}`;
+      b.addEventListener("click", () => onOpen(which));
+      box.append(b);
+    }
+    ov.body.append(box);
+  };
+  step("1. Turn Autostart on for Blisko.", "Open Autostart", "autostart");
+  step("2. Set battery saving for Blisko to No restrictions.", "Open battery settings", "battery");
+  step("3. In Permissions, set Location to Allow all the time.", "Open app settings", "app");
+  step("4. If your phone has it: in recent apps, hold Blisko and tap the padlock. Not every HyperOS shows one; the POCO X5 5G does not.", "", "");
+  step("5. Do not close Blisko from recent apps or with the clean-up button.", "", "");
+  const ok = btn("btn btn-primary", "Got it");
+  ok.dataset.testid = "kill-help-ok";
+  ok.addEventListener("click", () => ov.close());
+  ov.body.append(ok);
+  return ov;
 }
 
 // Turning sharing off is one tap on a big button, and nobody notices it has
@@ -3669,6 +3699,7 @@ export function agoText(msAgo) {
 export function personLine(rec, now, status, place) {
   if (status === "sos") return t("Sending SOS");
   if (status === "overdue") return t("Missed check-in");
+  if (status === "stale" && now - rec.ts > SILENT_MS) return t("No signal for {n} min", { n: Math.floor((now - rec.ts) / 60000) });
   if (status === "stale" || status === "stopped") return t("No signal");
   if (place) return t("At {place}", { place });
   if (status === "checkin") return t("Checked in");

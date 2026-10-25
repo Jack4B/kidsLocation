@@ -28,10 +28,13 @@ object ShareResume {
     const val RESUMED_TAG = "resumed"
     private const val PREF_AT = "resume_armed_at"
     private const val PREF_DEADLINE = "resume_deadline"
-    private const val PREF_AUTO_BOOT = "resume_auto_boot"
-    private const val PREF_AUTO_UPDATE = "resume_auto_update"
+    const val PREF_AUTO_BOOT = "resume_auto_boot"
+    const val PREF_AUTO_UPDATE = "resume_auto_update"
+    private const val PREF_DEFAULTS = "defaults_settled"
     private const val PREF_LAST_WHY = "resume_auto_last_why"
     private const val PREF_LAST_AT = "resume_auto_last_at"
+    private const val PREF_SKIP_WHY = "resume_skip_why"
+    private const val PREF_SKIP_AT = "resume_skip_at"
 
     private const val CONFIRM_MS = 90_000L
     private const val ORBOT_WAIT_MS = 300_000L
@@ -151,7 +154,40 @@ object ShareResume {
         if (!killedBySystem(p.getLong(PREF_AT, 0L), p.getString(MainActivity.PREF_STOP_ROUTE, null), p.getLong(MainActivity.PREF_STOP_TS, 0L))) return
         if (!dueNow(ctx)) return
         armWatchdog(ctx)
-        resumeOrOffer(ctx, "boot", R.string.notif_resume_killed_text)
+        resumeOrOffer(ctx, "boot", R.string.notif_resume_killed_text, anySwitch = true)
+    }
+
+    // Was a share running when the process died at exitAt? Armed before it,
+    // still due, and no stop a person made since it was armed.
+    fun sharingWhenKilled(ctx: Context, exitAt: Long): Boolean {
+        val p = prefs(ctx)
+        val armedAt = p.getLong(PREF_AT, 0L)
+        if (armedAt <= 0L || armedAt > exitAt) return false
+        if (!killedBySystem(armedAt, p.getString(MainActivity.PREF_STOP_ROUTE, null), p.getLong(MainActivity.PREF_STOP_TS, 0L))) return false
+        return dueNow(ctx)
+    }
+
+    // LocationService came back through START_STICKY, with nothing to say why.
+    // Posted, because the service that called is stopping itself first.
+    fun onSticky(ctx: Context) {
+        val app = ctx.applicationContext
+        PageHost.post(Runnable {
+            if (LocationService.running || starting || PageHost.alive) return@Runnable
+            val p = prefs(app)
+            if (!killedBySystem(p.getLong(PREF_AT, 0L), p.getString(MainActivity.PREF_STOP_ROUTE, null), p.getLong(MainActivity.PREF_STOP_TS, 0L))) return@Runnable
+            if (!dueNow(app)) return@Runnable
+            // Android 12 to 14 usually refuse this start from the background; the offer is the tap.
+            resumeOrOffer(app, "boot", R.string.notif_resume_sticky_text, anySwitch = true)
+        }, 1_000L)
+    }
+
+    // A HyperOS cleaner force-stopped the app mid-share (SystemKill). Same path as the watchdog,
+    // unless a window got here first: its page resumes the share by its own rules.
+    fun onKilled(ctx: Context) {
+        if (LocationService.running || starting || PageHost.alive) return
+        if (!dueNow(ctx)) return
+        armWatchdog(ctx)
+        resumeOrOffer(ctx, "boot", R.string.notif_resume_killed_text, anySwitch = true)
     }
 
     fun onSystemStart(ctx: Context, why: String) {
@@ -160,13 +196,16 @@ object ShareResume {
         resumeOrOffer(ctx, why, offerText(why))
     }
 
-    private fun resumeOrOffer(ctx: Context, why: String, @StringRes offer: Int) {
+    // anySwitch: a share the system killed comes back with either switch on.
+    private fun resumeOrOffer(ctx: Context, why: String, @StringRes offer: Int, anySwitch: Boolean = false) {
         val due = dueNow(ctx)
         val keep = PageHost.keepSharing(ctx)
         val background = backgroundHeld(ctx)
         val notifications = notificationsVisible(ctx)
-        if (!(keep && background && notifications)) autoOff(ctx)
-        val autoOn = if (why == "boot") autoBoot(ctx) else autoUpdate(ctx)
+        // A grant missing for a moment skips this resume and says why; the switches stay as the person left them.
+        val missing = skipReason(keep, background, notifications)
+        if (due && missing != null) noteSkip(ctx, missing)
+        val autoOn = if (anySwitch) autoBoot(ctx) || autoUpdate(ctx) else if (why == "boot") autoBoot(ctx) else autoUpdate(ctx)
         val torOn = TorProxy.enabled(ctx)
         // Both load the WebView provider, so only once nothing cheaper has said no.
         val rest = due && autoOn && keep && background && notifications
@@ -180,19 +219,59 @@ object ShareResume {
                 LocationService.startResumed(ctx, why)
             } catch (e: Exception) {
                 starting = false
+                if (SystemKill.isFgsDenied(e)) SystemKill.noteFgsDenied(ctx)
                 Events.postShareResume(ctx, offer)
             }
         }
     }
 
-    fun autoBoot(ctx: Context): Boolean = prefs(ctx).getBoolean(PREF_AUTO_BOOT, false)
+    // On for a new install: a family app that stays off after a restart is a child nobody can see.
+    // An install from before F5-22 keeps what it had: settleDefaults writes off for a switch nobody touched.
+    fun autoBoot(ctx: Context): Boolean = prefs(ctx).getBoolean(PREF_AUTO_BOOT, true)
 
-    fun autoUpdate(ctx: Context): Boolean = prefs(ctx).getBoolean(PREF_AUTO_UPDATE, false)
+    fun autoUpdate(ctx: Context): Boolean = prefs(ctx).getBoolean(PREF_AUTO_UPDATE, true)
 
-    // A switch that can no longer be honoured is turned off, never left waiting.
-    fun autoState(ctx: Context): String {
-        if (!(PageHost.keepSharing(ctx) && backgroundHeld(ctx) && notificationsVisible(ctx))) autoOff(ctx)
-        return JSONObject().put("boot", autoBoot(ctx)).put("update", autoUpdate(ctx)).toString()
+    // Once per install, before any receiver runs (StarlingApp). The true defaults
+    // are for a new install only; an update must not turn sharing on unasked.
+    fun settleDefaults(ctx: Context) {
+        val p = prefs(ctx)
+        if (p.getBoolean(PREF_DEFAULTS, false)) return
+        val info = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0) }.getOrNull()
+        val fresh = info != null && info.firstInstallTime == info.lastUpdateTime
+        val saved = DEFAULT_KEYS.filter { p.contains(it) }.associateWith { p.getBoolean(it, false) }
+        val e = p.edit()
+        for ((k, v) in settled(saved, fresh)) e.putBoolean(k, v)
+        e.putBoolean(PREF_DEFAULTS, true).commit()
+    }
+
+    val DEFAULT_KEYS = listOf(MainActivity.PREF_KEEP_SHARING, PREF_AUTO_BOOT, PREF_AUTO_UPDATE)
+
+    // What each switch holds once settled: a value the person saved stays; a
+    // missing one is on for a new install and off (the old default) for an update.
+    fun settled(saved: Map<String, Boolean>, fresh: Boolean): Map<String, Boolean> =
+        DEFAULT_KEYS.associateWith { saved[it] ?: fresh }
+
+    // The switches as the person left them. A gate that fails now skips the
+    // next resume and is written down (skipRecord); it does not turn them off.
+    fun autoState(ctx: Context): String =
+        JSONObject().put("boot", autoBoot(ctx)).put("update", autoUpdate(ctx)).toString()
+
+    fun skipReason(keep: Boolean, background: Boolean, notifications: Boolean): String? = when {
+        !keep -> "keepSharing"
+        !background -> "background"
+        !notifications -> "notifications"
+        else -> null
+    }
+
+    private fun noteSkip(ctx: Context, why: String) {
+        prefs(ctx).edit().putString(PREF_SKIP_WHY, why).putLong(PREF_SKIP_AT, System.currentTimeMillis()).apply()
+    }
+
+    fun skipRecord(ctx: Context): JSONObject? {
+        val p = prefs(ctx)
+        val why = p.getString(PREF_SKIP_WHY, null) ?: return null
+        val at = p.getLong(PREF_SKIP_AT, 0L)
+        return JSONObject().put("why", why).put("agoMs", if (at > 0L) System.currentTimeMillis() - at else JSONObject.NULL)
     }
 
     // On needs a person at the window and every gate passed; off always works.

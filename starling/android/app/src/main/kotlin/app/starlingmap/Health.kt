@@ -116,6 +116,13 @@ object Health {
         val stopTs = prefs.getLong(MainActivity.PREF_STOP_TS, 0L)
         o.put("stopAgoMs", if (stopTs > 0L) System.currentTimeMillis() - stopTs else JSONObject.NULL)
         o.put("exits", exits(ctx))
+        o.put("systemKill", SystemKill.record(ctx) ?: JSONObject.NULL)
+        o.put("fgsDenied", SystemKill.fgsDenied(ctx))
+        o.put("resumeSkip", ShareResume.skipRecord(ctx) ?: JSONObject.NULL)
+        o.put(
+            "batteryIgnoring",
+            ctx.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(ctx.packageName) == true,
+        )
         o.put(
             "tor",
             ctx.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE).getBoolean(MainActivity.PREF_TOR, false),

@@ -322,9 +322,23 @@ class StarlingBridge(private val app: Context) {
 
     // ------------------------------------------------- keep sharing when closed
 
-    // Off by default, and deliberately not something the page decides on its
-    // own: with it on, closing the app leaves this process holding the circle's
-    // keys until the share ends. Kotlin reads the switch straight from prefs,
+    // A HyperOS cleaner's kill (SystemKill): why, when, how long, whether the notice is still owed.
+    @JavascriptInterface
+    fun systemKill(): String = SystemKill.record(app)?.toString() ?: ""
+
+    @JavascriptInterface
+    fun systemKillSeen() = SystemKill.noticeSeen(app)
+
+    @JavascriptInterface
+    fun isXiaomi(): Boolean = SystemKill.isXiaomi()
+
+    // "autostart", "battery" or "app": the vendor screen, or Blisko's app settings when it is missing.
+    @JavascriptInterface
+    fun openKillHelp(which: String): Boolean = SystemKill.openHelp(app, which)
+
+    // On by default for a new install (PageHost.keepSharing). Deliberately not
+    // something the page decides on its own: with it on, closing the app leaves
+    // this process holding the circle's keys until the share ends. Kotlin reads the switch straight from prefs,
     // because the moment it matters is a task removal, when asking the page
     // anything is already too late.
     @JavascriptInterface

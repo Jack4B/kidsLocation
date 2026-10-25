@@ -346,9 +346,11 @@ test("the status note under the switches, for every state the wrapper can report
   assert.match(note({}).lines[0], /only while you use the app. Turning one of these on asks Android/);
   assert.match(note({}).lines.at(-1), /It never brings back a share you stopped/);
 
-  const lock = note({ lock: true, keepSharing: false, notifications: false });
-  assert.equal(lock.disabled, true);
-  assert.match(lock.lines[0], /^Off while the app lock is on/, "the lock is the reason given first");
+  // F5-22: the lock no longer blocks the switches; it only says what it means.
+  const lock = note({ lock: true });
+  assert.equal(lock.disabled, false, "the app lock never blocks turning resume on");
+  assert.match(lock.lines.join(" "), /The app lock is on, so the circle key stays sealed/);
+  assert.equal(note({ lock: true, keepSharing: false }).disabled, true, "Keep sharing off still blocks");
 
   const keep = note({ keepSharing: false });
   assert.equal(keep.disabled, true);
@@ -410,10 +412,10 @@ test("in Settings the switches sit under Keep sharing, repaint from the wrapper,
   });
   const sw = (id) => findTestid(host, id).children[1];
   const box = () => findTestid(host, "settings-auto-resume");
-  assert.equal(sw("settings-auto-boot").disabled, true, "nothing turns on under the app lock");
-  assert.equal(sw("settings-auto-update").disabled, false, "but one already on can be turned off");
+  assert.equal(sw("settings-auto-boot").disabled, false, "the app lock does not block turning one on");
+  assert.equal(sw("settings-auto-update").disabled, false, "and one already on can be turned off");
   assert.equal(sw("settings-auto-update").getAttribute("aria-checked"), "true");
-  assert.match(textOf(box()), /Off while the app lock is on/);
+  assert.match(textOf(box()), /The app lock is on, so the circle key stays sealed/);
 
   st = { ...st, lock: false, update: false };
   sheet.refresh();
@@ -510,9 +512,8 @@ test("Not now, a denial, or Android having stopped asking all leave it off", asy
   assert.ok(toasts().includes("Android still allows your location only while you use Blisko, so this stays off."), "a quick no from the Android 10 dialog is just a no");
 });
 
-test("the lock, Keep sharing off, hidden notifications or no location at all refuse before asking anything", async () => {
+test("Keep sharing off, hidden notifications or no location at all refuse before asking anything", async () => {
   for (const [why, over, extra] of [
-    ["app lock", {}, () => (state.lock = { enabled: true })],
     ["keep sharing off", { keep: false }],
     ["notifications hidden", { notif: false }],
     ["no location permission yet", { bg: "noLocation" }],
@@ -654,8 +655,10 @@ test("Kotlin: one gate decides, and it needs every input", () => {
   assert.match(code(fn(src, "onSystemStart")), /if \(LocationService\.running \|\| starting\) return/, "a share already running is left alone");
   assert.match(code(fn(src, "onWatchdog")), /if \(LocationService\.running \|\| starting\) \{/, "the watchdog leaves a running share alone too");
   const start = code(fn(src, "resumeOrOffer"));
-  assert.match(start, /if \(!\(keep && background && notifications\)\) autoOff\(ctx\)/, "a switch that cannot be honoured goes off");
-  assert.match(start, /Path\.HEADLESS -> try \{\s*starting = true\s*LocationService\.startResumed\(ctx, why\)\s*\} catch \(e: Exception\) \{\s*starting = false\s*Events\.postShareResume\(ctx, offer\)/);
+  assert.doesNotMatch(start, /autoOff\(/, "F5-22: a grant missing for a moment never turns the switches off");
+  assert.match(start, /val missing = skipReason\(keep, background, notifications\)\s*if \(due && missing != null\) noteSkip\(ctx, missing\)/, "it skips and says why");
+  assert.match(src, /fun autoState\(ctx: Context\): String =\s*JSONObject\(\)\.put\("boot", autoBoot\(ctx\)\)\.put\("update", autoUpdate\(ctx\)\)\.toString\(\)/, "reading the switches never clears them");
+  assert.match(start, /Path\.HEADLESS -> try \{\s*starting = true\s*LocationService\.startResumed\(ctx, why\)\s*\} catch \(e: Exception\) \{\s*starting = false\s*if \(SystemKill\.isFgsDenied\(e\)\) SystemKill\.noteFgsDenied\(ctx\)\s*Events\.postShareResume\(ctx, offer\)/);
   for (const f of ["ShareResume.kt", "LocationService.kt", "PageHost.kt", "MainActivity.kt", "StarlingBridge.kt", "Wipe.kt", "TorProxy.kt"]) {
     const hits = (kt(f).match(/startResumed\(/g) || []).length;
     const want = f === "ShareResume.kt" ? 1 : f === "LocationService.kt" ? 1 : 0;
@@ -664,7 +667,7 @@ test("Kotlin: one gate decides, and it needs every input", () => {
   assert.match(kt("LocationService.kt"), /fun startResumed\(ctx: Context, why: String\) \{/, "LocationService only defines it");
 });
 
-test("Kotlin: the service says why before it goes foreground, holds your own server back, and is never sticky", () => {
+test("Kotlin: the service says why before it goes foreground, holds your own server back, and is sticky only for a share", () => {
   const svc = kt("LocationService.kt");
   const start = code(fn(svc, "onStartCommand"));
   const why = start.indexOf("resumedWhy = ");
@@ -676,9 +679,13 @@ test("Kotlin: the service says why before it goes foreground, holds your own ser
   assert.match(start, /if \(resume\) \{\s*if \(live\) ShareResume\.serviceUp\(this\) else ShareResume\.startFailed\(this\)\s*\}/);
   assert.match(fn(svc, "onLocationChanged"), /if \(!resumePending\) Forward\.maybeSend\(this, location\)/);
   assert.match(fn(svc, "onDestroy"), /ShareResume\.serviceGone\(\)/);
-  for (const f of ["LocationService.kt", "ShareResume.kt", "PageHost.kt"]) {
-    assert.doesNotMatch(kt(f), /(?<!NOT_)START_STICKY|START_REDELIVER_INTENT/, `${f} never asks Android to restart it`);
+  // F5-22: a running share asks Android to bring it back; the restart (no intent) goes through ShareResume.
+  assert.match(start, /if \(intent == null\) \{\s*if \(running\) return START_STICKY\s*stopAsked = true\s*stopSelf\(startId\)\s*ShareResume\.onSticky\(this\)\s*return START_NOT_STICKY\s*\}/);
+  assert.match(start, /return START_STICKY\s*\}$/, "a share that went foreground is sticky");
+  for (const f of ["ShareResume.kt", "PageHost.kt"]) {
+    assert.doesNotMatch(code(kt(f)), /(?<!NOT_)START_STICKY|START_REDELIVER_INTENT/, `${f} never asks Android to restart it`);
   }
+  assert.doesNotMatch(svc, /START_REDELIVER_INTENT/);
   const build = code(fn(svc, "buildNotification"));
   assert.match(build, /"boot" -> getString\(R\.string\.notif_title_resumed_boot\)/);
   assert.match(build, /"update" -> getString\(R\.string\.notif_title_resumed_update\)/);
@@ -756,7 +763,6 @@ test("Kotlin: a switch goes on only with a person at the window and every gate p
   assert.match(set, /val ready = PageHost\.windowShown && PageHost\.keepSharing\(ctx\) && backgroundHeld\(ctx\) && notificationsVisible\(ctx\)/);
   assert.match(set, /val nextBoot = boot && \(autoBoot\(ctx\) \|\| ready\)/);
   assert.match(set, /val nextUpdate = update && \(autoUpdate\(ctx\) \|\| ready\)/);
-  assert.match(code(fn(src, "autoState")), /if \(!\(PageHost\.keepSharing\(ctx\) && backgroundHeld\(ctx\) && notificationsVisible\(ctx\)\)\) autoOff\(ctx\)/);
   const visible = code(fn(src, "notificationsVisible"));
   assert.match(visible, /areNotificationsEnabled\(\)\) return false/);
   assert.match(visible, /listOf\(LocationService\.CHANNEL, MainActivity\.EVENTS_CHANNEL\)/);
@@ -819,7 +825,7 @@ test("Kotlin: a watchdog alarm brings back a share the system killed, never one 
   const dog = code(fn(src, "onWatchdog"));
   assert.match(dog, /if \(!killedBySystem\(/, "a stop recorded since the share was armed was a person's");
   assert.match(dog, /if \(!dueNow\(ctx\)\) return/, "a window that ran out stays ended");
-  assert.match(dog, /resumeOrOffer\(ctx, "boot", R\.string\.notif_resume_killed_text\)/, "the same gates as a restart");
+  assert.match(dog, /resumeOrOffer\(ctx, "boot", R\.string\.notif_resume_killed_text, anySwitch = true\)/, "the same gates as a restart, with either switch on");
   assert.match(code(fn(src, "disarm")), /cancelWatchdog\(ctx\)/, "stopping a share takes the alarm down");
   assert.match(fn(src, "onReceive"), /ShareResume\.WATCHDOG_ACTION[\s\S]*?ShareResume\.onWatchdog\(context\)/);
   const svc = kt("LocationService.kt");

@@ -24,6 +24,7 @@
     <string name="notif_resume_boot_text">Seu telefone foi reiniciado. Toque para compartilhar de novo.</string>
     <string name="notif_resume_update_text">O Blisko foi atualizado. Toque para compartilhar de novo.</string>
     <string name="notif_resume_killed_text">Your phone stopped Blisko in the background. Tap to share again.</string>
+    <string name="notif_resume_sticky_text">Tap to resume sharing.</string>
     <string name="notif_title_resumed_boot">Compartilhando de novo após reiniciar</string>
     <string name="notif_title_resumed_update">Compartilhando de novo após uma atualização</string>
     <string name="notif_waiting_orbot">Aguardando o Orbot. Nada é enviado até o Tor conectar.</string>
@@ -52,4 +53,6 @@
     <string name="android9_title">Este celular usa Android 9</string>
     <string name="android9_body">As últimas correções de segurança do Google para o Android 9 saíram em janeiro de 2022. O Blisko funciona aqui, mas as falhas do Android encontradas desde então continuam abertas neste celular, e um app ou site malicioso poderia usar uma delas para seguir sua localização.\n\nO Android 9 também não consegue limitar a localização a \"só enquanto o app está em uso\", então a permissão vale o tempo todo. O Blisko só lê sua localização enquanto você está usando ou compartilhando.\n\nSe puder, use um celular mais novo.</string>
     <string name="notif_location_on">Ligar a localização</string>
+    <string name="notif_killed_title">The phone closed Blisko</string>
+    <string name="notif_killed_text">Your family may not have seen you. Keep Blisko open and see the help in the app.</string>
 </resources>

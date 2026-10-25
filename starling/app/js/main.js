@@ -142,7 +142,7 @@ import {
 import * as ui from "./ui.js";
 import { createMapView } from "./map.js";
 import { buildTimeline, peakKmh } from "./timeline.js";
-import { createPoller, createRoster, createSender, statusOf, displayStatus, sortMembers, staleAfter } from "./net.js";
+import { createPoller, createRoster, createSender, statusOf, displayStatus, sortMembers, staleAfter, SILENT_MS } from "./net.js";
 import { createOutbox } from "./outbox.js";
 import { createChatController, chatNotice } from "./chat.js";
 import { mountChat } from "./chatview.js";
@@ -271,6 +271,7 @@ const state = {
   joinIncomplete: null,
   missedRekey: false, // a re-key landed for a generation this device cannot reach
   stranded: false, // nobody else posts on this generation: probably re-keyed without this phone
+  killNotice: null, // a HyperOS cleaner force-stopped the app mid-share; the notice is still owed
   // The ratchet destroyed itself: this device was off past the catch-up cap,
   // so it holds no key this circle still uses and cannot be given one.
   chainDestroyed: false,
@@ -523,6 +524,8 @@ const SELF_KEY = "self";
 // loop: circle switch, leave, demo enter and exit, re-key adoption.
 function resetMemberAlerts() {
   prevStatus.clear();
+  heardLive.clear();
+  silentTold.clear();
   placeTracker.clear();
   batWarned.clear();
 }
@@ -1362,6 +1365,17 @@ function alertItems() {
       kind: "warn",
       title: t("Your circle moved on without this phone"),
       text: t("New keys were made while this device could not be reached, and they cannot be worked out from the old ones. Nothing you send now arrives. Ask somebody in the circle for a fresh invite link."),
+    });
+  }
+
+  if (state.killNotice) {
+    const mins = Math.max(1, Math.round((Number(state.killNotice.gapMs) || 0) / 60000));
+    items.push({
+      id: "killed",
+      kind: "warn",
+      title: t("Your phone closed Blisko"),
+      text: t("Your family could not see you for {n} min. Do not close Blisko from recent apps.", { n: mins }),
+      actions: [{ label: "How to stop it", testid: "alert-killed-help", onClick: openKillHelp }],
     });
   }
 
@@ -6279,6 +6293,50 @@ async function measureClockSkew() {
 // A Stop from the notification stays: someone tapping it is worth knowing
 // about however many shares later.
 // Child mode: the record of the PIN that turning sharing off asks for.
+// A HyperOS cleaner force-stopped the app while it shared (SystemKill.kt).
+// The share itself is resumed by the usual rules; this tells the person why
+// their family lost them, and how to keep it from happening again.
+function loadSystemKill() {
+  let rec = null;
+  try {
+    const raw = native()?.systemKill?.();
+    rec = raw ? JSON.parse(raw) : null;
+  } catch {
+    rec = null;
+  }
+  if (!rec || rec.notice !== true || state.demo) return;
+  state.killNotice = { why: String(rec.why || ""), gapMs: Number(rec.gapMs) || 0, xiaomi: rec.xiaomi === true };
+  // Once the map is up, so the help never covers the lock screen.
+  if (state.killNotice.xiaomi) {
+    setTimeout(() => {
+      if (state.killNotice && !state.locked && state.screen === "map") openKillHelp();
+    }, 1500);
+  }
+}
+
+function openKillHelp() {
+  const n = native();
+  ui.openKillHelpSheet({
+    canOpen: typeof n?.openKillHelp === "function",
+    onOpen: (which) => {
+      try {
+        n.openKillHelp(which);
+      } catch {
+        // older wrapper
+      }
+    },
+    onClose: () => {
+      state.killNotice = null;
+      try {
+        n?.systemKillSeen?.();
+      } catch {
+        // older wrapper
+      }
+      render();
+    },
+  });
+}
+
 let shareGuard = null;
 
 async function loadShareGuard() {
@@ -6714,7 +6772,9 @@ async function toggleAutoResume(which, on) {
     return stored[which];
   }
   const st = autoResumeStatus();
-  if (st.lock || !st.keepSharing || !st.notifications || st.background === "noLocation") return st[which];
+  // The app lock does not block this: a share that comes back while the lock
+  // holds the circle key arrives as a tap to share again instead.
+  if (!st.keepSharing || !st.notifications || st.background === "noLocation") return st[which];
   if (st.background === "dialog" || st.background === "settings") {
     const label = backgroundLabel();
     if (!(await confirmBackground({ mode: st.background, label }))) return readAutoResume()[which];
@@ -7997,6 +8057,10 @@ function backOutOfPick() {
 // Makes each detailed place notification its own id, even two in one tick.
 let placeSeq = 0;
 
+// Members heard within SILENT_MS by this page, and those already announced as silent.
+const heardLive = new Set();
+const silentTold = new Set();
+
 function checkAlerts() {
   const now = Date.now();
   checkOwnTimer(now);
@@ -8074,6 +8138,24 @@ function checkAlerts() {
     }
 
     const muted = !state.demo && state.pinned.get(rec.id)?.muted === true;
+
+    // A sharer gone quiet with no bye: the app was probably closed under them.
+    // Only a silence that began while this page watched, so a fresh start
+    // does not announce every quiet member at once.
+    if (rec.id !== state.identity?.memberId && rec.type !== "bye") {
+      const quietFor = now - rec.ts;
+      if (quietFor <= SILENT_MS) {
+        heardLive.add(rec.id);
+        if (silentTold.delete(rec.id)) cancelEventNotification(`silent-${rec.id}`);
+      } else if (heardLive.has(rec.id) && !silentTold.has(rec.id)) {
+        silentTold.add(rec.id);
+        if (!muted && st !== "sos") {
+          const msg = t("No signal from {who} for {n} min", { who, n: Math.floor(quietFor / 60000) });
+          ui.toast(msg, "warn");
+          notifyEvent(msg, t("Their phone may have closed Blisko. The last position is on the map."), `silent-${rec.id}`, "other");
+        }
+      }
+    }
 
     // Place transitions are tracked whether or not announcements are on, so
     // the "At Home" line stays truthful either way.
@@ -8739,6 +8821,7 @@ async function boot() {
     }
     if (circleName) state.circleName = circleName;
     await loadShareGuard();
+    loadSystemKill();
     state.circleShare = packShare(share);
     if (typeof relay === "string") state.relay = relay;
     state.installDismissed = !!noInstall;

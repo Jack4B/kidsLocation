@@ -402,10 +402,19 @@ class LocationService : Service(), LocationListener {
             }
             return START_NOT_STICKY
         }
-        val resume = intent?.action == ACTION_RESUME
+        // START_STICKY brought the service back in a new process with no page
+        // and no intent. The share goes through the same gates as any resume.
+        if (intent == null) {
+            if (running) return START_STICKY
+            stopAsked = true
+            stopSelf(startId)
+            ShareResume.onSticky(this)
+            return START_NOT_STICKY
+        }
+        val resume = intent.action == ACTION_RESUME
         if (resume) {
             if (running) return START_NOT_STICKY
-            resumedWhy = if (intent?.getStringExtra(EXTRA_WHY) == "update") "update" else "boot"
+            resumedWhy = if (intent.getStringExtra(EXTRA_WHY) == "update") "update" else "boot"
             waitingForTor = TorProxy.enabled(this)
             resumePending = true
         }
@@ -438,6 +447,7 @@ class LocationService : Service(), LocationListener {
             ServiceCompat.startForeground(this, NOTIF_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
         } catch (e: Exception) {
             stopAsked = true
+            if (SystemKill.isFgsDenied(e)) SystemKill.noteFgsDenied(this)
             sink?.invoke(JSONObject().put("error", "location service refused: ${e.message}").put("code", 2).toString())
             if (resume) ShareResume.startFailed(this)
             stopSelf()
@@ -450,7 +460,8 @@ class LocationService : Service(), LocationListener {
         if (resume) {
             if (live) ShareResume.serviceUp(this) else ShareResume.startFailed(this)
         }
-        return START_NOT_STICKY
+        // A share Android kills for memory comes back by itself (onStartCommand with no intent).
+        return START_STICKY
     }
 
     private fun startWatching() {
